@@ -11,15 +11,6 @@ import { initialSortingState, SortingSection, type SortingState } from "./Sortin
 /** Per-section activity progress, kept by the player so it survives moving between sections. */
 export type ActivityStates = Record<string, PredictionState | LabelingState | SortingState>;
 
-export const SECTION_TYPE_LABELS: Record<LessonSection["type"], string> = {
-  hook: "Hook",
-  explanation: "Explanation",
-  prediction: "Prediction",
-  "diagram-labeling": "Diagram",
-  sorting: "Sorting",
-  recap: "Recap",
-};
-
 export function SectionView({
   section,
   activityStates,

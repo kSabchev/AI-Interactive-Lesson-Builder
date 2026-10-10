@@ -2,9 +2,12 @@ import { z } from "zod";
 import { DIAGRAMS, isDiagramId } from "@/lib/assets/diagrams";
 import { VISUAL_IDS } from "@/lib/assets/visuals";
 
+export const SHORT_TEXT_MAX = 160;
+export const TEXT_MAX = 1200;
+
 const id = z.string().min(1).max(64);
-const shortText = z.string().trim().min(1).max(160);
-const text = z.string().trim().min(1).max(1200);
+const shortText = z.string().trim().min(1).max(SHORT_TEXT_MAX);
+const text = z.string().trim().min(1).max(TEXT_MAX);
 
 export const AGE_GROUPS = ["8-10", "11-12"] as const;
 export const DURATIONS = [10, 15] as const;

@@ -6,15 +6,17 @@ import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
 import type { Lesson } from "@/lib/lesson/schema";
-import { isCorrect, type QuizAnswers } from "@/lib/quiz/scoring";
+import { isCorrect, type QuizAnswers, scoreQuiz } from "@/lib/quiz/scoring";
+import { saveAttempt } from "@/lib/storage/db";
 import { QuizResults } from "./QuizResults";
 
-export function QuizRunner({ lesson }: { lesson: Lesson }) {
+/** Runs the final quiz. With `previousAnswers`, it opens on the results of that saved attempt. */
+export function QuizRunner({ lesson, previousAnswers }: { lesson: Lesson; previousAnswers?: QuizAnswers }) {
   const [attempt, setAttempt] = useState(0);
   const [index, setIndex] = useState(0);
-  const [answers, setAnswers] = useState<QuizAnswers>({});
+  const [answers, setAnswers] = useState<QuizAnswers>(previousAnswers ?? {});
   const [pending, setPending] = useState<string | undefined>();
-  const [finished, setFinished] = useState(false);
+  const [finished, setFinished] = useState(Boolean(previousAnswers));
   const feedbackRef = useRef<HTMLDivElement>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const reduceMotion = useReducedMotion();
@@ -40,8 +42,14 @@ export function QuizRunner({ lesson }: { lesson: Lesson }) {
 
   function next() {
     setPending(undefined);
-    if (isLast) setFinished(true);
-    else setIndex(index + 1);
+    if (!isLast) {
+      setIndex(index + 1);
+      return;
+    }
+    setFinished(true);
+    const { score, total } = scoreQuiz(lesson, answers);
+    // Results are shown regardless; failing to persist (e.g. private browsing) only loses the history.
+    saveAttempt({ lessonId: lesson.id, answers, score, total, completedAt: new Date().toISOString() }).catch(() => {});
   }
 
   function retry() {

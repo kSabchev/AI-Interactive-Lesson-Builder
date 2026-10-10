@@ -8,8 +8,8 @@ A web app that turns a science topic into an interactive lesson and follow-up qu
 | --- | --- |
 | 1. Lesson player | ✅ Full-screen player, progress, keyboard navigation, prediction / diagram labeling / sorting activities |
 | 2. Quiz and results | ✅ Five locked-in questions, feedback, score, concepts to revisit, links back to lesson sections |
-| 3. Creation and editing | ⏳ Configuration form, review editor, IndexedDB persistence |
-| 4. AI generation | ⏳ Server pipeline, structured output, validation and retries |
+| 3. Creation and editing | ✅ Review editor with live section preview, IndexedDB persistence for lessons and the latest quiz attempt (configuration form moved to milestone 4) |
+| 4. AI generation | ⏳ Configuration form, server pipeline, structured output, validation and retries |
 | 5. Evidence support | ⏳ Pasted references, source display, optional web research |
 | 6. Portfolio polish | 🟡 Three curated sample lessons done (water cycle, solar system, photosynthesis); accessibility pass and deployment to do |
 
@@ -36,5 +36,7 @@ npm run dev          # http://localhost:3000
 - **`src/components/sections/`** — one renderer per section type; `SectionView` dispatches on `type`.
 - **`src/components/player/LessonPlayer.tsx`** — presentation player (←/→ or PageUp/PageDown to navigate, `F` for full screen, facilitator notes toggle).
 - **`src/components/quiz/`** — quiz runner and results.
+- **`src/lib/storage/db.ts`** — IndexedDB storage for saved lessons and the latest quiz attempt per lesson. Lessons are validated on write and re-validated on read.
+- **`src/components/editor/`** — form-based review editor. Curated samples are read-only, so saving an edited sample creates a copy. A failed save lists each problem with a link to the field that needs fixing (`src/lib/lesson/issues.ts`).
 
 Built with Next.js 16 (App Router, Cache Components), TypeScript, Tailwind CSS 4, Motion and Zod.

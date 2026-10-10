@@ -1,17 +1,22 @@
 "use client";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { QuizRunner } from "@/components/quiz/QuizRunner";
 import { useLesson } from "@/lib/lesson/useLesson";
-import { LessonNotFound } from "./LessonNotFound";
+import { useLatestAttempt } from "@/lib/storage/useLatestAttempt";
+import { LessonLoading, LessonNotFound } from "./LessonNotFound";
 
 export function QuizRoute() {
   const { id } = useParams<{ id: string }>();
+  const showLastResults = useSearchParams().get("view") === "results";
   const lookup = useLesson(id);
+  const latest = useLatestAttempt(id);
 
+  if (lookup.status === "loading" || (showLastResults && latest.status === "loading")) return <LessonLoading />;
   if (lookup.status === "missing") return <LessonNotFound />;
   const { lesson } = lookup;
+  const previous = showLastResults && latest.status === "ready" ? latest.attempt : undefined;
 
   return (
     <div className="flex min-h-dvh flex-col">
@@ -30,7 +35,7 @@ export function QuizRoute() {
         </div>
       </header>
       <main className="flex-1">
-        <QuizRunner lesson={lesson} />
+        <QuizRunner lesson={lesson} previousAnswers={previous?.answers} />
       </main>
     </div>
   );

@@ -1,5 +1,4 @@
-import { LessonCard } from "@/components/lesson/LessonCard";
-import { SAMPLE_LESSONS } from "@/content/samples";
+import { LibraryLessons } from "@/components/lesson/LibraryLessons";
 
 export default function Home() {
   return (
@@ -15,18 +14,7 @@ export default function Home() {
         </p>
       </section>
 
-      <section className="mt-12" aria-labelledby="samples-heading">
-        <h2 id="samples-heading" className="mb-4 text-2xl font-extrabold">
-          Try a sample lesson
-        </h2>
-        <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {SAMPLE_LESSONS.map((lesson) => (
-            <li key={lesson.id}>
-              <LessonCard lesson={lesson} />
-            </li>
-          ))}
-        </ul>
-      </section>
+      <LibraryLessons />
     </main>
   );
 }
