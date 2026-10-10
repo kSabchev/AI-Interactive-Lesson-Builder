@@ -1,0 +1,299 @@
+import type { LessonInput } from "@/lib/lesson/schema";
+
+/** A 10-minute lesson: shorter explanations and lighter facilitator guidance than the 15-minute samples. */
+export const solarSystemLesson: LessonInput = {
+  id: "sample-solar-system",
+  title: "Our Place in Space: The Solar System",
+  topic: "The Sun, the planets and why we have days and years",
+  ageGroup: "8-10",
+  durationMinutes: 10,
+  templateId: "explore-concept",
+  contentOrigin: "curated",
+  createdAt: "2026-10-02T09:00:00.000Z",
+  updatedAt: "2026-10-02T09:00:00.000Z",
+  objectives: [
+    {
+      id: "obj-sun",
+      description: "Explain that the Sun is a star at the centre of our solar system that gives us light and heat.",
+    },
+    {
+      id: "obj-planets",
+      description: "Name the planets in order from the Sun and tell the rocky planets apart from the giant planets.",
+    },
+    {
+      id: "obj-motion",
+      description: "Describe how Earth spinning gives us day and night, and how one trip around the Sun takes a year.",
+    },
+  ],
+  sources: [
+    {
+      id: "src-spaceplace",
+      title: "NASA Space Place — All About the Planets",
+      url: "https://spaceplace.nasa.gov/planets/en/",
+      excerpt:
+        "Our solar system is home to eight amazing planets. Some are small and rocky; others are big and gassy.",
+    },
+    {
+      id: "src-nasa-ss",
+      title: "NASA Science — Solar System Exploration",
+      url: "https://science.nasa.gov/solar-system/",
+      excerpt:
+        "Our solar system includes the Sun, eight planets, five officially named dwarf planets, hundreds of moons, and thousands of asteroids and comets.",
+    },
+  ],
+  sections: [
+    {
+      id: "sec-hook",
+      type: "hook",
+      title: "The travelling Sun",
+      question: "Why does the Sun seem to move across the sky every day?",
+      body: "In the morning the Sun peeks over the horizon. At lunchtime it is high in the sky. By evening it sinks down on the other side. It looks like the Sun goes on a journey every single day. But is it really the Sun that is moving?",
+      visualId: "sunrise-horizon",
+      facilitatorNote: "Ask where the Sun is in the morning and in the evening at home or school.",
+    },
+    {
+      id: "sec-prediction",
+      type: "prediction",
+      title: "Make a prediction",
+      question: "What is really moving when the Sun 'rises' in the morning?",
+      options: [
+        { id: "a", text: "The Sun travels around the Earth" },
+        { id: "b", text: "The Earth is spinning around" },
+        { id: "c", text: "The clouds push the Sun along" },
+        { id: "d", text: "The Sun wakes up and switches on" },
+      ],
+      answerOptionId: "b",
+      reveal:
+        "The Earth is spinning like a slow merry-go-round! We spin with it, so the Sun looks like it moves across the sky — but really it is us turning towards it and then away from it.",
+      objectiveIds: ["obj-motion"],
+    },
+    {
+      id: "sec-sun-planets",
+      type: "explanation",
+      title: "A star and its eight planets",
+      paragraphs: [
+        "The Sun is a star — a gigantic ball of hot, glowing gas. It is so big that about a million Earths could fit inside it! The Sun gives us light and heat.",
+        "Eight planets travel around the Sun. Each one follows its own path, called an orbit. In order from the Sun they are: Mercury, Venus, Earth, Mars, Jupiter, Saturn, Uranus and Neptune.",
+        "The four planets closest to the Sun are small and rocky. The four furthest away are giant planets made mostly of gas and ice.",
+      ],
+      keyTerms: [
+        { term: "Star", definition: "A huge ball of hot, glowing gas that makes its own light. The Sun is a star." },
+        { term: "Planet", definition: "A large, round world that travels around a star." },
+        { term: "Orbit", definition: "The path a planet takes as it travels around the Sun." },
+      ],
+      example:
+        "A handy way to remember the order: “My Very Excellent Mother Just Served Us Noodles” — Mercury, Venus, Earth, Mars, Jupiter, Saturn, Uranus, Neptune.",
+      facilitatorNote: "Say the memory sentence together, pointing to one finger per planet.",
+      objectiveIds: ["obj-sun", "obj-planets"],
+    },
+    {
+      id: "sec-diagram",
+      type: "diagram-labeling",
+      title: "Find them in the solar system",
+      diagramId: "solar-system",
+      instructions: "Pick a name, then tap where it belongs in the picture. (The picture is not to scale!)",
+      labels: [
+        {
+          id: "lbl-sun",
+          text: "Sun",
+          targetId: "sun",
+          explanation: "The Sun is the star in the middle. Every planet orbits around it.",
+        },
+        {
+          id: "lbl-earth",
+          text: "Earth",
+          targetId: "earth",
+          explanation: "Earth is the third planet from the Sun — the blue planet with one Moon.",
+        },
+        {
+          id: "lbl-mars",
+          text: "Mars",
+          targetId: "mars",
+          explanation: "Mars is the fourth planet. Rusty dust makes it look red.",
+        },
+        {
+          id: "lbl-jupiter",
+          text: "Jupiter",
+          targetId: "jupiter",
+          explanation: "Jupiter is the biggest planet. Its Great Red Spot is a giant storm.",
+        },
+        {
+          id: "lbl-saturn",
+          text: "Saturn",
+          targetId: "saturn",
+          explanation: "Saturn is famous for its rings, made of chunks of ice and rock.",
+        },
+      ],
+      objectiveIds: ["obj-sun", "obj-planets"],
+    },
+    {
+      id: "sec-day-year",
+      type: "explanation",
+      title: "Spinning days, travelling years",
+      paragraphs: [
+        "Earth spins all the way around once every day. When our side faces the Sun, it is daytime. When our side turns away from the Sun, it is night.",
+        "While it spins, Earth also travels around the Sun. One complete trip around the Sun takes about 365 days — that is one year!",
+      ],
+      keyTerms: [
+        { term: "Spin (rotation)", definition: "Turning around like a spinning top. One full spin of Earth takes one day." },
+        { term: "Year", definition: "The time it takes Earth to travel once around the Sun — about 365 days." },
+      ],
+      example:
+        "When it is daytime for you, it is night-time for children on the other side of the world, because their side of Earth is facing away from the Sun.",
+      visualId: "earth-day-night",
+      facilitatorNote: "Use a lamp as the Sun and turn a ball slowly to show day and night.",
+      objectiveIds: ["obj-motion"],
+    },
+    {
+      id: "sec-sorting",
+      type: "sorting",
+      title: "Rocky or giant?",
+      instructions: "Pick a planet, then choose its group.",
+      categories: [
+        { id: "cat-rocky", label: "Rocky planets" },
+        { id: "cat-giant", label: "Giant planets" },
+      ],
+      items: [
+        {
+          id: "item-mercury",
+          text: "Mercury",
+          categoryId: "cat-rocky",
+          explanation: "Mercury is the smallest planet and is made of rock and metal.",
+        },
+        {
+          id: "item-venus",
+          text: "Venus",
+          categoryId: "cat-rocky",
+          explanation: "Venus is rocky, with a thick, cloudy sky.",
+        },
+        {
+          id: "item-earth",
+          text: "Earth",
+          categoryId: "cat-rocky",
+          explanation: "Earth is a rocky planet — we can stand on its ground.",
+        },
+        {
+          id: "item-mars",
+          text: "Mars",
+          categoryId: "cat-rocky",
+          explanation: "Mars is a rocky planet covered in red dust.",
+        },
+        {
+          id: "item-jupiter",
+          text: "Jupiter",
+          categoryId: "cat-giant",
+          explanation: "Jupiter is a giant planet made mostly of gas.",
+        },
+        {
+          id: "item-saturn",
+          text: "Saturn",
+          categoryId: "cat-giant",
+          explanation: "Saturn is a giant planet made mostly of gas.",
+        },
+        {
+          id: "item-uranus",
+          text: "Uranus",
+          categoryId: "cat-giant",
+          explanation: "Uranus is an icy giant planet, far from the Sun.",
+        },
+        {
+          id: "item-neptune",
+          text: "Neptune",
+          categoryId: "cat-giant",
+          explanation: "Neptune is an icy giant and the furthest planet from the Sun.",
+        },
+      ],
+      objectiveIds: ["obj-planets"],
+    },
+    {
+      id: "sec-recap",
+      type: "recap",
+      title: "Three big ideas",
+      keyPoints: [
+        "The Sun is a star at the centre of our solar system. It gives us light and heat.",
+        "Eight planets orbit the Sun: four small rocky ones close in, and four giants further out.",
+        "Earth spins once a day to give us day and night, and travels around the Sun once a year.",
+      ],
+      facilitatorNote: "Ask: was your prediction about the moving Sun right?",
+      objectiveIds: ["obj-sun", "obj-planets", "obj-motion"],
+    },
+  ],
+  quiz: [
+    {
+      id: "q1",
+      prompt: "What is the Sun?",
+      options: [
+        { id: "a", text: "A planet" },
+        { id: "b", text: "A star" },
+        { id: "c", text: "A moon" },
+        { id: "d", text: "A giant cloud" },
+      ],
+      correctOptionId: "b",
+      explanation: "The Sun is a star — a gigantic ball of hot, glowing gas that gives us light and heat.",
+      objectiveId: "obj-sun",
+      sectionId: "sec-sun-planets",
+      sourceIds: ["src-nasa-ss"],
+    },
+    {
+      id: "q2",
+      prompt: "Why do we have day and night?",
+      options: [
+        { id: "a", text: "The Sun switches off at night" },
+        { id: "b", text: "The Moon blocks the Sun every evening" },
+        { id: "c", text: "Earth spins, so our side faces towards and then away from the Sun" },
+        { id: "d", text: "The Sun travels around Earth once a day" },
+      ],
+      correctOptionId: "c",
+      explanation: "Earth spins once a day. When our side faces the Sun it is day; when it turns away it is night.",
+      objectiveId: "obj-motion",
+      sectionId: "sec-day-year",
+      sourceIds: [],
+    },
+    {
+      id: "q3",
+      prompt: "How long does it take Earth to travel once around the Sun?",
+      options: [
+        { id: "a", text: "One day" },
+        { id: "b", text: "One week" },
+        { id: "c", text: "One month" },
+        { id: "d", text: "About 365 days — one year" },
+      ],
+      correctOptionId: "d",
+      explanation: "One full orbit of the Sun takes Earth about 365 days, which is what we call a year.",
+      objectiveId: "obj-motion",
+      sectionId: "sec-day-year",
+      sourceIds: [],
+    },
+    {
+      id: "q4",
+      prompt: "Which of these is a giant planet?",
+      options: [
+        { id: "a", text: "Mars" },
+        { id: "b", text: "Jupiter" },
+        { id: "c", text: "Mercury" },
+        { id: "d", text: "Earth" },
+      ],
+      correctOptionId: "b",
+      explanation: "Jupiter is the biggest planet and is made mostly of gas. Mars, Mercury and Earth are rocky planets.",
+      objectiveId: "obj-planets",
+      sectionId: "sec-sorting",
+      sourceIds: ["src-spaceplace"],
+    },
+    {
+      id: "q5",
+      prompt: "Which list shows the four rocky planets in order, starting closest to the Sun?",
+      options: [
+        { id: "a", text: "Mercury, Venus, Earth, Mars" },
+        { id: "b", text: "Earth, Mars, Venus, Mercury" },
+        { id: "c", text: "Venus, Mercury, Mars, Earth" },
+        { id: "d", text: "Mars, Earth, Mercury, Venus" },
+      ],
+      correctOptionId: "a",
+      explanation:
+        "Mercury is closest, then Venus, then Earth, then Mars — “My Very Excellent Mother…” helps you remember.",
+      objectiveId: "obj-planets",
+      sectionId: "sec-sun-planets",
+      sourceIds: ["src-spaceplace"],
+    },
+  ],
+};

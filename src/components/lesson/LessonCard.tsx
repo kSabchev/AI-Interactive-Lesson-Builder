@@ -12,7 +12,7 @@ const dateFormat = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "sh
 
 export function LessonCard({ lesson }: { lesson: Lesson }) {
   return (
-    <article className="relative flex flex-col rounded-3xl bg-surface p-6 shadow-sm ring-1 ring-line transition-shadow focus-within:ring-2 focus-within:ring-brand-500 hover:shadow-md">
+    <article className="relative flex h-full flex-col rounded-3xl bg-surface p-6 shadow-sm ring-1 ring-line transition-shadow focus-within:ring-2 focus-within:ring-brand-500 hover:shadow-md">
       <p className="mb-2 w-fit rounded-full bg-brand-50 px-3 py-1 text-sm font-bold text-brand-700">
         {ORIGIN_LABELS[lesson.contentOrigin]}
       </p>

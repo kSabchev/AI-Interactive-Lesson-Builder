@@ -28,14 +28,15 @@ export const waterCycleLesson: LessonInput = {
   sources: [
     {
       id: "src-usgs",
-      title: "USGS — The Water Cycle for Schools",
+      title: "USGS Water Science School — Water Cycle Diagrams",
       url: "https://www.usgs.gov/special-topics/water-science-school/science/water-cycle-schools",
-      excerpt: "The water cycle describes where water is found on Earth and how it moves.",
+      excerpt: "Learn more about where water is on Earth and how it moves using one of the USGS water cycle diagrams.",
     },
     {
       id: "src-nasa",
-      title: "NASA Climate Kids — The Water Cycle",
-      url: "https://climatekids.nasa.gov/water-cycle/",
+      title: "NASA Science for Kids — What Is the Water Cycle?",
+      url: "https://science.nasa.gov/kids/earth/what-is-the-water-cycle",
+      excerpt: "The water cycle is the path that all water follows as it moves around Earth.",
     },
   ],
   sections: [

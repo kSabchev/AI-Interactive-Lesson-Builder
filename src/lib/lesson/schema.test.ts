@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { SAMPLE_LESSON_INPUTS } from "@/content/samples";
 import { waterCycleLesson } from "@/content/samples/water-cycle";
 import { lessonSchema, type LessonInput } from "./schema";
 
@@ -10,8 +11,13 @@ function issuesFor(lesson: LessonInput) {
 }
 
 describe("lessonSchema", () => {
-  it("accepts the curated water cycle lesson", () => {
-    expect(issuesFor(clone())).toEqual([]);
+  it.each(SAMPLE_LESSON_INPUTS.map((l) => [l.id, l] as const))("accepts the curated lesson %s", (_, lesson) => {
+    expect(issuesFor(structuredClone(lesson))).toEqual([]);
+  });
+
+  it("gives every sample lesson a unique id", () => {
+    const ids = SAMPLE_LESSON_INPUTS.map((l) => l.id);
+    expect(new Set(ids).size).toBe(ids.length);
   });
 
   it("requires exactly three objectives and five quiz questions", () => {

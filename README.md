@@ -11,7 +11,7 @@ A web app that turns a science topic into an interactive lesson and follow-up qu
 | 3. Creation and editing | ⏳ Configuration form, review editor, IndexedDB persistence |
 | 4. AI generation | ⏳ Server pipeline, structured output, validation and retries |
 | 5. Evidence support | ⏳ Pasted references, source display, optional web research |
-| 6. Portfolio polish | ⏳ Three sample lessons, accessibility pass, deployment |
+| 6. Portfolio polish | 🟡 Three curated sample lessons done (water cycle, solar system, photosynthesis); accessibility pass and deployment to do |
 
 ## Getting started
 

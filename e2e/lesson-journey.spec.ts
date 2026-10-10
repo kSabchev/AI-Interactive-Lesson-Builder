@@ -107,3 +107,12 @@ test("unknown lessons show a path back to the library", async ({ page }) => {
   await page.getByRole("link", { name: "Back to the library" }).click();
   await expect(page.getByRole("heading", { name: "Try a sample lesson" })).toBeVisible();
 });
+
+for (const title of [/The Water Cycle/, /The Solar System/, /Photosynthesis/]) {
+  test(`sample lesson ${title.source} opens from the library without an AI request`, async ({ page }) => {
+    await page.goto("/");
+    await page.getByRole("link", { name: title }).click();
+    await expect(page.getByRole("main")).toBeVisible();
+    await expect(page.getByText("1 / 7")).toBeVisible();
+  });
+}
