@@ -1,0 +1,168 @@
+import type { z } from "zod";
+import { describeIssues } from "@/lib/lesson/issues";
+import { type Lesson, lessonSchema } from "@/lib/lesson/schema";
+import { GenerationError, type GenerationEvent, type Stage } from "./events";
+import type { GenerationInput } from "./input";
+import { contentPrompt, outlinePrompt, quizPrompt, repairPrompt, SYSTEM_PROMPT } from "./prompts";
+import {
+  assembleLesson,
+  chosenDiagram,
+  type Content,
+  contentSchema,
+  type Outline,
+  outlineSchema,
+  type Quiz,
+  quizSchema,
+  SECTION_IDS,
+} from "./stages";
+
+/** One conversation turn sent to the model. Assistant turns are replayed exactly as the model returned them. */
+export type ConversationTurn = { role: "user"; text: string } | { role: "assistant"; replay: unknown };
+
+export type ModelReply = {
+  text: string;
+  /** Opaque content to append to the conversation unchanged on a retry. */
+  replay: unknown;
+  stopReason: "complete" | "max_tokens" | "refusal";
+};
+
+/** The only thing the pipeline needs from an AI provider: a JSON reply that should match `schema`. */
+export interface ModelClient {
+  send(request: { stage: Stage; system: string; turns: ConversationTurn[]; schema: z.ZodType }): Promise<ModelReply>;
+}
+
+/** Attempts per stage: the first try plus one repair. */
+const ATTEMPTS_PER_STAGE = 2;
+
+type Emit = (event: GenerationEvent) => void;
+
+function formatZodIssues(error: z.ZodError): string[] {
+  return error.issues.slice(0, 12).map((issue) => {
+    const path = issue.path.join(".");
+    return path ? `${path}: ${issue.message}` : issue.message;
+  });
+}
+
+/**
+ * Asks for one stage's JSON, validates it, and feeds problems back to the model at most
+ * `ATTEMPTS_PER_STAGE - 1` times. `check` adds rules the schema can't express.
+ */
+async function runStage<T>(
+  client: ModelClient,
+  emit: Emit,
+  stage: Stage,
+  prompt: string,
+  schema: z.ZodType<T>,
+  check: (data: T) => string[] = () => [],
+): Promise<T> {
+  emit({ type: "stage", stage, status: "start" });
+  const turns: ConversationTurn[] = [{ role: "user", text: prompt }];
+
+  for (let attempt = 1; ; attempt++) {
+    const reply = await client.send({ stage, system: SYSTEM_PROMPT, turns, schema });
+
+    if (reply.stopReason === "refusal") {
+      throw new GenerationError(
+        "refused",
+        "This topic couldn't be turned into a lesson. Try rephrasing it as a science topic for children.",
+      );
+    }
+
+    let problems: string[];
+    if (reply.stopReason === "max_tokens") {
+      problems = ["The response was cut off because it was too long. Write more concisely."];
+    } else {
+      problems = parseAndCheck(reply.text, schema, check);
+      if (problems.length === 0) {
+        emit({ type: "stage", stage, status: "done" });
+        return schema.parse(JSON.parse(reply.text));
+      }
+    }
+
+    if (attempt >= ATTEMPTS_PER_STAGE) {
+      throw new GenerationError("invalid_output", "The AI couldn't produce a complete, valid lesson. Please try again.");
+    }
+    emit({ type: "retry", stage, reason: problems[0] });
+    turns.push({ role: "assistant", replay: reply.replay }, { role: "user", text: repairPrompt(problems) });
+  }
+}
+
+function parseAndCheck<T>(text: string, schema: z.ZodType<T>, check: (data: T) => string[]): string[] {
+  let json: unknown;
+  try {
+    json = JSON.parse(text);
+  } catch {
+    return ["The response was not valid JSON."];
+  }
+  const result = schema.safeParse(json);
+  if (!result.success) return formatZodIssues(result.error);
+  return check(result.data);
+}
+
+/** Cross-reference rules from `lessonSchema`, checked against a draft built from this stage's output. */
+function lessonProblems(draft: unknown, filter: (target: string) => boolean): string[] {
+  const result = lessonSchema.safeParse(draft);
+  if (result.success) return [];
+  return describeIssues(draft as Lesson, result.error)
+    .filter((issue) => filter(issue.target))
+    .map((issue) => `${issue.where}: ${issue.message}`);
+}
+
+export async function generateLesson({
+  input,
+  client,
+  emit,
+  id,
+  now = () => new Date().toISOString(),
+}: {
+  input: GenerationInput;
+  client: ModelClient;
+  emit: Emit;
+  id: string;
+  now?: () => string;
+}): Promise<Lesson> {
+  const outline: Outline = await runStage(client, emit, "outline", outlinePrompt(input), outlineSchema);
+
+  const assemble = (c: Content, q: Quiz) =>
+    assembleLesson({ id, now: now(), input, outline, content: c, quiz: q });
+
+  const content: Content = await runStage(
+    client,
+    emit,
+    "content",
+    contentPrompt(input, outline),
+    contentSchema(chosenDiagram(outline)) as z.ZodType<Content>,
+    // Check section-level rules now (e.g. two labels on one diagram spot), using a placeholder quiz.
+    (c) => lessonProblems(assemble(c, PLACEHOLDER_QUIZ), (t) => t.startsWith("section:")),
+  );
+
+  const quiz: Quiz = await runStage(
+    client,
+    emit,
+    "quiz",
+    quizPrompt(input, outline, content),
+    quizSchema(SECTION_IDS) as z.ZodType<Quiz>,
+    (q) => lessonProblems(assemble(content, q), () => true),
+  );
+
+  emit({ type: "stage", stage: "check", status: "start" });
+  const result = lessonSchema.safeParse(assemble(content, quiz));
+  if (!result.success) {
+    // Every rule was checked per stage, so this means a bug in assembly rather than bad model output.
+    throw new GenerationError("invalid_output", "The generated lesson didn't pass the final check. Please try again.");
+  }
+  emit({ type: "stage", stage: "check", status: "done" });
+  return result.data;
+}
+
+/** A structurally valid quiz covering every objective, used only to check content before the real quiz exists. */
+const PLACEHOLDER_QUIZ: Quiz = {
+  questions: (["1", "2", "3", "1", "2"] as const).map((objective) => ({
+    prompt: "placeholder",
+    options: ["a", "b", "c", "d"],
+    correctIndex: 0,
+    explanation: "placeholder",
+    objective,
+    sectionId: SECTION_IDS[0],
+  })),
+};

@@ -47,10 +47,12 @@ export function LessonEditor({
   lesson,
   isSample,
   justCopied,
+  justGenerated = false,
 }: {
   lesson: Lesson;
   isSample: boolean;
   justCopied: boolean;
+  justGenerated?: boolean;
 }) {
   const router = useRouter();
   const [saved, setSaved] = useState(lesson);
@@ -167,6 +169,7 @@ export function LessonEditor({
             This is a curated sample, so it stays as it is. Saving your edits creates your own copy in the library.
           </p>
         )}
+        {justGenerated && <GeneratedNotice lesson={saved} />}
         {justCopied && !isSample && status === "saved" && !dirty && (
           <p className="border-t border-line bg-good-50 px-4 py-2 text-sm font-semibold text-good-700 md:px-6">
             Saved a copy to your library. You&apos;re now editing your own lesson.
@@ -309,6 +312,20 @@ export function LessonEditor({
         </main>
       </div>
     </div>
+  );
+}
+
+function GeneratedNotice({ lesson }: { lesson: Lesson }) {
+  const message =
+    lesson.contentOrigin === "curated"
+      ? "Sample mode: AI generation is switched off on this site, so this is a copy of a curated lesson rather than one written for your topic. It's saved in your library."
+      : lesson.contentOrigin === "reference"
+        ? "Draft generated from your reference material and saved to your library. Check that it matches the material before presenting."
+        : "AI-generated draft, saved to your library. It was checked for structure, not for accuracy, so read it through and fix anything that's wrong before presenting.";
+  return (
+    <p role="status" className="border-t border-line bg-sun-100 px-4 py-2 text-sm font-semibold md:px-6">
+      {message}
+    </p>
   );
 }
 

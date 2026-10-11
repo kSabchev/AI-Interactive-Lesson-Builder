@@ -18,5 +18,7 @@ export default defineConfig({
     url: `http://localhost:${PORT}`,
     reuseExistingServer: !process.env.CI,
     timeout: 180_000,
+    // Tests must never call the paid API, even if .env.local enables live generation.
+    env: { GENERATION_MODE: "sample", ANTHROPIC_API_KEY: "" },
   },
 });

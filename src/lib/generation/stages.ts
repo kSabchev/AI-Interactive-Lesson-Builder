@@ -1,0 +1,276 @@
+import { z } from "zod";
+import { DIAGRAM_IDS, DIAGRAMS, type DiagramId } from "@/lib/assets/diagrams";
+import { VISUAL_IDS } from "@/lib/assets/visuals";
+import { type LessonInput, SHORT_TEXT_MAX, TEXT_MAX } from "@/lib/lesson/schema";
+import type { GenerationInput } from "./input";
+
+/**
+ * Schemas for what the model writes at each stage. They describe content only: ids, section types,
+ * origin labels and dates are added in code, so the model can't get them wrong (or invent sources).
+ */
+
+const short = z.string().trim().min(1).max(SHORT_TEXT_MAX);
+const long = z.string().trim().min(1).max(TEXT_MAX);
+const objectiveRef = z.enum(["1", "2", "3"]);
+const NONE = "none";
+
+/** The "Explore a concept" template. Slot 4 is a diagram when one fits, otherwise a second prediction. */
+export const SLOTS = ["hook", "prediction", "explain1", "activity", "explain2", "sorting", "recap"] as const;
+export type Slot = (typeof SLOTS)[number];
+
+const SLOT_SECTION_IDS: Record<Slot, string> = {
+  hook: "sec-hook",
+  prediction: "sec-prediction",
+  explain1: "sec-explain-1",
+  activity: "sec-activity",
+  explain2: "sec-explain-2",
+  sorting: "sec-sorting",
+  recap: "sec-recap",
+};
+
+const plannedSection = z.object({
+  title: short.describe("Short, child-friendly section title"),
+  focus: long.describe("The one main idea this section covers"),
+  objectives: z.array(objectiveRef).describe('Which learning objectives this section supports, by number ("1"-"3")'),
+});
+
+export const outlineSchema = z.object({
+  title: short.describe("Engaging lesson title"),
+  objectives: z.array(long).length(3).describe("Exactly three learning objectives, each starting with a verb"),
+  diagramId: z
+    .enum([NONE, ...DIAGRAM_IDS])
+    .describe(`An approved diagram that directly matches the topic, or "${NONE}"`),
+  sections: z.object({
+    hook: plannedSection,
+    prediction: plannedSection,
+    explain1: plannedSection,
+    activity: plannedSection.describe("Diagram labeling if a diagram was chosen, otherwise a second prediction question"),
+    explain2: plannedSection,
+    sorting: plannedSection,
+    recap: plannedSection,
+  }),
+});
+export type Outline = z.infer<typeof outlineSchema>;
+
+export function chosenDiagram(outline: Outline): DiagramId | undefined {
+  return outline.diagramId === NONE ? undefined : (outline.diagramId as DiagramId);
+}
+
+const visual = z
+  .enum([NONE, ...VISUAL_IDS])
+  .describe(`An approved picture that matches this section exactly, or "${NONE}"`);
+const note = long.describe("Guidance for the adult presenting this section");
+
+const predictionContent = z.object({
+  question: short,
+  options: z.array(short).min(2).max(4),
+  answerIndex: z.number().int().min(0).max(3).nullable().describe("Index of the option the reveal confirms, or null"),
+  reveal: long.describe("What really happens, explained simply"),
+  facilitatorNote: note,
+});
+
+const explanationContent = z.object({
+  paragraphs: z.array(long).min(1).max(4),
+  keyTerms: z.array(z.object({ term: short, definition: long })).max(4),
+  example: long.nullable().describe("A concrete everyday example, or null"),
+  visualId: visual,
+  facilitatorNote: note,
+});
+
+export function contentSchema(diagramId: DiagramId | undefined) {
+  const activity = diagramId
+    ? z.object({
+        instructions: long,
+        labels: z
+          .array(
+            z.object({
+              text: short.describe("The label the learner places"),
+              targetId: z.enum(DIAGRAMS[diagramId].targets.map((t) => t.id) as [string, ...string[]]),
+              explanation: long.describe("Feedback shown when placed correctly"),
+            }),
+          )
+          .min(2)
+          .max(DIAGRAMS[diagramId].targets.length),
+        facilitatorNote: note,
+      })
+    : predictionContent;
+
+  return z.object({
+    hook: z.object({ question: short, body: long, visualId: visual, facilitatorNote: note }),
+    prediction: predictionContent,
+    explain1: explanationContent,
+    activity,
+    explain2: explanationContent,
+    sorting: z.object({
+      instructions: long,
+      categories: z.array(short).min(2).max(3),
+      items: z
+        .array(
+          z.object({
+            text: short,
+            categoryIndex: z.number().int().min(0).max(2).describe("Index into categories"),
+            explanation: long.describe("Why it belongs in its category"),
+          }),
+        )
+        .min(3)
+        .max(8),
+      facilitatorNote: note,
+    }),
+    recap: z.object({ keyPoints: z.array(long).length(3), facilitatorNote: note }),
+  });
+}
+export type Content = z.infer<ReturnType<typeof contentSchema>>;
+
+export function quizSchema(sectionIds: string[]) {
+  return z.object({
+    questions: z
+      .array(
+        z.object({
+          prompt: long,
+          options: z.array(short).length(4),
+          correctIndex: z.number().int().min(0).max(3),
+          explanation: long,
+          objective: objectiveRef,
+          sectionId: z.enum(sectionIds as [string, ...string[]]).describe("The section that teaches the answer"),
+        }),
+      )
+      .length(5),
+  });
+}
+export type Quiz = z.infer<ReturnType<typeof quizSchema>>;
+
+export const SECTION_IDS = SLOTS.map((slot) => SLOT_SECTION_IDS[slot]);
+
+const OPTION_IDS = ["a", "b", "c", "d"];
+const objectiveId = (ref: string) => `obj-${ref}`;
+const visualOrUndefined = (v: string) => (v === NONE ? undefined : (v as (typeof VISUAL_IDS)[number]));
+
+function sectionsFrom(outline: Outline, content: Content): LessonInput["sections"] {
+  const diagramId = chosenDiagram(outline);
+  const meta = (slot: Slot) => ({
+    id: SLOT_SECTION_IDS[slot],
+    title: outline.sections[slot].title,
+    objectiveIds: outline.sections[slot].objectives.map(objectiveId),
+    facilitatorNote: content[slot].facilitatorNote,
+  });
+
+  const prediction = (slot: Slot, c: z.infer<typeof predictionContent>) => {
+    const options = c.options.map((text, i) => ({ id: OPTION_IDS[i], text }));
+    return {
+      ...meta(slot),
+      type: "prediction" as const,
+      question: c.question,
+      options,
+      answerOptionId: c.answerIndex === null ? undefined : options[c.answerIndex]?.id,
+      reveal: c.reveal,
+    };
+  };
+
+  const explanation = (slot: Slot, c: z.infer<typeof explanationContent>) => ({
+    ...meta(slot),
+    type: "explanation" as const,
+    paragraphs: c.paragraphs,
+    keyTerms: c.keyTerms,
+    example: c.example ?? undefined,
+    visualId: visualOrUndefined(c.visualId),
+  });
+
+  const activity =
+    diagramId && "labels" in content.activity
+      ? {
+          ...meta("activity"),
+          type: "diagram-labeling" as const,
+          diagramId,
+          instructions: content.activity.instructions,
+          labels: content.activity.labels.map((label, i) => ({ id: `lbl-${i + 1}`, ...label })),
+        }
+      : prediction("activity", content.activity as z.infer<typeof predictionContent>);
+
+  const categoryIds = content.sorting.categories.map((_, i) => `cat-${i + 1}`);
+
+  return [
+    {
+      ...meta("hook"),
+      type: "hook",
+      question: content.hook.question,
+      body: content.hook.body,
+      visualId: visualOrUndefined(content.hook.visualId),
+    },
+    prediction("prediction", content.prediction),
+    explanation("explain1", content.explain1),
+    activity,
+    explanation("explain2", content.explain2),
+    {
+      ...meta("sorting"),
+      type: "sorting",
+      instructions: content.sorting.instructions,
+      categories: content.sorting.categories.map((label, i) => ({ id: categoryIds[i], label })),
+      items: content.sorting.items.map((item, i) => ({
+        id: `item-${i + 1}`,
+        text: item.text,
+        // An out-of-range index becomes an unknown category, which the lesson check reports for repair.
+        categoryId: categoryIds[item.categoryIndex] ?? `cat-${item.categoryIndex + 1}`,
+        explanation: item.explanation,
+      })),
+    },
+    { ...meta("recap"), type: "recap", keyPoints: content.recap.keyPoints },
+  ];
+}
+
+export const REFERENCE_SOURCE_ID = "src-reference";
+
+/** Turns the three stage outputs into a lesson for the schema check. Nothing here invents a source. */
+export function assembleLesson({
+  id,
+  now,
+  input,
+  outline,
+  content,
+  quiz,
+}: {
+  id: string;
+  now: string;
+  input: GenerationInput;
+  outline: Outline;
+  content: Content;
+  quiz: Quiz;
+}): LessonInput {
+  return {
+    id,
+    title: outline.title,
+    topic: input.topic,
+    ageGroup: input.ageGroup,
+    durationMinutes: input.durationMinutes,
+    templateId: "explore-concept",
+    contentOrigin: input.referenceText ? "reference" : "ai-draft",
+    createdAt: now,
+    updatedAt: now,
+    objectives: outline.objectives.map((description, i) => ({ id: objectiveId(String(i + 1)), description })),
+    sources: input.referenceText
+      ? [
+          {
+            id: REFERENCE_SOURCE_ID,
+            title: "Reference material provided by the adult",
+            excerpt: truncate(input.referenceText, 400),
+          },
+        ]
+      : [],
+    sections: sectionsFrom(outline, content),
+    quiz: quiz.questions.map((q, i) => ({
+      id: `q${i + 1}`,
+      prompt: q.prompt,
+      options: q.options.map((text, j) => ({ id: OPTION_IDS[j], text })),
+      correctOptionId: OPTION_IDS[q.correctIndex],
+      explanation: q.explanation,
+      objectiveId: objectiveId(q.objective),
+      sectionId: q.sectionId,
+      // Per-question citations need excerpt-level evidence (milestone 7); claiming the whole reference would overstate it.
+      sourceIds: [],
+    })),
+  };
+}
+
+function truncate(text: string, max: number): string {
+  const clean = text.replace(/\s+/g, " ").trim();
+  return clean.length <= max ? clean : `${clean.slice(0, max - 1).trimEnd()}…`;
+}

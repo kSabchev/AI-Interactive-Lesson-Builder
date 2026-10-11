@@ -9,13 +9,20 @@ const control =
 type FieldProps = {
   label: string;
   hint?: string;
+  /** Shown under the control and announced with it. */
+  error?: string;
   className?: string;
 };
+
+function describedBy(id: string, hint?: string, error?: string) {
+  return [hint && `${id}-hint`, error && `${id}-error`].filter(Boolean).join(" ") || undefined;
+}
 
 function FieldShell({
   id,
   label,
   hint,
+  error,
   className,
   counter,
   children,
@@ -34,6 +41,11 @@ function FieldShell({
         </p>
       )}
       {children}
+      {error && (
+        <p id={`${id}-error`} className="text-sm font-bold text-miss-700">
+          {error}
+        </p>
+      )}
     </div>
   );
 }
@@ -50,6 +62,7 @@ function Counter({ value, max }: { value: string; max?: number }) {
 export function TextField({
   label,
   hint,
+  error,
   className,
   value,
   onChange,
@@ -58,13 +71,14 @@ export function TextField({
 }: FieldProps & { value: string; onChange: (value: string) => void; maxLength?: number; placeholder?: string }) {
   const id = useId();
   return (
-    <FieldShell id={id} label={label} hint={hint} className={className} counter={<Counter value={value} max={maxLength} />}>
+    <FieldShell id={id} label={label} hint={hint} error={error} className={className} counter={<Counter value={value} max={maxLength} />}>
       <input
         id={id}
         type="text"
         value={value}
         placeholder={placeholder}
-        aria-describedby={hint ? `${id}-hint` : undefined}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={describedBy(id, hint, error)}
         onChange={(e) => onChange(e.target.value)}
         className={control}
       />
@@ -75,6 +89,7 @@ export function TextField({
 export function TextArea({
   label,
   hint,
+  error,
   className,
   value,
   onChange,
@@ -90,13 +105,14 @@ export function TextArea({
 }) {
   const id = useId();
   return (
-    <FieldShell id={id} label={label} hint={hint} className={className} counter={<Counter value={value} max={maxLength} />}>
+    <FieldShell id={id} label={label} hint={hint} error={error} className={className} counter={<Counter value={value} max={maxLength} />}>
       <textarea
         id={id}
         value={value}
         rows={rows}
         placeholder={placeholder}
-        aria-describedby={hint ? `${id}-hint` : undefined}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={describedBy(id, hint, error)}
         onChange={(e) => onChange(e.target.value)}
         className={cn(control, "field-sizing-content min-h-20 resize-y leading-relaxed")}
       />
@@ -118,7 +134,7 @@ export function SelectField<T extends string>({
       <select
         id={id}
         value={value}
-        aria-describedby={hint ? `${id}-hint` : undefined}
+        aria-describedby={describedBy(id, hint)}
         onChange={(e) => onChange(e.target.value as T)}
         className={cn(control, "min-h-11")}
       >
