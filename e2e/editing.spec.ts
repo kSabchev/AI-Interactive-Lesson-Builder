@@ -23,7 +23,7 @@ test("editing a sample saves a copy that survives a refresh and shows in the lib
   await page.getByRole("link", { name: "Library" }).click();
   const saved = page.getByRole("region", { name: "Your lessons" });
   await expect(saved.getByRole("link", { name: "Puddles and Clouds (Class 4B)" })).toBeVisible();
-  await expect(saved.getByText("Edited sample")).toBeVisible();
+  await expect(saved.getByText("Sample copy")).toBeVisible();
   // The sample itself is untouched.
   await expect(page.getByRole("region", { name: "Try a sample lesson" }).getByRole("link", { name: /Where Does the Puddle Go/ })).toBeVisible();
 });

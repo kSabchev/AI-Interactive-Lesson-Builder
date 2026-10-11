@@ -1,4 +1,5 @@
 import { LibraryLessons } from "@/components/lesson/LibraryLessons";
+import { ButtonLink } from "@/components/ui/Button";
 
 export default function Home() {
   return (
@@ -12,6 +13,9 @@ export default function Home() {
           For parents and teachers of 8–12 year olds. Review the lesson, present it on one shared screen with hands-on
           activities, then check understanding with a short quiz tied to what was taught.
         </p>
+        <ButtonLink href="/create" size="lg" className="mt-6">
+          Create a lesson
+        </ButtonLink>
       </section>
 
       <LibraryLessons />

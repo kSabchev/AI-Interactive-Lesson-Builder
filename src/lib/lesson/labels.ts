@@ -7,9 +7,9 @@ export const ORIGIN_LABELS: Record<ContentOrigin, string> = {
   "ai-draft": "AI draft",
 };
 
-/** A saved copy of a curated sample has been changed by the user, so it is no longer "curated". */
+/** A saved copy of a curated sample may have been changed by the user, so it is no longer the curated original. */
 export function originLabel(lesson: Lesson, isSample: boolean): string {
-  return lesson.contentOrigin === "curated" && !isSample ? "Edited sample" : ORIGIN_LABELS[lesson.contentOrigin];
+  return lesson.contentOrigin === "curated" && !isSample ? "Sample copy" : ORIGIN_LABELS[lesson.contentOrigin];
 }
 
 export const SECTION_TYPE_LABELS: Record<LessonSection["type"], string> = {
