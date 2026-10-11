@@ -10,5 +10,7 @@ export default defineConfig({
   },
   test: {
     include: ["src/**/*.test.ts"],
+    // Tests use a throwaway in-memory database and never send real email.
+    env: { PGLITE_DIR: "memory://", EMAIL_TRANSPORT: "file", MAILBOX_FILE: ".data/test-mailbox.jsonl" },
   },
 });

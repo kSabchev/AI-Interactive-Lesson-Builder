@@ -93,6 +93,20 @@ describe("POST /api/lessons/generate", () => {
       expect(stream.at(-1)).toEqual({ type: "error", code: "busy", message: "The AI service is busy right now." });
     });
 
+    it("records one usage row per request, including failures", async () => {
+      const { getDb } = await import("@/lib/server/db");
+      const { generationUsage } = await import("@/lib/server/db/schema");
+      const db = await getDb();
+      const before = (await db.select().from(generationUsage)).length;
+
+      send.mockRejectedValueOnce(new GenerationError("busy", "busy"));
+      await (await post(valid)).text();
+
+      const rows = await db.select().from(generationUsage);
+      expect(rows).toHaveLength(before + 1);
+      expect(rows.at(-1)).toMatchObject({ mode: "live", status: "busy", userId: null });
+    });
+
     it("never leaks unexpected error details to the client", async () => {
       send.mockRejectedValueOnce(new Error("secret internal detail"));
       vi.spyOn(console, "error").mockImplementation(() => {});

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
 import type { Lesson } from "@/lib/lesson/schema";
 import { isCorrect, type QuizAnswers, scoreQuiz } from "@/lib/quiz/scoring";
-import { saveAttempt } from "@/lib/storage/db";
+import { useStore } from "@/lib/storage/StoreProvider";
 import { QuizResults } from "./QuizResults";
 
 /** Runs the final quiz. With `previousAnswers`, it opens on the results of that saved attempt. */
@@ -20,6 +20,7 @@ export function QuizRunner({ lesson, previousAnswers }: { lesson: Lesson; previo
   const feedbackRef = useRef<HTMLDivElement>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const reduceMotion = useReducedMotion();
+  const storeState = useStore();
 
   const question = lesson.quiz[index];
   const submitted = answers[question.id];
@@ -49,7 +50,11 @@ export function QuizRunner({ lesson, previousAnswers }: { lesson: Lesson; previo
     setFinished(true);
     const { score, total } = scoreQuiz(lesson, answers);
     // Results are shown regardless; failing to persist (e.g. private browsing) only loses the history.
-    saveAttempt({ lessonId: lesson.id, answers, score, total, completedAt: new Date().toISOString() }).catch(() => {});
+    if (storeState.status === "ready") {
+      storeState.store
+        .saveAttempt({ lessonId: lesson.id, answers, score, total, completedAt: new Date().toISOString() })
+        .catch(() => {});
+    }
   }
 
   function retry() {

@@ -8,7 +8,7 @@ The product is moving from a portfolio demo to a subscription SaaS for parents a
 | --- | --- | --- |
 | Launch or demo | Build launch-ready; payments stay in test mode until going live is a deliberate choice | Same code either way; legal, tax and support work can wait |
 | Who has accounts | Adults only (parents and teachers) | Learners use the shared screen without logging in, so no children's data is collected (COPPA / GDPR-K) |
-| Stack | Postgres (Neon or Supabase), Drizzle ORM, Better Auth or Auth.js | Confirm Next 16 compatibility before adopting |
+| Stack | Postgres (Neon or Supabase in production, embedded PGlite locally), Drizzle ORM, Better Auth | Chosen at milestone 5 |
 | Payments | Stripe Billing, or a merchant of record (Paddle / Lemon Squeezy) | **Open — decide at milestone 6.** A merchant of record handles VAT and sales tax |
 | Usage unit | Monthly lesson generations, enforced on the server | AI cost is the main variable cost |
 
@@ -33,7 +33,7 @@ Margin check: 30 Sonnet lessons at ~$0.15 cost ~$4.50, which fits $9 after payme
 | 2 | Quiz and results | ✅ |
 | 3 | Review editor and local persistence | ✅ |
 | 4 | AI generation | 🟡 steps 1–9 done; step 10 (live check) needs an API key |
-| 5 | Accounts and cloud data | ⏳ |
+| 5 | Accounts and cloud data | ✅ (email delivery provider pending, see milestone 9) |
 | 6 | Subscriptions and billing | ⏳ |
 | 7 | Evidence support | ⏳ |
 | 8 | Classroom tier | ⏳ (build when there is demand) |

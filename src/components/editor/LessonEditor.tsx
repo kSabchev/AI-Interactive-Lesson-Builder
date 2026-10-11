@@ -10,7 +10,7 @@ import { newId, replaceAt } from "@/lib/lesson/edit";
 import { describeIssues, type EditorTarget, type LessonIssue } from "@/lib/lesson/issues";
 import { SECTION_TYPE_LABELS } from "@/lib/lesson/labels";
 import { type Lesson, lessonSchema } from "@/lib/lesson/schema";
-import { deleteAttempt, saveLesson } from "@/lib/storage/db";
+import { useReadyStore } from "@/lib/storage/StoreProvider";
 import { DetailsEditor, ObjectivesEditor, QuizQuestionEditor, SourcesPanel } from "./OtherEditors";
 import { SectionEditor } from "./SectionEditor";
 
@@ -55,6 +55,7 @@ export function LessonEditor({
   justGenerated?: boolean;
 }) {
   const router = useRouter();
+  const store = useReadyStore();
   const [saved, setSaved] = useState(lesson);
   const [draft, setDraft] = useState(lesson);
   const [selected, setSelected] = useState<EditorTarget>("details");
@@ -110,9 +111,9 @@ export function LessonEditor({
 
     setStatus("saving");
     try {
-      const stored = await saveLesson(result.data);
+      const stored = await store.saveLesson(result.data);
       // An attempt answered against different questions would show misleading results.
-      if (!isSample && JSON.stringify(saved.quiz) !== JSON.stringify(stored.quiz)) await deleteAttempt(stored.id);
+      if (!isSample && JSON.stringify(saved.quiz) !== JSON.stringify(stored.quiz)) await store.deleteAttempt(stored.id);
       setSaved(stored);
       setDraft(stored);
       setShowIssues(false);

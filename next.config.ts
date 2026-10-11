@@ -1,8 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
   cacheComponents: true,
+  // Database drivers load native/WASM files at runtime, so they run from node_modules instead of the bundle.
+  serverExternalPackages: ["@electric-sql/pglite", "pg"],
   partialPrefetching: true,
   turbopack: {
     rules: {

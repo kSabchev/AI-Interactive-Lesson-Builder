@@ -12,6 +12,18 @@ export function LessonNotFound() {
   );
 }
 
+export function LessonLoadError({ message }: { message: string }) {
+  return (
+    <main className="mx-auto flex max-w-xl flex-1 flex-col items-center justify-center gap-4 px-4 py-16 text-center">
+      <h1 className="text-3xl font-extrabold">This lesson couldn&apos;t be loaded</h1>
+      <p className="text-lg text-muted">{message}</p>
+      <ButtonLink href="/" size="lg">
+        Back to the library
+      </ButtonLink>
+    </main>
+  );
+}
+
 export function LessonLoading() {
   return (
     <main className="flex flex-1 items-center justify-center p-16" aria-busy="true">

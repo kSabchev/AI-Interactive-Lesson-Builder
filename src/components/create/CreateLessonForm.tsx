@@ -9,7 +9,7 @@ import { cn } from "@/lib/cn";
 import { requestGeneration } from "@/lib/generation/client";
 import { type GenerationEvent, type GenerationMode, type Stage, STAGE_LABELS } from "@/lib/generation/events";
 import { EXAMPLE_INPUT, type GenerationFormValues, generationInputSchema, REFERENCE_MAX, TOPIC_MAX } from "@/lib/generation/input";
-import { saveLesson } from "@/lib/storage/db";
+import { useStore } from "@/lib/storage/StoreProvider";
 
 type StageState = { stage: Stage; status: "start" | "done"; retried: boolean };
 
@@ -22,6 +22,7 @@ const EMPTY: GenerationFormValues = { topic: "", ageGroup: "8-10", durationMinut
 
 export function CreateLessonForm({ mode }: { mode: GenerationMode }) {
   const router = useRouter();
+  const storeState = useStore();
   const [values, setValues] = useState<GenerationFormValues>(EMPTY);
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<keyof GenerationFormValues, string>>>({});
   const [run, setRun] = useState<Run>({ status: "idle" });
@@ -69,14 +70,17 @@ export function CreateLessonForm({ mode }: { mode: GenerationMode }) {
         setRun({ status: "failed", stages, message: event.message });
       } else if (event.type === "done") {
         try {
-          await saveLesson(event.lesson);
+          if (storeState.status !== "ready") throw new Error("store not ready");
+          await storeState.store.saveLesson(event.lesson);
           router.push(`/lessons/${event.lesson.id}/edit?generated=1`);
         } catch {
           setRun({
             status: "failed",
             stages,
             message:
-              "The lesson was created but couldn't be saved in this browser (private browsing can block storage). Try a normal window.",
+              storeState.status === "ready" && storeState.store.kind === "account"
+                ? "The lesson was created but couldn't be saved to your account. Check your connection and try again."
+                : "The lesson was created but couldn't be saved in this browser (private browsing can block storage). Try a normal window.",
           });
         }
       }
@@ -148,7 +152,7 @@ export function CreateLessonForm({ mode }: { mode: GenerationMode }) {
             </Button>
           ) : (
             <>
-              <Button type="submit" size="lg">
+              <Button type="submit" size="lg" disabled={storeState.status !== "ready"}>
                 {run.status === "failed" ? "Try again" : "Generate lesson"}
               </Button>
               <Button
