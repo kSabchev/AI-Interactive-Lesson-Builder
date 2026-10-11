@@ -19,6 +19,8 @@ export const generationInputSchema = z.object({
     .max(REFERENCE_MAX, `Reference text can be up to ${REFERENCE_MAX.toLocaleString("en")} characters.`)
     .transform((v) => (v ? v : undefined))
     .optional(),
+  /** "high" uses the larger model and counts as two generations. */
+  quality: z.enum(["standard", "high"]).default("standard"),
 });
 
 export type GenerationInput = z.infer<typeof generationInputSchema>;
@@ -29,4 +31,5 @@ export const EXAMPLE_INPUT: GenerationFormValues = {
   ageGroup: "8-10",
   durationMinutes: 10,
   referenceText: "",
+  quality: "standard",
 };

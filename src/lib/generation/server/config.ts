@@ -1,4 +1,5 @@
 import "server-only";
+import type { GenerationQuality } from "@/lib/billing/plans";
 import type { GenerationMode } from "../events";
 
 export type Effort = "low" | "medium" | "high" | "xhigh" | "max";
@@ -6,7 +7,8 @@ export type Effort = "low" | "medium" | "high" | "xhigh" | "max";
 export type GenerationConfig = {
   mode: GenerationMode;
   apiKey: string | undefined;
-  model: string;
+  /** Model per quality level: standard for everyday lessons, high for the "high quality" option. */
+  models: Record<GenerationQuality, string>;
   effort: Effort;
   /** Live generations allowed per visitor per hour. */
   hourlyLimitPerVisitor: number;
@@ -33,7 +35,10 @@ export function generationConfig(env: NodeJS.ProcessEnv = process.env): Generati
   return {
     mode: wantsLive && apiKey ? "live" : "sample",
     apiKey,
-    model: env.GENERATION_MODEL || "claude-opus-5-5",
+    models: {
+      standard: env.GENERATION_MODEL_STANDARD || "claude-sonnet-5-5",
+      high: env.GENERATION_MODEL_HIGH || "claude-opus-5-5",
+    },
     effort,
     hourlyLimitPerVisitor: positiveInt(env.GENERATION_HOURLY_LIMIT, 5),
     dailyCap: positiveInt(env.GENERATION_DAILY_CAP, 50),

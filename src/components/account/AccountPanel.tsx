@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { PlanSummary } from "@/components/billing/PlanSummary";
 import { TextField } from "@/components/editor/fields";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { authClient } from "@/lib/auth/client";
@@ -57,12 +58,15 @@ export function AccountPanel() {
         </Button>
       </section>
 
+      <PlanSummary />
+
       <section aria-labelledby="delete-heading" className="rounded-3xl bg-miss-50 p-6 ring-1 ring-miss-500">
         <h2 id="delete-heading" className="text-xl font-extrabold text-miss-700">
           Delete account
         </h2>
         <p className="mt-1">
-          Permanently deletes your account, every saved lesson and all quiz results. This can&apos;t be undone.
+          Permanently deletes your account, every saved lesson and all quiz results, and cancels any subscription
+          straight away. This can&apos;t be undone.
         </p>
         <div className="mt-4 max-w-sm space-y-3">
           <TextField label={`Type ${CONFIRM_WORD} to confirm`} value={confirm} onChange={setConfirm} error={error} />

@@ -2,6 +2,8 @@ import "server-only";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { magicLink } from "better-auth/plugins/magic-link";
+import { cancelSubscriptionForDeletedUser } from "./billing/account";
+import { getStripe } from "./billing/stripe";
 import { getDb, schema } from "./db";
 import { sendEmail } from "./email";
 
@@ -29,7 +31,12 @@ async function createAuth() {
     rateLimit: process.env.DISABLE_AUTH_RATE_LIMIT === "true" ? { enabled: false } : undefined,
     user: {
       // Deleting the user cascades to their lessons, attempts and sessions (see the schema).
-      deleteUser: { enabled: true },
+      deleteUser: {
+        enabled: true,
+        beforeDelete: async (user) => {
+          await cancelSubscriptionForDeletedUser(db, user.id, (id) => getStripe().subscriptions.cancel(id));
+        },
+      },
     },
     plugins: [
       magicLink({

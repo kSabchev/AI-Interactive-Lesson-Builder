@@ -93,9 +93,13 @@ export async function importGuestData(
   db: Database,
   userId: string,
   data: { lessons: unknown[]; attempts: QuizAttempt[] },
-): Promise<{ imported: number; skipped: number }> {
+  /** How many new lessons the account may still add (plan cap); undefined means no limit. */
+  newLessonAllowance?: number,
+): Promise<{ imported: number; skipped: number; overLimit: number }> {
   let imported = 0;
   let skipped = 0;
+  let overLimit = 0;
+  let allowance = newLessonAllowance ?? Infinity;
   for (const candidate of data.lessons) {
     const parsed = lessonSchema.safeParse(candidate);
     if (!parsed.success) {
@@ -107,6 +111,13 @@ export async function importGuestData(
       skipped++;
       continue;
     }
+    if (!existing) {
+      if (allowance <= 0) {
+        overLimit++;
+        continue;
+      }
+      allowance--;
+    }
     await saveLesson(db, userId, parsed.data);
     imported++;
   }
@@ -114,7 +125,7 @@ export async function importGuestData(
     const existing = await getAttempt(db, userId, attempt.lessonId);
     if (!existing || existing.completedAt < attempt.completedAt) await saveAttempt(db, userId, attempt);
   }
-  return { imported, skipped };
+  return { imported, skipped, overLimit };
 }
 
 function toAttempt(row: typeof quizAttempt.$inferSelect): QuizAttempt {

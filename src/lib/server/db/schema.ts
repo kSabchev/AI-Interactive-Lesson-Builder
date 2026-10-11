@@ -125,3 +125,45 @@ export const generationUsage = pgTable(
   },
   (t) => [index("generation_usage_user_created_idx").on(t.userId, t.createdAt)],
 );
+
+// --- Billing ---
+
+/**
+ * A user's Stripe customer and current subscription, kept in sync by webhooks. `plan` is what the user is
+ * entitled to right now; `stripeEventAt` is the creation time of the last applied event, so older events
+ * arriving late can't overwrite newer state.
+ */
+export const billingAccount = pgTable("billing_account", {
+  userId: text("user_id")
+    .primaryKey()
+    .references(() => user.id, { onDelete: "cascade" }),
+  stripeCustomerId: text("stripe_customer_id").notNull().unique(),
+  subscriptionId: text("subscription_id"),
+  plan: text("plan").notNull().default("free"),
+  status: text("status"),
+  priceId: text("price_id"),
+  currentPeriodEnd: timestamp("current_period_end", { withTimezone: true }),
+  cancelAtPeriodEnd: boolean("cancel_at_period_end").notNull().default(false),
+  stripeEventAt: timestamp("stripe_event_at", { withTimezone: true }),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** Stripe event ids already handled, so redelivered webhooks are ignored. */
+export const stripeEvent = pgTable("stripe_event", {
+  id: text("id").primaryKey(),
+  type: text("type").notNull(),
+  receivedAt: timestamp("received_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** Generations used per user per month. Incremented atomically against the plan limit. */
+export const generationQuota = pgTable(
+  "generation_quota",
+  {
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    period: text("period").notNull(),
+    used: integer("used").notNull().default(0),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.period] })],
+);

@@ -91,13 +91,16 @@ export const accountStore: LessonStore = {
 };
 
 /** Copies everything saved in this browser into the signed-in account, then clears the browser copies. */
-export async function importBrowserData(): Promise<{ imported: number; skipped: number }> {
+export async function importBrowserData(): Promise<{ imported: number; skipped: number; overLimit: number }> {
   const [lessons, attempts] = await Promise.all([local.listSavedLessons(), local.listLatestAttempts()]);
-  const result = await api<{ imported: number; skipped: number }>("/api/import", {
+  const result = await api<{ imported: number; skipped: number; overLimit: number }>("/api/import", {
     method: "POST",
     body: JSON.stringify({ lessons, attempts }),
   });
-  for (const lesson of lessons) await local.deleteSavedLesson(lesson.id);
-  for (const attempt of attempts) await local.deleteAttempt(attempt.lessonId);
+  // Lessons that didn't fit the plan's limit stay in the browser rather than being lost.
+  if (result.overLimit === 0) {
+    for (const lesson of lessons) await local.deleteSavedLesson(lesson.id);
+    for (const attempt of attempts) await local.deleteAttempt(attempt.lessonId);
+  }
   return result;
 }

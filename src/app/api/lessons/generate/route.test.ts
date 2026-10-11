@@ -7,7 +7,27 @@ import { lessonSchema } from "@/lib/lesson/schema";
 const send = vi.fn();
 vi.mock("@/lib/generation/server/claude", () => ({ createClaudeClient: () => ({ send }) }));
 
+let sessionUser: { id: string; email: string; name: string } | null = null;
+vi.mock("@/lib/server/auth", () => ({ getSessionUser: async () => sessionUser }));
+
 const { POST } = await import("./route");
+const { getDb } = await import("@/lib/server/db");
+const { billingAccount, user } = await import("@/lib/server/db/schema");
+
+let userCount = 0;
+/** Signs the test in as a fresh user (with a clean quota), optionally on Pro. */
+async function signInAs(plan: "free" | "pro" = "free") {
+  const id = `gen-user-${++userCount}`;
+  const db = await getDb();
+  await db.insert(user).values({ id, name: id, email: `${id}@example.com` });
+  if (plan === "pro") {
+    await db
+      .insert(billingAccount)
+      .values({ userId: id, stripeCustomerId: `cus_${id}`, plan: "pro", status: "active" });
+  }
+  sessionUser = { id, email: `${id}@example.com`, name: id };
+  return id;
+}
 
 function post(body: unknown, headers: Record<string, string> = {}) {
   return POST(
@@ -32,6 +52,7 @@ const valid = { topic: "Why it rains", ageGroup: "8-10", durationMinutes: 10 };
 beforeEach(() => {
   resetLimitsForTests();
   send.mockReset();
+  sessionUser = null;
   vi.stubEnv("ANTHROPIC_API_KEY", "");
   vi.stubEnv("GENERATION_MODE", "");
 });
@@ -79,10 +100,77 @@ describe("POST /api/lessons/generate", () => {
   });
 
   describe("live mode", () => {
-    beforeEach(() => {
+    beforeEach(async () => {
       vi.stubEnv("GENERATION_MODE", "live");
       vi.stubEnv("ANTHROPIC_API_KEY", "test-key");
       vi.stubEnv("GENERATION_HOURLY_LIMIT", "2");
+      await signInAs("free");
+    });
+
+    it("asks guests to sign in", async () => {
+      sessionUser = null;
+      const response = await post(valid);
+      expect(response.status).toBe(401);
+      expect((await response.json()).error.code).toBe("sign_in_required");
+    });
+
+    it("keeps reference text and high quality for paid plans", async () => {
+      const withReference = await post({ ...valid, referenceText: "Rain falls from clouds." });
+      expect(withReference.status).toBe(403);
+      expect((await withReference.json()).error.code).toBe("upgrade_required");
+      const high = await post({ ...valid, quality: "high" });
+      expect(high.status).toBe(403);
+      expect(send).not.toHaveBeenCalled();
+    });
+
+    it("refuses to generate when the library is full, before spending anything", async () => {
+      const db = await getDb();
+      const { lesson } = await import("@/lib/server/db/schema");
+      const { getSampleLesson } = await import("@/content/samples");
+      const sample = getSampleLesson("sample-water-cycle")!;
+      const owner = sessionUser!.id;
+      for (let i = 0; i < 10; i++) {
+        const id = `full-${i}`;
+        await db.insert(lesson).values({
+          userId: owner,
+          id,
+          title: "t",
+          topic: "t",
+          ageGroup: "8-10",
+          durationMinutes: 10,
+          contentOrigin: "curated",
+          data: { ...sample, id },
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+      }
+      const response = await post(valid);
+      expect(response.status).toBe(403);
+      expect((await response.json()).error.message).toContain("library is full");
+      expect(send).not.toHaveBeenCalled();
+    });
+
+    it("allows Pro features once subscribed", async () => {
+      await signInAs("pro");
+      send.mockRejectedValueOnce(new GenerationError("refused", "No."));
+      const response = await post({ ...valid, quality: "high", referenceText: "Rain falls from clouds." });
+      expect(response.status).toBe(200);
+      await response.text();
+    });
+
+    it("stops at the monthly quota and refunds service failures but not refusals", async () => {
+      vi.stubEnv("GENERATION_HOURLY_LIMIT", "50");
+      // Service failures are refunded, so they don't use up the 3 free lessons...
+      send.mockRejectedValue(new GenerationError("busy", "busy"));
+      for (let i = 0; i < 4; i++) await (await post(valid)).text();
+      // ...but refusals count.
+      send.mockRejectedValue(new GenerationError("refused", "No."));
+      for (let i = 0; i < 3; i++) expect((await post(valid)).status).toBe(200);
+      const over = await post(valid);
+      expect(over.status).toBe(429);
+      const body = await over.json();
+      expect(body.error.code).toBe("quota_exceeded");
+      expect(body.error.message).toContain("used all 3 AI lessons");
     });
 
     it("streams model errors as a classified error event", async () => {
@@ -104,7 +192,7 @@ describe("POST /api/lessons/generate", () => {
 
       const rows = await db.select().from(generationUsage);
       expect(rows).toHaveLength(before + 1);
-      expect(rows.at(-1)).toMatchObject({ mode: "live", status: "busy", userId: null });
+      expect(rows.at(-1)).toMatchObject({ mode: "live", status: "busy", userId: sessionUser!.id });
     });
 
     it("never leaks unexpected error details to the client", async () => {
@@ -126,6 +214,7 @@ describe("POST /api/lessons/generate", () => {
       expect((await third.json()).error.code).toBe("rate_limited");
 
       // Another visitor is unaffected.
+      await signInAs("free");
       const other = await post(valid, { "x-forwarded-for": "198.51.100.1" });
       expect(other.status).toBe(200);
       await other.text();
@@ -135,6 +224,7 @@ describe("POST /api/lessons/generate", () => {
       vi.stubEnv("GENERATION_DAILY_CAP", "1");
       send.mockRejectedValue(new GenerationError("busy", "busy"));
       await (await post(valid)).text();
+      await signInAs("free");
       const response = await post(valid, { "x-forwarded-for": "198.51.100.2" });
       expect(response.status).toBe(429);
     });

@@ -1,6 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
 import { MAILBOX_FILE } from "./e2e/mailbox";
+import { STRIPE_WEBHOOK_SECRET } from "./e2e/stripe";
 
 const PORT = 3100;
 
@@ -31,6 +32,11 @@ export default defineConfig({
       BETTER_AUTH_SECRET: "e2e-only-secret-not-for-production-0123456789",
       BETTER_AUTH_URL: `http://localhost:${PORT}`,
       DISABLE_AUTH_RATE_LIMIT: "true",
+      // Billing switched on with test values. Tests never reach Stripe's API; they deliver signed webhooks.
+      STRIPE_SECRET_KEY: "sk_test_e2e_dummy",
+      STRIPE_WEBHOOK_SECRET: STRIPE_WEBHOOK_SECRET,
+      STRIPE_PRICE_PRO_MONTHLY: "price_e2e_pro_month",
+      STRIPE_PRICE_PRO_YEARLY: "price_e2e_pro_year",
     },
   },
 });

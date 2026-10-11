@@ -16,6 +16,9 @@ export function AppHeader() {
         <Link href="/create" className={linkClass}>
           Create
         </Link>
+        <Link href="/pricing" className={linkClass}>
+          Pricing
+        </Link>
         {state.status === "loading" ? (
           <span className="w-20" aria-hidden="true" />
         ) : state.user ? (

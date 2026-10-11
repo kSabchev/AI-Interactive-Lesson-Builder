@@ -16,6 +16,9 @@ export type GenerationMode = "live" | "sample";
 
 export type GenerationErrorCode =
   | "invalid_input"
+  | "sign_in_required"
+  | "upgrade_required"
+  | "quota_exceeded"
   | "rate_limited"
   | "unavailable"
   | "busy"
