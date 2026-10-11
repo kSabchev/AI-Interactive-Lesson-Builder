@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { AccountPanel } from "@/components/account/AccountPanel";
 import { AppHeader } from "@/components/account/AppHeader";
 
@@ -10,7 +11,9 @@ export default function AccountPage() {
       <AppHeader />
       <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-12">
         <h1 className="mb-8 text-4xl font-extrabold">Account</h1>
-        <AccountPanel />
+        <Suspense fallback={<p className="text-muted">Loading…</p>}>
+          <AccountPanel />
+        </Suspense>
       </main>
     </>
   );

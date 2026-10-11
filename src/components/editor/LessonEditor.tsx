@@ -10,6 +10,7 @@ import { newId, replaceAt } from "@/lib/lesson/edit";
 import { describeIssues, type EditorTarget, type LessonIssue } from "@/lib/lesson/issues";
 import { SECTION_TYPE_LABELS } from "@/lib/lesson/labels";
 import { type Lesson, lessonSchema } from "@/lib/lesson/schema";
+import { StoreError } from "@/lib/storage/store";
 import { useReadyStore } from "@/lib/storage/StoreProvider";
 import { DetailsEditor, ObjectivesEditor, QuizQuestionEditor, SourcesPanel } from "./OtherEditors";
 import { SectionEditor } from "./SectionEditor";
@@ -60,6 +61,8 @@ export function LessonEditor({
   const [draft, setDraft] = useState(lesson);
   const [selected, setSelected] = useState<EditorTarget>("details");
   const [status, setStatus] = useState<SaveStatus>(justCopied ? "saved" : "idle");
+  /** Set when the account refuses the save because of a plan limit. */
+  const [limitMessage, setLimitMessage] = useState<string>();
   const [showIssues, setShowIssues] = useState(false);
   const [previewStates, setPreviewStates] = useState<ActivityStates>({});
   const mainRef = useRef<HTMLDivElement>(null);
@@ -120,7 +123,8 @@ export function LessonEditor({
       setStatus("saved");
       if (isSample && thenOpenCopy) router.replace(`/lessons/${stored.id}/edit?copied=1`);
       return stored;
-    } catch {
+    } catch (error) {
+      setLimitMessage(error instanceof StoreError && error.status === 403 ? error.message : undefined);
       setStatus("failed");
       return undefined;
     }
@@ -158,7 +162,11 @@ export function LessonEditor({
           <p role="status" className="text-sm font-bold text-muted">
             <StatusText status={status} dirty={dirty} isSample={isSample} />
           </p>
-          <Button variant="secondary" onClick={() => void save()} disabled={status === "saving" || (!dirty && !isSample)}>
+          <Button
+            variant="secondary"
+            onClick={() => void save()}
+            disabled={status === "saving" || (!dirty && !isSample)}
+          >
             {isSample ? "Save as my copy" : "Save"}
           </Button>
           <Button onClick={startLesson} disabled={status === "saving"}>
@@ -170,6 +178,17 @@ export function LessonEditor({
             This is a curated sample, so it stays as it is. Saving your edits creates your own copy in the library.
           </p>
         )}
+        {status === "failed" && limitMessage && (
+          <p
+            role="alert"
+            className="border-t border-line bg-miss-50 px-4 py-2 text-sm font-semibold text-miss-700 md:px-6"
+          >
+            {limitMessage}{" "}
+            <Link href="/pricing" className="underline underline-offset-2">
+              See plans
+            </Link>
+          </p>
+        )}
         {justGenerated && <GeneratedNotice lesson={saved} />}
         {justCopied && !isSample && status === "saved" && !dirty && (
           <p className="border-t border-line bg-good-50 px-4 py-2 text-sm font-semibold text-good-700 md:px-6">
@@ -179,7 +198,10 @@ export function LessonEditor({
       </header>
 
       <div className="flex min-h-0 flex-1 flex-col md:flex-row">
-        <nav aria-label="Lesson parts" className="border-b border-line bg-surface md:w-72 md:shrink-0 md:overflow-y-auto md:border-r md:border-b-0">
+        <nav
+          aria-label="Lesson parts"
+          className="border-b border-line bg-surface md:w-72 md:shrink-0 md:overflow-y-auto md:border-r md:border-b-0"
+        >
           {/* Compact picker on narrow screens, full outline from tablet up. */}
           <label className="block p-3 md:hidden">
             <span className="sr-only">Edit part of the lesson</span>
@@ -218,7 +240,9 @@ export function LessonEditor({
                       >
                         <span className="line-clamp-2 flex-1">{item.label}</span>
                         {item.detail && (
-                          <span className="shrink-0 rounded-full bg-paper px-2 py-0.5 text-xs font-bold text-muted">{item.detail}</span>
+                          <span className="shrink-0 rounded-full bg-paper px-2 py-0.5 text-xs font-bold text-muted">
+                            {item.detail}
+                          </span>
                         )}
                         {issueTargets.has(item.target) && (
                           <span className="shrink-0 text-miss-500" aria-label="Has problems to fix">
@@ -236,7 +260,10 @@ export function LessonEditor({
 
         <main ref={mainRef} tabIndex={-1} className="min-h-0 flex-1 overflow-y-auto outline-none">
           {issues.length > 0 && (
-            <section aria-labelledby="issues-heading" className="mx-4 mt-4 rounded-2xl bg-miss-50 p-4 ring-2 ring-miss-500 md:mx-6">
+            <section
+              aria-labelledby="issues-heading"
+              className="mx-4 mt-4 rounded-2xl bg-miss-50 p-4 ring-2 ring-miss-500 md:mx-6"
+            >
               <h2 id="issues-heading" className="font-extrabold text-miss-700">
                 Fix {issues.length} problem{issues.length === 1 ? "" : "s"} before saving
               </h2>
@@ -257,7 +284,9 @@ export function LessonEditor({
             </section>
           )}
 
-          <div className={cn("grid gap-8 p-4 md:p-6", selectedSection && "2xl:grid-cols-[minmax(0,42rem)_minmax(0,1fr)]")}>
+          <div
+            className={cn("grid gap-8 p-4 md:p-6", selectedSection && "2xl:grid-cols-[minmax(0,42rem)_minmax(0,1fr)]")}
+          >
             <div className="max-w-2xl">
               {selectedSection && (
                 <a
@@ -277,7 +306,11 @@ export function LessonEditor({
                   onChange={(section) =>
                     update({
                       ...draft,
-                      sections: replaceAt(draft.sections, draft.sections.findIndex((s) => s.id === section.id), section),
+                      sections: replaceAt(
+                        draft.sections,
+                        draft.sections.findIndex((s) => s.id === section.id),
+                        section,
+                      ),
                     })
                   }
                 />

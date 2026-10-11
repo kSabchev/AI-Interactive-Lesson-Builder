@@ -4,11 +4,26 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { SelectField, TextArea, TextField } from "@/components/editor/fields";
-import { Button } from "@/components/ui/Button";
+import { Button, ButtonLink } from "@/components/ui/Button";
+import { HIGH_QUALITY_COST } from "@/lib/billing/plans";
+import { useBilling } from "@/lib/billing/useBilling";
 import { cn } from "@/lib/cn";
 import { requestGeneration } from "@/lib/generation/client";
-import { type GenerationEvent, type GenerationMode, type Stage, STAGE_LABELS } from "@/lib/generation/events";
-import { EXAMPLE_INPUT, type GenerationFormValues, generationInputSchema, REFERENCE_MAX, TOPIC_MAX } from "@/lib/generation/input";
+import {
+  type GenerationErrorCode,
+  type GenerationEvent,
+  type GenerationMode,
+  type Stage,
+  STAGE_LABELS,
+} from "@/lib/generation/events";
+import {
+  EXAMPLE_INPUT,
+  type GenerationFormValues,
+  generationInputSchema,
+  REFERENCE_MAX,
+  TOPIC_MAX,
+} from "@/lib/generation/input";
+import { StoreError } from "@/lib/storage/store";
 import { useStore } from "@/lib/storage/StoreProvider";
 
 type StageState = { stage: Stage; status: "start" | "done"; retried: boolean };
@@ -16,13 +31,27 @@ type StageState = { stage: Stage; status: "start" | "done"; retried: boolean };
 type Run =
   | { status: "idle" }
   | { status: "running"; stages: StageState[] }
-  | { status: "failed"; stages: StageState[]; message: string };
+  | { status: "failed"; stages: StageState[]; message: string; code?: GenerationErrorCode };
 
-const EMPTY: GenerationFormValues = { topic: "", ageGroup: "8-10", durationMinutes: 10, referenceText: "" };
+const EMPTY: GenerationFormValues = {
+  topic: "",
+  ageGroup: "8-10",
+  durationMinutes: 10,
+  referenceText: "",
+  quality: "standard",
+};
 
 export function CreateLessonForm({ mode }: { mode: GenerationMode }) {
   const router = useRouter();
   const storeState = useStore();
+  const { lookup: billingLookup } = useBilling();
+  const billing = billingLookup.status === "ready" ? billingLookup.billing : undefined;
+  // Plan limits only apply to live AI generation; sample mode is open to everyone.
+  const live = mode === "live";
+  const plan = billing?.plan;
+  const needsSignIn = live && billing !== undefined && !billing.signedIn;
+  const canUseReference = !live || Boolean(plan?.referenceText);
+  const canUseHighQuality = live && Boolean(plan?.highQuality);
   const [values, setValues] = useState<GenerationFormValues>(EMPTY);
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<keyof GenerationFormValues, string>>>({});
   const [run, setRun] = useState<Run>({ status: "idle" });
@@ -37,7 +66,11 @@ export function CreateLessonForm({ mode }: { mode: GenerationMode }) {
 
   async function generate(e?: React.FormEvent) {
     e?.preventDefault();
-    const parsed = generationInputSchema.safeParse(values);
+    const parsed = generationInputSchema.safeParse({
+      ...values,
+      referenceText: canUseReference ? values.referenceText : "",
+      quality: canUseHighQuality ? values.quality : "standard",
+    });
     if (!parsed.success) {
       const errors: typeof fieldErrors = {};
       for (const issue of parsed.error.issues) {
@@ -67,20 +100,22 @@ export function CreateLessonForm({ mode }: { mode: GenerationMode }) {
         stages = stages.map((s) => (s.stage === event.stage ? { ...s, retried: true } : s));
         setRun({ status: "running", stages });
       } else if (event.type === "error") {
-        setRun({ status: "failed", stages, message: event.message });
+        setRun({ status: "failed", stages, message: event.message, code: event.code });
       } else if (event.type === "done") {
         try {
           if (storeState.status !== "ready") throw new Error("store not ready");
           await storeState.store.saveLesson(event.lesson);
           router.push(`/lessons/${event.lesson.id}/edit?generated=1`);
-        } catch {
+        } catch (error) {
           setRun({
             status: "failed",
             stages,
             message:
-              storeState.status === "ready" && storeState.store.kind === "account"
-                ? "The lesson was created but couldn't be saved to your account. Check your connection and try again."
-                : "The lesson was created but couldn't be saved in this browser (private browsing can block storage). Try a normal window.",
+              error instanceof StoreError && error.status === 403
+                ? `${error.message} The lesson wasn't saved.`
+                : storeState.status === "ready" && storeState.store.kind === "account"
+                  ? "The lesson was created but couldn't be saved to your account. Check your connection and try again."
+                  : "The lesson was created but couldn't be saved in this browser (private browsing can block storage). Try a normal window.",
           });
         }
       }
@@ -89,7 +124,8 @@ export function CreateLessonForm({ mode }: { mode: GenerationMode }) {
     try {
       await requestGeneration(parsed.data, (event) => void onEvent(event), controller.signal);
     } catch {
-      if (!controller.signal.aborted) setRun({ status: "failed", stages, message: "Generation stopped unexpectedly. Please try again." });
+      if (!controller.signal.aborted)
+        setRun({ status: "failed", stages, message: "Generation stopped unexpectedly. Please try again." });
     }
   }
 
@@ -100,16 +136,20 @@ export function CreateLessonForm({ mode }: { mode: GenerationMode }) {
 
   return (
     <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_22rem]">
-      <form onSubmit={generate} noValidate className="space-y-6 rounded-3xl bg-surface p-6 shadow-sm ring-1 ring-line md:p-8">
+      <form
+        onSubmit={generate}
+        noValidate
+        className="space-y-6 rounded-3xl bg-surface p-6 shadow-sm ring-1 ring-line md:p-8"
+      >
         <fieldset disabled={running} className="space-y-6">
           <TextField
-              label="Topic"
-              hint="What should the lesson explain? For example, “How the water cycle works”."
-              value={values.topic}
-              maxLength={TOPIC_MAX}
-              error={fieldErrors.topic}
-              onChange={(topic) => set("topic", topic)}
-            />
+            label="Topic"
+            hint="What should the lesson explain? For example, “How the water cycle works”."
+            value={values.topic}
+            maxLength={TOPIC_MAX}
+            error={fieldErrors.topic}
+            onChange={(topic) => set("topic", topic)}
+          />
           <div className="grid gap-4 sm:grid-cols-2">
             <SelectField
               label="Learner age"
@@ -130,7 +170,8 @@ export function CreateLessonForm({ mode }: { mode: GenerationMode }) {
               onChange={(v) => set("durationMinutes", Number(v) as 10 | 15)}
             />
           </div>
-          <TextArea
+          {canUseReference ? (
+            <TextArea
               label="Reference text (optional)"
               hint="Paste educational material to base the lesson on, such as a textbook page. The lesson will be labelled as reference-based."
               rows={5}
@@ -139,6 +180,27 @@ export function CreateLessonForm({ mode }: { mode: GenerationMode }) {
               error={fieldErrors.referenceText}
               onChange={(referenceText) => set("referenceText", referenceText)}
             />
+          ) : (
+            <p className="rounded-2xl border-2 border-dashed border-line p-4 text-sm">
+              <strong>Reference text</strong> — base lessons on your own material with{" "}
+              <Link href="/pricing" className="font-bold text-brand-700 underline underline-offset-2">
+                Pro
+              </Link>
+              .
+            </p>
+          )}
+          {canUseHighQuality && (
+            <SelectField
+              label="Quality"
+              hint={`High quality uses a larger model and counts as ${HIGH_QUALITY_COST} AI lessons.`}
+              value={values.quality ?? "standard"}
+              options={[
+                { value: "standard", label: "Standard" },
+                { value: "high", label: `High quality (counts as ${HIGH_QUALITY_COST})` },
+              ]}
+              onChange={(quality) => set("quality", quality)}
+            />
+          )}
           <p className="rounded-2xl bg-paper/60 p-4 text-sm">
             <strong>Template:</strong> Explore a concept — hook, prediction, explanation, hands-on activity, examples,
             sorting, recap, then a five-question quiz.
@@ -152,7 +214,7 @@ export function CreateLessonForm({ mode }: { mode: GenerationMode }) {
             </Button>
           ) : (
             <>
-              <Button type="submit" size="lg" disabled={storeState.status !== "ready"}>
+              <Button type="submit" size="lg" disabled={storeState.status !== "ready" || needsSignIn}>
                 {run.status === "failed" ? "Try again" : "Generate lesson"}
               </Button>
               <Button
@@ -173,6 +235,33 @@ export function CreateLessonForm({ mode }: { mode: GenerationMode }) {
       {/* First on narrow screens so the mode notice and progress are seen before the long form. */}
       <aside className="order-first space-y-4 lg:order-none">
         <ModeNotice mode={mode} />
+        {needsSignIn && (
+          <div className="rounded-3xl bg-surface p-5 ring-1 ring-line">
+            <p className="font-bold">Sign in to create AI lessons</p>
+            <p className="mt-1 text-sm text-muted">
+              Free accounts get {billing?.plan.generationsPerMonth} AI lessons a month. Sample lessons work without one.
+            </p>
+            <ButtonLink href="/sign-in?next=/create" className="mt-3">
+              Sign in
+            </ButtonLink>
+          </div>
+        )}
+        {live && billing?.signedIn && plan && (
+          <p className="rounded-3xl bg-surface p-5 text-sm ring-1 ring-line">
+            <strong>
+              {billing.remaining} of {plan.generationsPerMonth} AI lessons left
+            </strong>{" "}
+            this month on {plan.name}.
+            {plan.id === "free" && (
+              <>
+                {" "}
+                <Link href="/pricing" className="font-bold text-brand-700 underline underline-offset-2">
+                  Get more with Pro
+                </Link>
+              </>
+            )}
+          </p>
+        )}
         {run.status !== "idle" && (
           <div
             ref={statusRef}
@@ -196,7 +285,9 @@ export function CreateLessonForm({ mode }: { mode: GenerationMode }) {
                   </span>
                   <span className={s.status === "done" ? "text-muted" : "font-bold"}>
                     {STAGE_LABELS[s.stage]}
-                    {s.retried && <span className="block text-sm font-normal text-muted">Fixed a problem and tried again</span>}
+                    {s.retried && (
+                      <span className="block text-sm font-normal text-muted">Fixed a problem and tried again</span>
+                    )}
                     <span className="sr-only">{s.status === "done" ? " — done" : " — in progress"}</span>
                   </span>
                 </li>
@@ -206,6 +297,16 @@ export function CreateLessonForm({ mode }: { mode: GenerationMode }) {
             {run.status === "failed" && (
               <div className="mt-4 rounded-2xl bg-miss-50 p-4 ring-2 ring-miss-500">
                 <p className="font-bold text-miss-700">{run.message}</p>
+                {run.code === "sign_in_required" && (
+                  <ButtonLink href="/sign-in?next=/create" className="mt-3">
+                    Sign in
+                  </ButtonLink>
+                )}
+                {(run.code === "upgrade_required" || run.code === "quota_exceeded") && (
+                  <ButtonLink href="/pricing" className="mt-3">
+                    See plans
+                  </ButtonLink>
+                )}
                 <p className="mt-2 text-sm">
                   Your answers are still in the form.{" "}
                   <Link href="/" className="font-bold text-brand-700 underline underline-offset-2">

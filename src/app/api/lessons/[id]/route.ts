@@ -1,4 +1,5 @@
 import { lessonSchema } from "@/lib/lesson/schema";
+import { getEntitlements } from "@/lib/server/billing/account";
 import { getDb } from "@/lib/server/db";
 import { jsonError, readJson, requireUser } from "@/lib/server/http";
 import { deleteLesson, getLesson, saveLesson } from "@/lib/server/lessons";
@@ -25,7 +26,20 @@ export async function PUT(request: Request, ctx: RouteContext<"/api/lessons/[id]
   if (!parsed.success) return jsonError(422, "That lesson isn't valid.");
   if (parsed.data.id !== id) return jsonError(400, "The lesson id doesn't match the address.");
 
-  const lesson = await saveLesson(await getDb(), auth.user.id, parsed.data);
+  const db = await getDb();
+  // Plans can cap how many lessons an account keeps. Existing lessons always stay editable.
+  if (!(await getLesson(db, auth.user.id, id))) {
+    const { plan, savedLessons } = await getEntitlements(db, auth.user.id);
+    if (plan.savedLessons !== null && savedLessons >= plan.savedLessons) {
+      return jsonError(
+        403,
+        `The ${plan.name} plan keeps up to ${plan.savedLessons} lessons. Delete one or upgrade to save more.`,
+        "lesson_limit",
+      );
+    }
+  }
+
+  const lesson = await saveLesson(db, auth.user.id, parsed.data);
   return Response.json({ lesson });
 }
 

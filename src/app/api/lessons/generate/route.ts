@@ -1,3 +1,4 @@
+import { generationCost, PLANS } from "@/lib/billing/plans";
 import { newId } from "@/lib/lesson/edit";
 import { GenerationError, type GenerationErrorCode, type GenerationEvent } from "@/lib/generation/events";
 import { generationInputSchema } from "@/lib/generation/input";
@@ -7,6 +8,7 @@ import { createClaudeClient, type UsageReport } from "@/lib/generation/server/cl
 import { generationConfig } from "@/lib/generation/server/config";
 import { checkDailyCap, checkVisitorLimit, recordGeneration } from "@/lib/generation/server/limits";
 import { getSessionUser } from "@/lib/server/auth";
+import { getEntitlements, releaseGenerations, reserveGenerations } from "@/lib/server/billing/account";
 import { getDb } from "@/lib/server/db";
 import { generationUsage } from "@/lib/server/db/schema";
 
@@ -16,6 +18,11 @@ export const maxDuration = 300;
 /** Topic, settings and up to 20,000 characters of reference text, with headroom for JSON escaping. */
 const MAX_BODY_BYTES = 64_000;
 const HOUR_MS = 60 * 60 * 1000;
+
+/** Failures caused by the service rather than the request; their generations are given back. */
+const REFUNDABLE: GenerationErrorCode[] = ["busy", "unavailable", "invalid_output"];
+
+const monthDay = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "long", timeZone: "UTC" });
 
 function errorResponse(status: number, code: GenerationErrorCode, message: string, headers?: HeadersInit) {
   return Response.json({ error: { code, message } }, { status, headers });
@@ -78,12 +85,47 @@ export async function POST(request: Request) {
   const visitor = visitorKey(request);
   const userId = await currentUserId(request);
 
+  const cost = generationCost(input.quality);
+  let reserved: { userId: string; period: string } | undefined;
+
   if (config.mode === "live") {
+    // Quotas belong to accounts, so live AI generation needs one. Sample mode stays open to everyone.
+    if (!userId) {
+      return errorResponse(401, "sign_in_required", "Sign in to create AI lessons. It's free, and sample lessons work without an account.");
+    }
+    const db = await getDb();
+    const entitlements = await getEntitlements(db, userId);
+    const { plan } = entitlements;
+    if (input.referenceText && !plan.referenceText) {
+      return errorResponse(403, "upgrade_required", `Lessons from reference material are part of ${PLANS.pro.name}. Remove the reference text or upgrade.`);
+    }
+    if (input.quality === "high" && !plan.highQuality) {
+      return errorResponse(403, "upgrade_required", `High-quality generation is part of ${PLANS.pro.name}.`);
+    }
+    // Don't spend a generation on a lesson the account couldn't save.
+    if (plan.savedLessons !== null && entitlements.savedLessons >= plan.savedLessons) {
+      return errorResponse(
+        403,
+        "upgrade_required",
+        `Your ${plan.name} plan keeps up to ${plan.savedLessons} lessons and your library is full. Delete a lesson or upgrade first.`,
+      );
+    }
+
     const limit = checkVisitorLimit(visitor, config.hourlyLimitPerVisitor, HOUR_MS);
     const cap = limit.ok ? checkDailyCap(config.dailyCap) : limit;
     if (!cap.ok) {
       return errorResponse(429, "rate_limited", cap.message, { "Retry-After": String(cap.retryAfterSeconds) });
     }
+
+    if (!(await reserveGenerations(db, userId, cost, plan.generationsPerMonth, entitlements.period))) {
+      const resets = monthDay.format(new Date(entitlements.resetsAt));
+      const message =
+        entitlements.remaining > 0
+          ? `This needs ${cost} AI lessons but you have ${entitlements.remaining} left this month. Use standard quality, or wait until ${resets}.`
+          : `You've used all ${plan.generationsPerMonth} AI lessons in your ${plan.name} plan this month. They reset on ${resets}.`;
+      return errorResponse(429, "quota_exceeded", message);
+    }
+    reserved = { userId, period: entitlements.period };
     recordGeneration(visitor);
   }
 
@@ -115,7 +157,7 @@ export async function POST(request: Request) {
         } else {
           const client = createClaudeClient({
             apiKey: config.apiKey!,
-            model: config.model,
+            model: config.models[input.quality],
             effort: config.effort,
             signal: request.signal,
             onUsage: (report) => usage.push(report),
@@ -130,6 +172,11 @@ export async function POST(request: Request) {
             : new GenerationError("unavailable", "Something went wrong while generating. Please try again.");
         if (!(error instanceof GenerationError)) console.error("[generation] unexpected failure:", error);
         outcome = known.code;
+        if (reserved && REFUNDABLE.includes(known.code)) {
+          await releaseGenerations(await getDb(), reserved.userId, cost, reserved.period).catch((e) =>
+            console.error("[generation] couldn't refund quota:", e),
+          );
+        }
         emit({ type: "error", code: known.code, message: known.message });
       } finally {
         await recordUsage(userId, config.mode, outcome, usage);

@@ -5,7 +5,7 @@ import type { GenerationInput } from "./input";
 import { type ConversationTurn, generateLesson, type ModelClient, type ModelReply } from "./pipeline";
 import type { Content, Outline, Quiz } from "./stages";
 
-const input: GenerationInput = { topic: "How magnets work", ageGroup: "8-10", durationMinutes: 10 };
+const input: GenerationInput = { topic: "How magnets work", ageGroup: "8-10", durationMinutes: 10, quality: "standard" };
 
 const planned = (title: string, objectives: ("1" | "2" | "3")[]) => ({ title, focus: `About ${title}`, objectives });
 

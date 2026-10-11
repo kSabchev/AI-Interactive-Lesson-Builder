@@ -9,7 +9,7 @@ The product is moving from a portfolio demo to a subscription SaaS for parents a
 | Launch or demo | Build launch-ready; payments stay in test mode until going live is a deliberate choice | Same code either way; legal, tax and support work can wait |
 | Who has accounts | Adults only (parents and teachers) | Learners use the shared screen without logging in, so no children's data is collected (COPPA / GDPR-K) |
 | Stack | Postgres (Neon or Supabase in production, embedded PGlite locally), Drizzle ORM, Better Auth | Chosen at milestone 5 |
-| Payments | Stripe Billing, or a merchant of record (Paddle / Lemon Squeezy) | **Open — decide at milestone 6.** A merchant of record handles VAT and sales tax |
+| Payments | Stripe Billing (Checkout + Customer Portal + webhooks) | Chosen at milestone 6. Tax is our responsibility; `STRIPE_AUTOMATIC_TAX=true` turns on Stripe Tax once it's set up |
 | Usage unit | Monthly lesson generations, enforced on the server | AI cost is the main variable cost |
 
 ## Tiers (draft — validate against measured cost per lesson)
@@ -34,7 +34,7 @@ Margin check: 30 Sonnet lessons at ~$0.15 cost ~$4.50, which fits $9 after payme
 | 3 | Review editor and local persistence | ✅ |
 | 4 | AI generation | 🟡 steps 1–9 done; step 10 (live check) needs an API key |
 | 5 | Accounts and cloud data | ✅ (email delivery provider pending, see milestone 9) |
-| 6 | Subscriptions and billing | ⏳ |
+| 6 | Subscriptions and billing | ✅ Free and Pro; Classroom waits for milestone 8 |
 | 7 | Evidence support | ⏳ |
 | 8 | Classroom tier | ⏳ (build when there is demand) |
 | 9 | Launch readiness | ⏳ |
@@ -67,7 +67,7 @@ Margin check: 30 Sonnet lessons at ~$0.15 cost ~$4.50, which fits $9 after payme
 2. Pricing page, checkout, self-service billing portal.
 3. Webhook handler that verifies signatures, tolerates duplicate events, and handles renewals, cancellations, failed payments and grace periods.
 4. Server-side entitlements: generation quota with atomic increments, saved-lesson cap, feature flags, model choice.
-5. Interface: remaining quota, upgrade prompts at limits, downgrade rules (over-limit lessons become read-only, never deleted).
+5. Interface: remaining quota, upgrade prompts at limits, downgrade rules. *As built:* at the saved-lesson cap an account can't add new lessons, but every existing lesson stays fully editable and nothing is deleted (simpler and friendlier than read-only lessons).
 6. Tests: webhook replay, quota race conditions, expired and cancelled subscriptions.
 
 ### 7. Evidence support (paid feature)

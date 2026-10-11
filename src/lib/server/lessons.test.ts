@@ -89,10 +89,22 @@ describe("server lesson storage", () => {
       attempts: [{ lessonId: "sample-water-cycle", answers: {}, score: 3, total: 5, completedAt: "2026-10-05T00:00:00.000Z" }],
     });
 
-    expect(result).toEqual({ imported: 1, skipped: 2 });
+    expect(result).toEqual({ imported: 1, skipped: 2, overLimit: 0 });
     expect((await getLesson(db, "carol", "kept"))?.title).toBe("Account copy");
     expect(await getLesson(db, "carol", "new")).toBeDefined();
     expect((await listAttempts(db, "carol")).map((a) => a.score)).toEqual([3]);
+  });
+
+  it("imports only as many new lessons as the plan allows", async () => {
+    await createUser("erin");
+    const result = await importGuestData(
+      db,
+      "erin",
+      { lessons: [lesson("e1", "2026-10-01T00:00:00.000Z"), lesson("e2", "2026-10-01T00:00:00.000Z")], attempts: [] },
+      1,
+    );
+    expect(result).toEqual({ imported: 1, skipped: 0, overLimit: 1 });
+    expect(await listLessons(db, "erin")).toHaveLength(1);
   });
 
   it("deleting a user deletes their lessons and attempts", async () => {

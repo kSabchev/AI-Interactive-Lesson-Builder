@@ -1,8 +1,8 @@
 import "server-only";
 import { getSessionUser, type SessionUser } from "./auth";
 
-export function jsonError(status: number, message: string) {
-  return Response.json({ error: { message } }, { status });
+export function jsonError(status: number, message: string, code?: string) {
+  return Response.json({ error: code ? { code, message } : { message } }, { status });
 }
 
 /**
