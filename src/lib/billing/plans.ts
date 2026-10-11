@@ -21,6 +21,8 @@ export type Plan = {
   referenceText: boolean;
   /** "High quality" generation with the larger model, counted as `HIGH_QUALITY_COST` generations. */
   highQuality: boolean;
+  /** Research the topic on the web and cite the pages found. */
+  webResearch: boolean;
   /** Whether it can be bought yet. */
   available: boolean;
 };
@@ -37,6 +39,7 @@ export const PLANS: Record<PlanId, Plan> = {
     savedLessons: 10,
     referenceText: false,
     highQuality: false,
+    webResearch: false,
     available: true,
   },
   pro: {
@@ -48,6 +51,7 @@ export const PLANS: Record<PlanId, Plan> = {
     savedLessons: null,
     referenceText: true,
     highQuality: true,
+    webResearch: true,
     available: true,
   },
   classroom: {
@@ -59,6 +63,7 @@ export const PLANS: Record<PlanId, Plan> = {
     savedLessons: null,
     referenceText: true,
     highQuality: true,
+    webResearch: true,
     available: false,
   },
 };

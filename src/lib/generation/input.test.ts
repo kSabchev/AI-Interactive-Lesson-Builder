@@ -12,6 +12,7 @@ describe("generationInputSchema", () => {
       durationMinutes: 15,
       referenceText: undefined,
       quality: "standard",
+      research: false,
     });
   });
 
@@ -27,7 +28,7 @@ describe("generationInputSchema", () => {
 });
 
 describe("sampleLesson", () => {
-  const input = { ageGroup: "8-10", durationMinutes: 10, quality: "standard" } as const;
+  const input = { ageGroup: "8-10", durationMinutes: 10, quality: "standard", research: false } as const;
 
   it("picks the closest curated lesson and says so", () => {
     const { lesson, notice } = sampleLesson({ ...input, topic: "Why do leaves need sunlight?" }, "lesson-x", "2026-10-11T00:00:00.000Z");

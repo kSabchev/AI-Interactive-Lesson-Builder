@@ -3,6 +3,7 @@ import type { Lesson } from "@/lib/lesson/schema";
 /** Stages the server reports while generating. The UI shows only stages it actually receives. */
 export const STAGE_LABELS = {
   validate: "Checking your request",
+  research: "Researching sources on the web",
   outline: "Preparing the outline",
   content: "Writing the lesson",
   quiz: "Writing the quiz",
@@ -23,7 +24,8 @@ export type GenerationErrorCode =
   | "unavailable"
   | "busy"
   | "refused"
-  | "invalid_output";
+  | "invalid_output"
+  | "no_sources";
 
 export type GenerationEvent =
   | { type: "start"; mode: GenerationMode }

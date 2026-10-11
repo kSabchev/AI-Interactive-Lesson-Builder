@@ -3,6 +3,7 @@
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { SourceList } from "@/components/lesson/SourceList";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
 import type { Lesson } from "@/lib/lesson/schema";
@@ -106,7 +107,11 @@ export function QuizRunner({ lesson, previousAnswers }: { lesson: Lesson; previo
           <form onSubmit={submit}>
             <fieldset disabled={Boolean(submitted)}>
               <legend className="mb-6 w-full">
-                <h1 ref={headingRef} tabIndex={-1} className="text-2xl font-extrabold text-balance outline-none md:text-3xl">
+                <h1
+                  ref={headingRef}
+                  tabIndex={-1}
+                  className="text-2xl font-extrabold text-balance outline-none md:text-3xl"
+                >
                   {question.prompt}
                 </h1>
               </legend>
@@ -180,6 +185,12 @@ export function QuizRunner({ lesson, previousAnswers }: { lesson: Lesson; previo
                 </p>
               )}
               <p className="mt-2 text-lg leading-relaxed">{question.explanation}</p>
+              {question.sourceIds.length > 0 && (
+                <div className="mt-3 text-sm">
+                  <p className="font-bold text-muted">Source</p>
+                  <SourceList lesson={lesson} ids={question.sourceIds} showExcerpts={false} />
+                </div>
+              )}
               {section && (
                 <p className="mt-3 text-base text-muted">
                   From the lesson:{" "}

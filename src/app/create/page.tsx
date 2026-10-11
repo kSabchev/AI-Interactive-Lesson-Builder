@@ -11,7 +11,8 @@ export const metadata: Metadata = { title: "Create a lesson — Lesson Builder" 
 /** The mode comes from the deployment's environment at request time, not from the build. */
 async function FormWithMode() {
   await connection();
-  return <CreateLessonForm mode={generationConfig().mode} />;
+  const config = generationConfig();
+  return <CreateLessonForm mode={config.mode} webResearch={config.webResearch} />;
 }
 
 export default function CreatePage() {

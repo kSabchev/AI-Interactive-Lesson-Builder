@@ -2,6 +2,7 @@ import { z } from "zod";
 import { DIAGRAM_IDS, DIAGRAMS, type DiagramId } from "@/lib/assets/diagrams";
 import { VISUAL_IDS } from "@/lib/assets/visuals";
 import { type LessonInput, SHORT_TEXT_MAX, TEXT_MAX } from "@/lib/lesson/schema";
+import type { Excerpt } from "./evidence";
 import type { GenerationInput } from "./input";
 
 /**
@@ -77,7 +78,21 @@ const explanationContent = z.object({
   facilitatorNote: note,
 });
 
-export function contentSchema(diagramId: DiagramId | undefined) {
+/** Cited excerpt ids, required (at least one) whenever the lesson has evidence. */
+function citations(excerptIds: string[]) {
+  return z
+    .array(z.enum(excerptIds as [string, ...string[]]))
+    .min(1)
+    .describe("Ids of the excerpts that support this content");
+}
+
+/** The evidence a generation works from, and the content origin it implies. */
+export type Evidence = { kind: "reference" | "web"; excerpts: Excerpt[] };
+
+export function contentSchema(diagramId: DiagramId | undefined, excerptIds: string[] = []) {
+  const explanation = excerptIds.length
+    ? explanationContent.extend({ sourceIds: citations(excerptIds) })
+    : explanationContent;
   const activity = diagramId
     ? z.object({
         instructions: long,
@@ -98,9 +113,9 @@ export function contentSchema(diagramId: DiagramId | undefined) {
   return z.object({
     hook: z.object({ question: short, body: long, visualId: visual, facilitatorNote: note }),
     prediction: predictionContent,
-    explain1: explanationContent,
+    explain1: explanation,
     activity,
-    explain2: explanationContent,
+    explain2: explanation,
     sorting: z.object({
       instructions: long,
       categories: z.array(short).min(2).max(3),
@@ -121,19 +136,18 @@ export function contentSchema(diagramId: DiagramId | undefined) {
 }
 export type Content = z.infer<ReturnType<typeof contentSchema>>;
 
-export function quizSchema(sectionIds: string[]) {
+export function quizSchema(sectionIds: string[], excerptIds: string[] = []) {
+  const question = z.object({
+    prompt: long,
+    options: z.array(short).length(4),
+    correctIndex: z.number().int().min(0).max(3),
+    explanation: long,
+    objective: objectiveRef,
+    sectionId: z.enum(sectionIds as [string, ...string[]]).describe("The section that teaches the answer"),
+  });
   return z.object({
     questions: z
-      .array(
-        z.object({
-          prompt: long,
-          options: z.array(short).length(4),
-          correctIndex: z.number().int().min(0).max(3),
-          explanation: long,
-          objective: objectiveRef,
-          sectionId: z.enum(sectionIds as [string, ...string[]]).describe("The section that teaches the answer"),
-        }),
-      )
+      .array(excerptIds.length ? question.extend({ sourceIds: citations(excerptIds) }) : question)
       .length(5),
   });
 }
@@ -144,6 +158,11 @@ export const SECTION_IDS = SLOTS.map((slot) => SLOT_SECTION_IDS[slot]);
 const OPTION_IDS = ["a", "b", "c", "d"];
 const objectiveId = (ref: string) => `obj-${ref}`;
 const visualOrUndefined = (v: string) => (v === NONE ? undefined : (v as (typeof VISUAL_IDS)[number]));
+
+/** The excerpt ids a stage output cites, if it has any. */
+function cited(output: object): string[] {
+  return "sourceIds" in output && Array.isArray(output.sourceIds) ? (output.sourceIds as string[]) : [];
+}
 
 function sectionsFrom(outline: Outline, content: Content): LessonInput["sections"] {
   const diagramId = chosenDiagram(outline);
@@ -173,6 +192,7 @@ function sectionsFrom(outline: Outline, content: Content): LessonInput["sections
     keyTerms: c.keyTerms,
     example: c.example ?? undefined,
     visualId: visualOrUndefined(c.visualId),
+    sourceIds: cited(c),
   });
 
   const activity =
@@ -217,9 +237,10 @@ function sectionsFrom(outline: Outline, content: Content): LessonInput["sections
   ];
 }
 
-export const REFERENCE_SOURCE_ID = "src-reference";
-
-/** Turns the three stage outputs into a lesson for the schema check. Nothing here invents a source. */
+/**
+ * Turns the stage outputs into a lesson for the schema check. Sources are exactly the excerpts the content
+ * cites, with text and URLs copied from the evidence, so nothing here can invent a source.
+ */
 export function assembleLesson({
   id,
   now,
@@ -227,6 +248,7 @@ export function assembleLesson({
   outline,
   content,
   quiz,
+  evidence,
 }: {
   id: string;
   now: string;
@@ -234,7 +256,25 @@ export function assembleLesson({
   outline: Outline;
   content: Content;
   quiz: Quiz;
+  evidence?: Evidence;
 }): LessonInput {
+  const sections = sectionsFrom(outline, content);
+  const questions = quiz.questions.map((q, i) => ({
+    id: `q${i + 1}`,
+    prompt: q.prompt,
+    options: q.options.map((text, j) => ({ id: OPTION_IDS[j], text })),
+    correctOptionId: OPTION_IDS[q.correctIndex],
+    explanation: q.explanation,
+    objectiveId: objectiveId(q.objective),
+    sectionId: q.sectionId,
+    sourceIds: cited(q),
+  }));
+
+  const citedIds = new Set([...sections.flatMap((s) => s.sourceIds ?? []), ...questions.flatMap((q) => q.sourceIds)]);
+  const sources = (evidence?.excerpts ?? [])
+    .filter((e) => citedIds.has(e.id))
+    .map((e) => ({ id: e.id, title: e.title, excerpt: e.text, ...(e.url ? { url: e.url } : {}) }));
+
   return {
     id,
     title: outline.title,
@@ -242,35 +282,12 @@ export function assembleLesson({
     ageGroup: input.ageGroup,
     durationMinutes: input.durationMinutes,
     templateId: "explore-concept",
-    contentOrigin: input.referenceText ? "reference" : "ai-draft",
+    contentOrigin: evidence?.kind === "reference" ? "reference" : evidence?.kind === "web" ? "web-research" : "ai-draft",
     createdAt: now,
     updatedAt: now,
     objectives: outline.objectives.map((description, i) => ({ id: objectiveId(String(i + 1)), description })),
-    sources: input.referenceText
-      ? [
-          {
-            id: REFERENCE_SOURCE_ID,
-            title: "Reference material provided by the adult",
-            excerpt: truncate(input.referenceText, 400),
-          },
-        ]
-      : [],
-    sections: sectionsFrom(outline, content),
-    quiz: quiz.questions.map((q, i) => ({
-      id: `q${i + 1}`,
-      prompt: q.prompt,
-      options: q.options.map((text, j) => ({ id: OPTION_IDS[j], text })),
-      correctOptionId: OPTION_IDS[q.correctIndex],
-      explanation: q.explanation,
-      objectiveId: objectiveId(q.objective),
-      sectionId: q.sectionId,
-      // Per-question citations need excerpt-level evidence (milestone 7); claiming the whole reference would overstate it.
-      sourceIds: [],
-    })),
+    sources,
+    sections,
+    quiz: questions,
   };
-}
-
-function truncate(text: string, max: number): string {
-  const clean = text.replace(/\s+/g, " ").trim();
-  return clean.length <= max ? clean : `${clean.slice(0, max - 1).trimEnd()}…`;
 }

@@ -10,6 +10,8 @@ export type GenerationConfig = {
   /** Model per quality level: standard for everyday lessons, high for the "high quality" option. */
   models: Record<GenerationQuality, string>;
   effort: Effort;
+  /** Whether web research may be offered (it adds search costs). */
+  webResearch: boolean;
   /** Live generations allowed per visitor per hour. */
   hourlyLimitPerVisitor: number;
   /** Live generations allowed per day across all visitors; a backstop on spend. */
@@ -40,6 +42,7 @@ export function generationConfig(env: NodeJS.ProcessEnv = process.env): Generati
       high: env.GENERATION_MODEL_HIGH || "claude-opus-5-5",
     },
     effort,
+    webResearch: env.GENERATION_WEB_RESEARCH !== "false",
     hourlyLimitPerVisitor: positiveInt(env.GENERATION_HOURLY_LIMIT, 5),
     dailyCap: positiveInt(env.GENERATION_DAILY_CAP, 50),
   };

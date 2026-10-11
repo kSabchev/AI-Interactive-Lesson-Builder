@@ -1,7 +1,8 @@
 import { DIAGRAMS } from "@/lib/assets/diagrams";
 import { VISUALS } from "@/lib/assets/visuals";
+import { formatExcerpts } from "./evidence";
 import type { GenerationInput } from "./input";
-import { chosenDiagram, type Content, type Outline, SECTION_IDS, SLOTS } from "./stages";
+import { chosenDiagram, type Content, type Evidence, type Outline, SECTION_IDS, SLOTS } from "./stages";
 
 /** Stable across every stage and request, so it can be cached. */
 export const SYSTEM_PROMPT = `You write short, interactive science lessons that a parent or teacher presents on one shared screen to children aged 8-12.
@@ -26,27 +27,32 @@ function durationGuidance(input: GenerationInput): string {
     : "This is a 15-minute lesson: explanations may use 2-3 paragraphs, and facilitator notes can suggest a question to ask or a quick demonstration.";
 }
 
-function brief(input: GenerationInput): string {
+function brief(input: GenerationInput, evidence?: Evidence): string {
   const lines = [
     `Topic: ${input.topic}`,
     `Learner age group: ${input.ageGroup}`,
     durationGuidance(input),
   ];
-  if (input.referenceText) {
+  if (evidence) {
     lines.push(
-      "Base the lesson on this reference material where it covers the topic:",
-      `<reference_material>\n${input.referenceText}\n</reference_material>`,
+      evidence.kind === "reference"
+        ? "Base the lesson on this reference material supplied by the adult, split into numbered excerpts. Teach only what it supports:"
+        : "Base the lesson on these excerpts from web pages found while researching the topic. Teach only what they support:",
+      `<evidence>\n${formatExcerpts(evidence.excerpts)}\n</evidence>`,
     );
   }
   return lines.join("\n\n");
 }
 
-export function outlinePrompt(input: GenerationInput): string {
+const CITING_RULES =
+  "Cite evidence by excerpt id in `sourceIds`: list only excerpts that actually state the facts used. Never cite an excerpt for something it doesn't say.";
+
+export function outlinePrompt(input: GenerationInput, evidence?: Evidence): string {
   const diagrams = Object.values(DIAGRAMS)
     .map((d) => `- ${d.id}: ${d.title}. ${d.description} Suits: ${d.topics.join(", ")}.`)
     .join("\n");
 
-  return `${brief(input)}
+  return `${brief(input, evidence)}
 
 Plan a lesson using the fixed "Explore a concept" sequence:
 1. hook - a relatable question that sparks curiosity
@@ -63,7 +69,7 @@ Approved diagrams (choose one only if it directly shows this topic, otherwise "n
 ${diagrams}`;
 }
 
-export function contentPrompt(input: GenerationInput, outline: Outline): string {
+export function contentPrompt(input: GenerationInput, outline: Outline, evidence?: Evidence): string {
   const diagramId = chosenDiagram(outline);
   const plan = SLOTS.map((slot) => {
     const s = outline.sections[slot];
@@ -82,7 +88,7 @@ export function contentPrompt(input: GenerationInput, outline: Outline): string 
         .join("\n")}\nWrite one label per spot you use, with feedback that explains it.`
     : "The activity section is a second prediction question that applies what explain1 taught.";
 
-  return `${brief(input)}
+  return `${brief(input, evidence)}
 
 Lesson title: ${outline.title}
 
@@ -94,19 +100,21 @@ ${plan}
 
 ${activity}
 
-Write the content for every section. Prediction options should all be plausible to a child. Sorting needs 4-8 examples, each clearly belonging to exactly one group. Recap must have exactly three key points.
+Write the content for every section. Prediction options should all be plausible to a child. Sorting needs 4-8 examples, each clearly belonging to exactly one group. Recap must have exactly three key points.${
+    evidence ? `\n\nEach explanation section must cite the excerpts it is based on. ${CITING_RULES}` : ""
+  }
 
 Approved pictures (use one only if it shows exactly what the section is about, otherwise "none"):
 ${visuals}`;
 }
 
-export function quizPrompt(input: GenerationInput, outline: Outline, content: Content): string {
+export function quizPrompt(input: GenerationInput, outline: Outline, content: Content, evidence?: Evidence): string {
   const objectives = outline.objectives.map((o, i) => `${i + 1}. ${o}`).join("\n");
   const sections = SLOTS.map((slot, i) => `${SECTION_IDS[i]} ("${outline.sections[slot].title}"): ${JSON.stringify(content[slot])}`).join(
     "\n\n",
   );
 
-  return `${brief(input)}
+  return `${brief(input, evidence)}
 
 Write the final quiz for this lesson: exactly five single-answer multiple-choice questions with four options each.
 
@@ -115,7 +123,9 @@ Rules:
 - Together the questions cover all three objectives; each question names the objective it checks.
 - Exactly one option is correct; the other three are plausible but clearly wrong to someone who followed the lesson.
 - Vary which position (0-3) holds the correct answer.
-- The explanation says why the correct answer is right in one or two child-friendly sentences.
+- The explanation says why the correct answer is right in one or two child-friendly sentences.${
+    evidence ? `\n- Each question cites the excerpts that support its correct answer. ${CITING_RULES}` : ""
+  }
 
 Learning objectives:
 ${objectives}
@@ -129,4 +139,13 @@ export function repairPrompt(problems: string[]): string {
 ${problems.map((p) => `- ${p}`).join("\n")}
 
 Return the complete JSON again with these problems fixed. Keep everything else the same.`;
+}
+
+/** Instructions for the web research call, which runs before the lesson is planned. */
+export function researchPrompt(input: GenerationInput): string {
+  return `Research this topic for a short science lesson for children aged ${input.ageGroup}: ${input.topic}
+
+Search the web for reliable, accurate sources. Prefer educational and scientific organisations (for example space agencies, geological surveys, natural history museums, universities) and reputable encyclopaedias. Avoid forums, social media, shops and AI-generated content.
+
+Then write concise factual notes that cover the key concepts a child would need, with everyday examples. Support every fact with a citation from your searches. Do not include anything you couldn't find a source for.`;
 }

@@ -84,6 +84,7 @@ export const photosynthesisLesson: LessonInput = {
       facilitatorNote:
         "If you have a leaf to hand, look at both sides. Stomata are too small to see without a microscope, but the paler underside is a good talking point. Check that the learner can name all three inputs before moving on.",
       objectiveIds: ["obj-inputs"],
+      sourceIds: ["src-natgeo"],
     },
     {
       id: "sec-diagram",
@@ -147,6 +148,7 @@ export const photosynthesisLesson: LessonInput = {
       facilitatorNote:
         "Write the word equation down and have the learner point to which parts come in from outside and which are made. For a class, ask learners to trace a food chain from their lunch back to a plant.",
       objectiveIds: ["obj-outputs", "obj-importance"],
+      sourceIds: ["src-natgeo"],
     },
     {
       id: "sec-sorting",

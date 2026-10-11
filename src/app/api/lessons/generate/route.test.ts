@@ -150,6 +150,12 @@ describe("POST /api/lessons/generate", () => {
       expect(send).not.toHaveBeenCalled();
     });
 
+    it("keeps web research for Pro", async () => {
+      const response = await post({ ...valid, research: true });
+      expect(response.status).toBe(403);
+      expect((await response.json()).error.message).toContain("Web-researched lessons");
+    });
+
     it("allows Pro features once subscribed", async () => {
       await signInAs("pro");
       send.mockRejectedValueOnce(new GenerationError("refused", "No."));

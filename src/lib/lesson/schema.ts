@@ -33,6 +33,8 @@ const sectionBase = {
   /** Guidance for the adult presenting the lesson; longer for 15-minute lessons. */
   facilitatorNote: text.optional(),
   objectiveIds: z.array(id).default([]),
+  /** Sources this section is based on (excerpts of reference material or web pages). */
+  sourceIds: z.array(id).default([]),
 };
 
 export const hookSectionSchema = z.object({
@@ -164,6 +166,9 @@ export const lessonSchema = z
     lesson.sections.forEach((section, i) => {
       section.objectiveIds.forEach((oid) => {
         if (!objectiveIds.has(oid)) issue(["sections", i, "objectiveIds"], `Unknown objective "${oid}"`);
+      });
+      section.sourceIds.forEach((sid) => {
+        if (!sourceIds.has(sid)) issue(["sections", i, "sourceIds"], `Unknown source "${sid}"`);
       });
 
       if (section.type === "prediction" && section.answerOptionId) {

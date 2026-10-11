@@ -35,7 +35,7 @@ Margin check: 30 Sonnet lessons at ~$0.15 cost ~$4.50, which fits $9 after payme
 | 4 | AI generation | 🟡 steps 1–9 done; step 10 (live check) needs an API key |
 | 5 | Accounts and cloud data | ✅ (email delivery provider pending, see milestone 9) |
 | 6 | Subscriptions and billing | ✅ Free and Pro; Classroom waits for milestone 8 |
-| 7 | Evidence support | ⏳ |
+| 7 | Evidence support | ✅ reference excerpts and web research cited per section and question |
 | 8 | Classroom tier | ⏳ (build when there is demand) |
 | 9 | Launch readiness | ⏳ |
 

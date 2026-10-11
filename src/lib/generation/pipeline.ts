@@ -2,13 +2,15 @@ import type { z } from "zod";
 import { describeIssues } from "@/lib/lesson/issues";
 import { type Lesson, lessonSchema } from "@/lib/lesson/schema";
 import { GenerationError, type GenerationEvent, type Stage } from "./events";
+import { excerptsFromCitations, splitReference, type WebCitation } from "./evidence";
 import type { GenerationInput } from "./input";
-import { contentPrompt, outlinePrompt, quizPrompt, repairPrompt, SYSTEM_PROMPT } from "./prompts";
+import { contentPrompt, outlinePrompt, quizPrompt, repairPrompt, researchPrompt, SYSTEM_PROMPT } from "./prompts";
 import {
   assembleLesson,
   chosenDiagram,
   type Content,
   contentSchema,
+  type Evidence,
   type Outline,
   outlineSchema,
   type Quiz,
@@ -26,10 +28,15 @@ export type ModelReply = {
   stopReason: "complete" | "max_tokens" | "refusal";
 };
 
-/** The only thing the pipeline needs from an AI provider: a JSON reply that should match `schema`. */
+/** What the pipeline needs from an AI provider: JSON replies that should match `schema`, and optionally web research. */
 export interface ModelClient {
   send(request: { stage: Stage; system: string; turns: ConversationTurn[]; schema: z.ZodType }): Promise<ModelReply>;
+  /** Searches the web and returns the citations from the search tool (never URLs written by the model). */
+  research?(request: { system: string; prompt: string }): Promise<{ citations: WebCitation[] }>;
 }
+
+/** Fewer distinct excerpts than this isn't enough to build a lesson on. */
+const MIN_WEB_EXCERPTS = 2;
 
 /** Attempts per stage: the first try plus one repair. */
 const ATTEMPTS_PER_STAGE = 2;
@@ -121,17 +128,20 @@ export async function generateLesson({
   id: string;
   now?: () => string;
 }): Promise<Lesson> {
-  const outline: Outline = await runStage(client, emit, "outline", outlinePrompt(input), outlineSchema);
+  const evidence = await gatherEvidence(input, client, emit);
+  const excerptIds = evidence?.excerpts.map((e) => e.id) ?? [];
+
+  const outline: Outline = await runStage(client, emit, "outline", outlinePrompt(input, evidence), outlineSchema);
 
   const assemble = (c: Content, q: Quiz) =>
-    assembleLesson({ id, now: now(), input, outline, content: c, quiz: q });
+    assembleLesson({ id, now: now(), input, outline, content: c, quiz: q, evidence });
 
   const content: Content = await runStage(
     client,
     emit,
     "content",
-    contentPrompt(input, outline),
-    contentSchema(chosenDiagram(outline)) as z.ZodType<Content>,
+    contentPrompt(input, outline, evidence),
+    contentSchema(chosenDiagram(outline), excerptIds) as z.ZodType<Content>,
     // Check section-level rules now (e.g. two labels on one diagram spot), using a placeholder quiz.
     (c) => lessonProblems(assemble(c, PLACEHOLDER_QUIZ), (t) => t.startsWith("section:")),
   );
@@ -140,8 +150,8 @@ export async function generateLesson({
     client,
     emit,
     "quiz",
-    quizPrompt(input, outline, content),
-    quizSchema(SECTION_IDS) as z.ZodType<Quiz>,
+    quizPrompt(input, outline, content, evidence),
+    quizSchema(SECTION_IDS, excerptIds) as z.ZodType<Quiz>,
     (q) => lessonProblems(assemble(content, q), () => true),
   );
 
@@ -153,6 +163,25 @@ export async function generateLesson({
   }
   emit({ type: "stage", stage: "check", status: "done" });
   return result.data;
+}
+
+/** Reference text is split into excerpts; web research runs as its own stage and keeps only cited pages. */
+async function gatherEvidence(input: GenerationInput, client: ModelClient, emit: Emit): Promise<Evidence | undefined> {
+  if (input.referenceText) return { kind: "reference", excerpts: splitReference(input.referenceText) };
+  if (!input.research) return undefined;
+  if (!client.research) throw new GenerationError("unavailable", "Web research isn't available right now.");
+
+  emit({ type: "stage", stage: "research", status: "start" });
+  const { citations } = await client.research({ system: SYSTEM_PROMPT, prompt: researchPrompt(input) });
+  const excerpts = excerptsFromCitations(citations);
+  if (excerpts.length < MIN_WEB_EXCERPTS) {
+    throw new GenerationError(
+      "no_sources",
+      "Couldn't find enough reliable sources on the web for this topic. Try rephrasing it, or turn off web research.",
+    );
+  }
+  emit({ type: "stage", stage: "research", status: "done" });
+  return { kind: "web", excerpts };
 }
 
 /** A structurally valid quiz covering every objective, used only to check content before the real quiz exists. */

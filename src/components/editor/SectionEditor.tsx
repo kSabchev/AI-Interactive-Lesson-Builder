@@ -3,7 +3,8 @@
 import { DIAGRAMS, isDiagramId } from "@/lib/assets/diagrams";
 import { VISUALS, type VisualId } from "@/lib/assets/visuals";
 import { newId, optionalText, removeAt, replaceAt } from "@/lib/lesson/edit";
-import { type LessonSection, SHORT_TEXT_MAX, type SectionOfType, TEXT_MAX } from "@/lib/lesson/schema";
+import { SourceList } from "@/components/lesson/SourceList";
+import { type Lesson, type LessonSection, SHORT_TEXT_MAX, type SectionOfType, TEXT_MAX } from "@/lib/lesson/schema";
 import { AddButton, EditorGroup, ListItemCard, SelectField, TextArea, TextField } from "./fields";
 
 type EditorProps<T extends LessonSection["type"]> = {
@@ -17,7 +18,13 @@ const visualOptions = [
   ...Object.entries(VISUALS).map(([value, label]) => ({ value, label })),
 ];
 
-function VisualSelect({ value, onChange }: { value: VisualId | undefined; onChange: (value: VisualId | undefined) => void }) {
+function VisualSelect({
+  value,
+  onChange,
+}: {
+  value: VisualId | undefined;
+  onChange: (value: VisualId | undefined) => void;
+}) {
   return (
     <SelectField
       label="Picture"
@@ -29,7 +36,15 @@ function VisualSelect({ value, onChange }: { value: VisualId | undefined; onChan
   );
 }
 
-export function SectionEditor({ section, onChange }: { section: LessonSection; onChange: (section: LessonSection) => void }) {
+export function SectionEditor({
+  lesson,
+  section,
+  onChange,
+}: {
+  lesson: Lesson;
+  section: LessonSection;
+  onChange: (section: LessonSection) => void;
+}) {
   return (
     <div className="space-y-8">
       <EditorGroup title="Basics">
@@ -42,6 +57,15 @@ export function SectionEditor({ section, onChange }: { section: LessonSection; o
       </EditorGroup>
 
       <TypeEditor section={section} onChange={onChange} />
+
+      {section.sourceIds.length > 0 && (
+        <EditorGroup
+          title="Sources"
+          description="The evidence this section was written from. If you change what it says, check it still matches."
+        >
+          <SourceList lesson={lesson} ids={section.sourceIds} />
+        </EditorGroup>
+      )}
 
       <EditorGroup title="For the adult" description="Shown in the player only when facilitator notes are switched on.">
         <TextArea
@@ -82,7 +106,12 @@ function HookEditor({ section, onChange }: EditorProps<"hook">) {
         maxLength={SHORT_TEXT_MAX}
         onChange={(question) => onChange({ ...section, question })}
       />
-      <TextArea label="Story" value={section.body} maxLength={TEXT_MAX} onChange={(body) => onChange({ ...section, body })} />
+      <TextArea
+        label="Story"
+        value={section.body}
+        maxLength={TEXT_MAX}
+        onChange={(body) => onChange({ ...section, body })}
+      />
       <VisualSelect value={section.visualId} onChange={(visualId) => onChange({ ...section, visualId })} />
     </EditorGroup>
   );
@@ -96,7 +125,11 @@ function ExplanationEditor({ section, onChange }: EditorProps<"explanation">) {
           <ListItemCard
             key={i}
             title={`Paragraph ${i + 1}`}
-            onRemove={section.paragraphs.length > 1 ? () => onChange({ ...section, paragraphs: removeAt(section.paragraphs, i) }) : undefined}
+            onRemove={
+              section.paragraphs.length > 1
+                ? () => onChange({ ...section, paragraphs: removeAt(section.paragraphs, i) })
+                : undefined
+            }
           >
             <TextArea
               label="Text"
@@ -132,7 +165,9 @@ function ExplanationEditor({ section, onChange }: EditorProps<"explanation">) {
               rows={2}
               value={term.definition}
               maxLength={TEXT_MAX}
-              onChange={(v) => onChange({ ...section, keyTerms: replaceAt(section.keyTerms, i, { ...term, definition: v }) })}
+              onChange={(v) =>
+                onChange({ ...section, keyTerms: replaceAt(section.keyTerms, i, { ...term, definition: v }) })
+              }
             />
           </ListItemCard>
         ))}
@@ -161,7 +196,10 @@ function ExplanationEditor({ section, onChange }: EditorProps<"explanation">) {
 function PredictionEditor({ section, onChange }: EditorProps<"prediction">) {
   const NONE = "none";
   return (
-    <EditorGroup title="Prediction" description="Predictions are never scored — they get learners thinking before the explanation.">
+    <EditorGroup
+      title="Prediction"
+      description="Predictions are never scored — they get learners thinking before the explanation."
+    >
       <TextField
         label="Question"
         value={section.question}
@@ -244,7 +282,9 @@ function DiagramEditor({ section, onChange }: EditorProps<"diagram-labeling">) {
               label="Correct spot on the diagram"
               value={label.targetId}
               options={diagram.targets.map((t) => ({ value: t.id, label: t.name }))}
-              onChange={(targetId) => onChange({ ...section, labels: replaceAt(section.labels, i, { ...label, targetId }) })}
+              onChange={(targetId) =>
+                onChange({ ...section, labels: replaceAt(section.labels, i, { ...label, targetId }) })
+              }
             />
           )}
           <TextArea
@@ -293,7 +333,9 @@ function SortingEditor({ section, onChange }: EditorProps<"sorting">) {
           <ListItemCard
             key={item.id}
             title={`Example ${i + 1}`}
-            onRemove={section.items.length > 3 ? () => onChange({ ...section, items: removeAt(section.items, i) }) : undefined}
+            onRemove={
+              section.items.length > 3 ? () => onChange({ ...section, items: removeAt(section.items, i) }) : undefined
+            }
           >
             <TextField
               label="Example"
@@ -305,7 +347,9 @@ function SortingEditor({ section, onChange }: EditorProps<"sorting">) {
               label="Correct group"
               value={item.categoryId}
               options={section.categories.map((c) => ({ value: c.id, label: c.label || "(unnamed group)" }))}
-              onChange={(categoryId) => onChange({ ...section, items: replaceAt(section.items, i, { ...item, categoryId }) })}
+              onChange={(categoryId) =>
+                onChange({ ...section, items: replaceAt(section.items, i, { ...item, categoryId }) })
+              }
             />
             <TextArea
               label="Explanation if placed wrongly"

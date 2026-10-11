@@ -41,7 +41,7 @@ const EMPTY: GenerationFormValues = {
   quality: "standard",
 };
 
-export function CreateLessonForm({ mode }: { mode: GenerationMode }) {
+export function CreateLessonForm({ mode, webResearch = false }: { mode: GenerationMode; webResearch?: boolean }) {
   const router = useRouter();
   const storeState = useStore();
   const { lookup: billingLookup } = useBilling();
@@ -52,7 +52,10 @@ export function CreateLessonForm({ mode }: { mode: GenerationMode }) {
   const needsSignIn = live && billing !== undefined && !billing.signedIn;
   const canUseReference = !live || Boolean(plan?.referenceText);
   const canUseHighQuality = live && Boolean(plan?.highQuality);
+  const offerResearch = live && webResearch;
+  const canResearch = offerResearch && Boolean(plan?.webResearch);
   const [values, setValues] = useState<GenerationFormValues>(EMPTY);
+  const hasReference = Boolean(values.referenceText?.trim());
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<keyof GenerationFormValues, string>>>({});
   const [run, setRun] = useState<Run>({ status: "idle" });
   const abortRef = useRef<AbortController | null>(null);
@@ -70,6 +73,7 @@ export function CreateLessonForm({ mode }: { mode: GenerationMode }) {
       ...values,
       referenceText: canUseReference ? values.referenceText : "",
       quality: canUseHighQuality ? values.quality : "standard",
+      research: canResearch && !hasReference && Boolean(values.research),
     });
     if (!parsed.success) {
       const errors: typeof fieldErrors = {};
@@ -188,6 +192,38 @@ export function CreateLessonForm({ mode }: { mode: GenerationMode }) {
               </Link>
               .
             </p>
+          )}
+          {offerResearch && (
+            <div className="rounded-2xl border-2 border-line p-4">
+              <label className="flex items-start gap-3">
+                <input
+                  type="checkbox"
+                  className="mt-1 size-5 accent-brand-600"
+                  checked={Boolean(values.research) && !hasReference}
+                  disabled={!canResearch || hasReference}
+                  onChange={(e) => set("research", e.target.checked)}
+                  aria-describedby="research-hint"
+                />
+                <span>
+                  <span className="font-bold">Research the topic on the web</span>
+                  <span id="research-hint" className="block text-sm text-muted">
+                    {!canResearch ? (
+                      <>
+                        Finds reliable pages and cites them in the lesson. Part of{" "}
+                        <Link href="/pricing" className="font-bold text-brand-700 underline underline-offset-2">
+                          Pro
+                        </Link>
+                        .
+                      </>
+                    ) : hasReference ? (
+                      "Your reference text is used instead."
+                    ) : (
+                      "Finds reliable pages and cites them, so you can check every fact. Takes a little longer."
+                    )}
+                  </span>
+                </span>
+              </label>
+            </div>
           )}
           {canUseHighQuality && (
             <SelectField

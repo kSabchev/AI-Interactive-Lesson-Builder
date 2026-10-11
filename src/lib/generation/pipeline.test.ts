@@ -5,7 +5,13 @@ import type { GenerationInput } from "./input";
 import { type ConversationTurn, generateLesson, type ModelClient, type ModelReply } from "./pipeline";
 import type { Content, Outline, Quiz } from "./stages";
 
-const input: GenerationInput = { topic: "How magnets work", ageGroup: "8-10", durationMinutes: 10, quality: "standard" };
+const input: GenerationInput = {
+  topic: "How magnets work",
+  ageGroup: "8-10",
+  durationMinutes: 10,
+  quality: "standard",
+  research: false,
+};
 
 const planned = (title: string, objectives: ("1" | "2" | "3")[]) => ({ title, focus: `About ${title}`, objectives });
 
@@ -156,16 +162,83 @@ describe("generateLesson", () => {
     expect(diagram).toMatchObject({ type: "diagram-labeling", diagramId: "water-cycle" });
   });
 
-  it("labels reference-based lessons and records the reference without inventing a URL", async () => {
-    const { lesson } = await run(happy(), { referenceText: "Magnets attract iron, nickel and cobalt." });
+  it("cites reference excerpts and lists only the excerpts the lesson uses", async () => {
+    const reference = ["Magnets attract iron, nickel and cobalt.", "Every magnet has a north and a south pole. ".repeat(20)].join(
+      "\n\n",
+    );
+    const cites = (ids: string[]) => ({ sourceIds: ids });
+    const cited = content();
+    cited.explain1 = { ...cited.explain1, ...cites(["ref-1"]) };
+    cited.explain2 = { ...cited.explain2, ...cites(["ref-1"]) };
+    const citedQuiz = { questions: quiz().questions.map((q) => ({ ...q, ...cites(["ref-1"]) })) };
+
+    const { lesson, calls } = await run(
+      { outline: [{ json: outline() }], content: [{ json: cited }], quiz: [{ json: citedQuiz }] },
+      { referenceText: reference },
+    );
+
     expect(lesson.contentOrigin).toBe("reference");
     expect(lesson.sources).toEqual([
-      {
-        id: "src-reference",
-        title: "Reference material provided by the adult",
-        excerpt: "Magnets attract iron, nickel and cobalt.",
-      },
+      expect.objectContaining({ id: "ref-1", title: "Your reference material, part 1", excerpt: expect.stringContaining("nickel") }),
     ]);
+    expect(lesson.sources[0].url).toBeUndefined();
+    expect(lesson.sections[2].sourceIds).toEqual(["ref-1"]);
+    expect(lesson.quiz.every((q) => q.sourceIds.includes("ref-1"))).toBe(true);
+    // The model sees the excerpts tagged with ids.
+    const firstPrompt = calls[0].turns[0];
+    expect(firstPrompt.role === "user" && firstPrompt.text).toContain('<excerpt id="ref-1"');
+  });
+
+  it("asks for a repair when evidence-based content doesn't cite anything", async () => {
+    const cited = content();
+    cited.explain1 = { ...cited.explain1, sourceIds: ["ref-1"] } as Content["explain1"];
+    const uncited = content(); // no sourceIds on the explanations
+    cited.explain2 = { ...cited.explain2, sourceIds: ["ref-1"] } as Content["explain2"];
+    const citedQuiz = { questions: quiz().questions.map((q) => ({ ...q, sourceIds: ["ref-1"] })) };
+
+    const { events } = await run(
+      { outline: [{ json: outline() }], content: [{ json: uncited }, { json: cited }], quiz: [{ json: citedQuiz }] },
+      { referenceText: "Magnets attract iron." },
+    );
+    expect(events).toContainEqual(expect.objectContaining({ type: "retry", stage: "content", reason: expect.stringContaining("sourceIds") }));
+  });
+
+  it("builds web-researched lessons from the search tool's citations only", async () => {
+    const citations = [
+      { url: "https://example.org/magnets", title: "Magnets for kids", citedText: "Magnets attract iron and steel." },
+      { url: "https://example.edu/poles", title: "Magnetic poles", citedText: "Opposite poles attract; like poles repel." },
+    ];
+    const cited = content();
+    cited.explain1 = { ...cited.explain1, sourceIds: ["web-1"] } as Content["explain1"];
+    cited.explain2 = { ...cited.explain2, sourceIds: ["web-2"] } as Content["explain2"];
+    const citedQuiz = { questions: quiz().questions.map((q, i) => ({ ...q, sourceIds: [i % 2 ? "web-2" : "web-1"] })) };
+
+    const { client } = fakeClient({ outline: [{ json: outline() }], content: [{ json: cited }], quiz: [{ json: citedQuiz }] });
+    const events: GenerationEvent[] = [];
+    const lesson = await generateLesson({
+      input: { ...input, research: true },
+      client: { ...client, research: async () => ({ citations }) },
+      emit: (e) => events.push(e),
+      id: "lesson-web",
+    });
+
+    expect(lesson.contentOrigin).toBe("web-research");
+    expect(lesson.sources.map((s) => [s.id, s.url, s.title])).toEqual([
+      ["web-1", "https://example.org/magnets", "Magnets for kids"],
+      ["web-2", "https://example.edu/poles", "Magnetic poles"],
+    ]);
+    expect(events).toContainEqual({ type: "stage", stage: "research", status: "done" });
+  });
+
+  it("stops before writing when web research finds too little", async () => {
+    const { client } = fakeClient({});
+    const promise = generateLesson({
+      input: { ...input, research: true },
+      client: { ...client, research: async () => ({ citations: [{ url: "https://example.org", title: null, citedText: "One fact." }] }) },
+      emit: () => {},
+      id: "lesson-none",
+    });
+    await expect(promise).rejects.toMatchObject({ code: "no_sources" });
   });
 
   it("feeds problems back to the model once and succeeds on the repaired reply", async () => {
