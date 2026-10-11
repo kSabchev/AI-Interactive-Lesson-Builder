@@ -12,7 +12,8 @@ The product is becoming a subscription SaaS for parents and teachers. The milest
 | 4. AI generation | 🟡 Built and tested in sample mode; the live check with a real API key is still to do |
 | 5. Accounts and cloud data | ✅ Magic-link sign-in (optional Google), lessons and quiz results saved to the account, guest import, account deletion |
 | 6. Subscriptions and billing | ✅ Stripe Checkout and Customer Portal, webhook-synced plans, monthly AI lesson quotas, saved-lesson cap |
-| 7–9. Evidence support, classroom tier, launch readiness | ⏳ |
+| 7. Evidence support | ✅ Reference text split into cited excerpts, optional web research (Pro) with sources taken only from search citations, sources shown in the player, quiz and editor |
+| 8–9. Classroom tier, launch readiness | ⏳ |
 
 ## Getting started
 
@@ -66,6 +67,7 @@ API usage is billed to the Console account that owns the key, separately from an
 - **`src/components/quiz/`** — quiz runner and results.
 - **`src/lib/storage/db.ts`** — IndexedDB storage for saved lessons and the latest quiz attempt per lesson. Lessons are validated on write and re-validated on read.
 - **`src/lib/generation/`** — staged generation pipeline (outline → content → quiz → check), each stage validated with Zod plus the lesson's cross-reference rules and repaired at most once by feeding the problems back to the model. The model writes content only; ids, section types, origin labels and sources are added in code, so it can't invent citations. `server/` holds the server-only Claude client, configuration and rate limits; `sample.ts` is the no-AI mode.
+- **`src/lib/generation/evidence.ts`** — evidence as numbered excerpts: pasted reference text is split into `ref-N` excerpts, and web research turns the search tool's citations into `web-N` excerpts. Explanation sections and quiz questions must cite excerpt ids, the schema only accepts ids that exist, and a lesson's sources are exactly the excerpts it cites, with text and URLs copied from the evidence.
 - **`src/app/api/lessons/generate/route.ts`** — validates and rate-limits the request, then streams progress as newline-delimited JSON. **`/create`** shows only the stages the server reports and keeps the form filled in on failure.
 - **`src/lib/storage/store.ts`** — one `LessonStore` interface with two implementations: IndexedDB for guests and the account API for signed-in users. `StoreProvider` picks one from the session; the editor, player and library don't know which.
 - **`src/lib/server/`** — server-only code: Drizzle schema and connection (`db/`), Better Auth setup (`auth.ts`), per-user lesson storage (`lessons.ts`, every query filtered by owner) and request helpers (`http.ts`: session check, same-origin check for writes, body size limits). API routes live under `src/app/api/`.

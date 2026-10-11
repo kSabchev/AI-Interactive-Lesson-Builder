@@ -21,6 +21,8 @@ export const generationInputSchema = z.object({
     .optional(),
   /** "high" uses the larger model and counts as two generations. */
   quality: z.enum(["standard", "high"]).default("standard"),
+  /** Search the web for sources before writing (ignored when reference text is supplied). */
+  research: z.boolean().default(false),
 });
 
 export type GenerationInput = z.infer<typeof generationInputSchema>;
@@ -32,4 +34,5 @@ export const EXAMPLE_INPUT: GenerationFormValues = {
   durationMinutes: 10,
   referenceText: "",
   quality: "standard",
+  research: false,
 };

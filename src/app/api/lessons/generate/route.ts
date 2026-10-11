@@ -20,7 +20,7 @@ const MAX_BODY_BYTES = 64_000;
 const HOUR_MS = 60 * 60 * 1000;
 
 /** Failures caused by the service rather than the request; their generations are given back. */
-const REFUNDABLE: GenerationErrorCode[] = ["busy", "unavailable", "invalid_output"];
+const REFUNDABLE: GenerationErrorCode[] = ["busy", "unavailable", "invalid_output", "no_sources"];
 
 const monthDay = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "long", timeZone: "UTC" });
 
@@ -98,6 +98,12 @@ export async function POST(request: Request) {
     const { plan } = entitlements;
     if (input.referenceText && !plan.referenceText) {
       return errorResponse(403, "upgrade_required", `Lessons from reference material are part of ${PLANS.pro.name}. Remove the reference text or upgrade.`);
+    }
+    if (input.research && !input.referenceText && !config.webResearch) {
+      return errorResponse(403, "upgrade_required", "Web research isn't available on this site right now.");
+    }
+    if (input.research && !input.referenceText && !plan.webResearch) {
+      return errorResponse(403, "upgrade_required", `Web-researched lessons are part of ${PLANS.pro.name}.`);
     }
     if (input.quality === "high" && !plan.highQuality) {
       return errorResponse(403, "upgrade_required", `High-quality generation is part of ${PLANS.pro.name}.`);

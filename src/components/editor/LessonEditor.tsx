@@ -189,7 +189,15 @@ export function LessonEditor({
             </Link>
           </p>
         )}
-        {justGenerated && <GeneratedNotice lesson={saved} />}
+        {justGenerated ? (
+          <GeneratedNotice lesson={saved} />
+        ) : (
+          saved.contentOrigin === "ai-draft" && (
+            <p className="border-t border-line bg-sun-100 px-4 py-2 text-sm md:px-6">
+              AI draft written without sources. Check the facts before presenting.
+            </p>
+          )
+        )}
         {justCopied && !isSample && status === "saved" && !dirty && (
           <p className="border-t border-line bg-good-50 px-4 py-2 text-sm font-semibold text-good-700 md:px-6">
             Saved a copy to your library. You&apos;re now editing your own lesson.
@@ -302,6 +310,7 @@ export function LessonEditor({
               {selectedSection && (
                 <SectionEditor
                   key={selectedSection.id}
+                  lesson={draft}
                   section={selectedSection}
                   onChange={(section) =>
                     update({
@@ -354,8 +363,10 @@ function GeneratedNotice({ lesson }: { lesson: Lesson }) {
     lesson.contentOrigin === "curated"
       ? "Sample mode: AI generation is switched off on this site, so this is a copy of a curated lesson rather than one written for your topic. It's saved in your library."
       : lesson.contentOrigin === "reference"
-        ? "Draft generated from your reference material and saved to your library. Check that it matches the material before presenting."
-        : "AI-generated draft, saved to your library. It was checked for structure, not for accuracy, so read it through and fix anything that's wrong before presenting.";
+        ? "Draft generated from your reference material and saved to your library. Each section lists the excerpts it used; check they match before presenting."
+        : lesson.contentOrigin === "web-research"
+          ? "Draft researched on the web and saved to your library. Each section links the pages it used; skim them before presenting."
+          : "AI-generated draft, saved to your library. It was checked for structure, not for accuracy, so read it through and fix anything that's wrong before presenting.";
   return (
     <p role="status" className="border-t border-line bg-sun-100 px-4 py-2 text-sm font-semibold md:px-6">
       {message}

@@ -42,6 +42,12 @@ describe("lessonSchema", () => {
     );
   });
 
+  it("rejects sections citing sources the lesson doesn't list", () => {
+    const lesson = clone();
+    lesson.sections[2].sourceIds = ["src-invented"];
+    expect(issuesFor(lesson)).toContain('Unknown source "src-invented"');
+  });
+
   it("rejects objectives that no quiz question covers", () => {
     const lesson = clone();
     lesson.quiz[0].objectiveId = "obj-cycle";

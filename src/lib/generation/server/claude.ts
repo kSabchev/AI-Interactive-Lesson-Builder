@@ -1,6 +1,7 @@
 import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
+import type { WebCitation } from "../evidence";
 import { GenerationError } from "../events";
 import type { ModelClient } from "../pipeline";
 import type { Effort } from "./config";
@@ -18,13 +19,27 @@ const FALLBACK_MODELS = new Set(["claude-opus-5-5", "claude-opus-5", "claude-fab
 /** Plenty for the largest stage (all seven sections) plus thinking, while bounding the cost of a runaway reply. */
 const MAX_TOKENS = 32_000;
 
-type Usage = { input_tokens: number; output_tokens: number; cache_read_input_tokens?: number | null };
+/** Web search is billed per search on top of tokens: $10 per 1,000 searches. */
+const USD_PER_WEB_SEARCH = 0.01;
+/** Searches allowed per research call, bounding its cost. */
+const MAX_WEB_SEARCHES = 5;
+/** Times a research turn may be resumed after the server pauses it. */
+const MAX_CONTINUATIONS = 3;
+
+type Usage = {
+  input_tokens: number;
+  output_tokens: number;
+  cache_read_input_tokens?: number | null;
+  server_tool_use?: { web_search_requests?: number } | null;
+};
 
 export type UsageReport = { model: string; inputTokens: number; outputTokens: number; estimatedUsd: number };
 
 function logUsage(stage: string, model: string, usage: Usage): UsageReport {
   const [inPrice, outPrice] = PRICES[model] ?? [0, 0];
-  const estimatedUsd = (usage.input_tokens * inPrice + usage.output_tokens * outPrice) / 1_000_000;
+  const searches = usage.server_tool_use?.web_search_requests ?? 0;
+  const estimatedUsd =
+    (usage.input_tokens * inPrice + usage.output_tokens * outPrice) / 1_000_000 + searches * USD_PER_WEB_SEARCH;
   console.info(
     "[generation] usage",
     JSON.stringify({
@@ -33,6 +48,7 @@ function logUsage(stage: string, model: string, usage: Usage): UsageReport {
       inputTokens: usage.input_tokens,
       outputTokens: usage.output_tokens,
       cacheReadTokens: usage.cache_read_input_tokens ?? 0,
+      webSearches: searches,
       estimatedUsd: Number(estimatedUsd.toFixed(4)),
     }),
   );
@@ -95,6 +111,49 @@ export function createClaudeClient({
                 ? "max_tokens"
                 : "complete",
         };
+      } catch (error) {
+        throw toGenerationError(error);
+      }
+    },
+
+    async research({ system, prompt }) {
+      // No structured output here: citations and JSON output can't be combined, and citations are the point.
+      const messages: Anthropic.Beta.BetaMessageParam[] = [{ role: "user", content: prompt }];
+      const citations: WebCitation[] = [];
+      try {
+        for (let turn = 0; turn <= MAX_CONTINUATIONS; turn++) {
+          const stream = anthropic.beta.messages.stream(
+            {
+              model,
+              max_tokens: 16_000,
+              system,
+              messages,
+              tools: [{ type: "web_search_20260209", name: "web_search", max_uses: MAX_WEB_SEARCHES }],
+              output_config: { effort },
+              ...(FALLBACK_MODELS.has(model) ? { betas: ["server-side-fallback-2026-07-01"], fallbacks: "default" as const } : {}),
+            },
+            { signal },
+          );
+          const message = await stream.finalMessage();
+          onUsage?.(logUsage("research", message.model, message.usage));
+
+          for (const block of message.content) {
+            if (block.type !== "text") continue;
+            for (const citation of block.citations ?? []) {
+              if (citation.type === "web_search_result_location") {
+                citations.push({ url: citation.url, title: citation.title, citedText: citation.cited_text });
+              }
+            }
+          }
+
+          if (message.stop_reason === "refusal") {
+            throw new GenerationError("refused", "This topic couldn't be researched. Try rephrasing it as a science topic for children.");
+          }
+          // The server pauses long tool loops; resending the turn unchanged lets it continue.
+          if (message.stop_reason !== "pause_turn") break;
+          messages.push({ role: "assistant", content: message.content as Anthropic.Beta.BetaContentBlockParam[] });
+        }
+        return { citations };
       } catch (error) {
         throw toGenerationError(error);
       }

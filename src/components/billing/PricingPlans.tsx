@@ -12,6 +12,7 @@ function features(plan: Plan): string[] {
     `${plan.generationsPerMonth} AI-generated lessons a month`,
     plan.savedLessons === null ? "Unlimited saved lessons" : `Save up to ${plan.savedLessons} lessons`,
     plan.referenceText ? "Lessons from your own reference material" : "Curated samples, editor, player and quizzes",
+    ...(plan.webResearch ? ["Web-researched lessons with cited sources"] : []),
     ...(plan.highQuality ? ["High-quality generation option"] : []),
     ...(plan.id === "classroom" ? ["Shared school library and teacher seats"] : []),
   ];

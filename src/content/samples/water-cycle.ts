@@ -90,6 +90,7 @@ export const waterCycleLesson: LessonInput = {
       facilitatorNote:
         "If you have a cold drink handy, show the droplets forming on the glass. Pause after each key term and ask the learner to explain it in their own words.",
       objectiveIds: ["obj-evaporation", "obj-clouds-rain"],
+      sourceIds: ["src-usgs", "src-nasa"],
     },
     {
       id: "sec-diagram",
@@ -146,6 +147,7 @@ export const waterCycleLesson: LessonInput = {
       facilitatorNote:
         "Trace the full loop with your finger on the diagram from the previous section: ocean → vapour → cloud → rain → river → ocean.",
       objectiveIds: ["obj-clouds-rain", "obj-cycle"],
+      sourceIds: ["src-usgs", "src-nasa"],
     },
     {
       id: "sec-sorting",

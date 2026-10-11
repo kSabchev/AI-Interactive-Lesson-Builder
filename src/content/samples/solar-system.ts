@@ -85,6 +85,7 @@ export const solarSystemLesson: LessonInput = {
         "A handy way to remember the order: “My Very Excellent Mother Just Served Us Noodles” — Mercury, Venus, Earth, Mars, Jupiter, Saturn, Uranus, Neptune.",
       facilitatorNote: "Say the memory sentence together, pointing to one finger per planet.",
       objectiveIds: ["obj-sun", "obj-planets"],
+      sourceIds: ["src-spaceplace", "src-nasa-ss"],
     },
     {
       id: "sec-diagram",

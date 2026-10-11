@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef } from "react";
+import { SourceList } from "@/components/lesson/SourceList";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
 import type { Lesson } from "@/lib/lesson/schema";
@@ -104,6 +105,12 @@ export function QuizResults({
                       Correct answer: <strong>{right.text}</strong>
                     </p>
                     <p className="mt-2 text-muted">{question.explanation}</p>
+                    <SourceList
+                      lesson={lesson}
+                      ids={question.sourceIds}
+                      showExcerpts={false}
+                      className="mt-2 text-sm"
+                    />
                     {section && (
                       <Link
                         href={sectionHref(section.id)}

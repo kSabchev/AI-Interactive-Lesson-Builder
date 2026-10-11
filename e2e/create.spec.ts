@@ -13,7 +13,7 @@ test("sample mode creates an honestly labelled copy and opens it for review", as
 
   await page.getByRole("button", { name: "Load example" }).click();
   await expect(page.getByLabel("Topic")).toHaveValue("How magnets work");
-  await page.getByLabel("Topic").fill("Why do plants need light?");
+  await page.getByRole("textbox", { name: "Topic" }).fill("Why do plants need light?");
   await page.getByRole("button", { name: "Generate lesson" }).click();
 
   await expect(page).toHaveURL(/\/lessons\/lesson-[\w-]+\/edit\?generated=1/);
@@ -31,7 +31,7 @@ test("the form explains invalid input without sending a request", async ({ page 
     return route.continue();
   });
   await openCreate(page);
-  await page.getByLabel("Topic").fill("x");
+  await page.getByRole("textbox", { name: "Topic" }).fill("x");
   await page.getByRole("button", { name: "Generate lesson" }).click();
   const topic = page.getByLabel("Topic");
   await expect(topic).toHaveAttribute("aria-invalid", "true");
@@ -49,7 +49,7 @@ test("a failed generation keeps the inputs and offers a retry and a way back to 
     }),
   );
   await openCreate(page);
-  await page.getByLabel("Topic").fill("Volcanoes");
+  await page.getByRole("textbox", { name: "Topic" }).fill("Volcanoes");
   await page.getByLabel("Reference text (optional)").fill("Volcanoes form where magma reaches the surface.");
   await page.getByRole("button", { name: "Generate lesson" }).click();
 
@@ -62,7 +62,9 @@ test("a failed generation keeps the inputs and offers a retry and a way back to 
 
 test("live progress shows only the stages the server reports, then opens the AI draft", async ({ page }) => {
   const lesson = { ...structuredClone(photosynthesisLesson), id: "lesson-live-1", contentOrigin: "ai-draft", sources: [] };
+  // An AI draft has no sources, so nothing in it may cite one.
   lesson.quiz = lesson.quiz.map((q) => ({ ...q, sourceIds: [] }));
+  lesson.sections = lesson.sections.map((s) => ({ ...s, sourceIds: [] }));
   const stream = [
     { type: "start", mode: "live" },
     { type: "stage", stage: "validate", status: "start" },
@@ -83,7 +85,7 @@ test("live progress shows only the stages the server reports, then opens the AI 
   );
 
   await openCreate(page);
-  await page.getByLabel("Topic").fill("Photosynthesis");
+  await page.getByRole("textbox", { name: "Topic" }).fill("Photosynthesis");
   await page.getByRole("button", { name: "Generate lesson" }).click();
 
   await expect(page).toHaveURL(/\/lessons\/lesson-live-1\/edit\?generated=1/);

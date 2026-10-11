@@ -3,9 +3,11 @@
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { SourceList } from "@/components/lesson/SourceList";
 import { type ActivityStates, SectionView } from "@/components/sections/SectionView";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
+import { ORIGIN_LABELS } from "@/lib/lesson/labels";
 import type { Lesson } from "@/lib/lesson/schema";
 
 export function LessonPlayer({ lesson, initialSectionId }: { lesson: Lesson; initialSectionId?: string }) {
@@ -95,6 +97,11 @@ export function LessonPlayer({ lesson, initialSectionId }: { lesson: Lesson; ini
             <span aria-hidden="true">←</span> Exit
           </Link>
           <h1 className="min-w-0 flex-1 truncate text-center text-base font-extrabold md:text-lg">{lesson.title}</h1>
+          {lesson.contentOrigin !== "curated" && (
+            <span className="hidden rounded-full bg-brand-50 px-3 py-1 text-xs font-bold text-brand-700 lg:inline">
+              {ORIGIN_LABELS[lesson.contentOrigin]}
+            </span>
+          )}
           <Button
             variant="ghost"
             aria-pressed={showNotes}
@@ -103,7 +110,11 @@ export function LessonPlayer({ lesson, initialSectionId }: { lesson: Lesson; ini
           >
             Facilitator notes
           </Button>
-          <Button variant="ghost" onClick={toggleFullscreen} aria-label={isFullscreen ? "Exit full screen" : "Full screen"}>
+          <Button
+            variant="ghost"
+            onClick={toggleFullscreen}
+            aria-label={isFullscreen ? "Exit full screen" : "Full screen"}
+          >
             <span aria-hidden="true">{isFullscreen ? "⤡" : "⤢"}</span>
             <span className="hidden md:inline">{isFullscreen ? "Exit full screen" : "Full screen"}</span>
           </Button>
@@ -164,6 +175,14 @@ export function LessonPlayer({ lesson, initialSectionId }: { lesson: Lesson; ini
                 <p className="font-extrabold text-sun-600">For the adult</p>
                 <p>{section.facilitatorNote}</p>
               </aside>
+            )}
+            {section.sourceIds.length > 0 && (
+              <details className="mt-8 rounded-2xl bg-surface/70 p-4 text-sm ring-1 ring-line">
+                <summary className="cursor-pointer font-bold text-muted">
+                  Where this comes from ({section.sourceIds.length})
+                </summary>
+                <SourceList lesson={lesson} ids={section.sourceIds} className="mt-3" />
+              </details>
             )}
           </motion.article>
         </AnimatePresence>
