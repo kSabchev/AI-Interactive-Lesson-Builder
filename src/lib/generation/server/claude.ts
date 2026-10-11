@@ -20,7 +20,9 @@ const MAX_TOKENS = 32_000;
 
 type Usage = { input_tokens: number; output_tokens: number; cache_read_input_tokens?: number | null };
 
-function logUsage(stage: string, model: string, usage: Usage) {
+export type UsageReport = { model: string; inputTokens: number; outputTokens: number; estimatedUsd: number };
+
+function logUsage(stage: string, model: string, usage: Usage): UsageReport {
   const [inPrice, outPrice] = PRICES[model] ?? [0, 0];
   const estimatedUsd = (usage.input_tokens * inPrice + usage.output_tokens * outPrice) / 1_000_000;
   console.info(
@@ -34,6 +36,7 @@ function logUsage(stage: string, model: string, usage: Usage) {
       estimatedUsd: Number(estimatedUsd.toFixed(4)),
     }),
   );
+  return { model, inputTokens: usage.input_tokens, outputTokens: usage.output_tokens, estimatedUsd };
 }
 
 export function createClaudeClient({
@@ -41,11 +44,13 @@ export function createClaudeClient({
   model,
   effort,
   signal,
+  onUsage,
 }: {
   apiKey: string;
   model: string;
   effort: Effort;
   signal?: AbortSignal;
+  onUsage?: (usage: UsageReport) => void;
 }): ModelClient {
   const anthropic = new Anthropic({ apiKey, maxRetries: 2 });
 
@@ -73,7 +78,7 @@ export function createClaudeClient({
           { signal },
         );
         const message = await stream.finalMessage();
-        logUsage(stage, message.model, message.usage);
+        onUsage?.(logUsage(stage, message.model, message.usage));
 
         const text = message.content
           .filter((block): block is Anthropic.Beta.BetaTextBlock => block.type === "text")

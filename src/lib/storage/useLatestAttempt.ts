@@ -1,24 +1,30 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getLatestAttempt, type QuizAttempt } from "./db";
+import type { QuizAttempt } from "@/lib/quiz/attempt";
+import { useStore } from "./StoreProvider";
 
 export type AttemptLookup = { status: "loading" } | { status: "ready"; attempt: QuizAttempt | undefined };
 
 export function useLatestAttempt(lessonId: string): AttemptLookup {
-  const [result, setResult] = useState<{ lessonId: string; attempt: QuizAttempt | undefined }>();
+  const state = useStore();
+  const store = state.status === "ready" ? state.store : undefined;
+  const key = `${store?.kind}:${lessonId}`;
+  const [result, setResult] = useState<{ key: string; attempt: QuizAttempt | undefined }>();
 
   useEffect(() => {
+    if (!store) return;
     let cancelled = false;
-    getLatestAttempt(lessonId)
+    store
+      .getAttempt(lessonId)
       .catch(() => undefined)
       .then((attempt) => {
-        if (!cancelled) setResult({ lessonId, attempt });
+        if (!cancelled) setResult({ key, attempt });
       });
     return () => {
       cancelled = true;
     };
-  }, [lessonId]);
+  }, [key, lessonId, store]);
 
-  return result?.lessonId === lessonId ? { status: "ready", attempt: result.attempt } : { status: "loading" };
+  return result?.key === key ? { status: "ready", attempt: result.attempt } : { status: "loading" };
 }

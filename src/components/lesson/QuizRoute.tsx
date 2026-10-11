@@ -5,7 +5,7 @@ import { useParams, useSearchParams } from "next/navigation";
 import { QuizRunner } from "@/components/quiz/QuizRunner";
 import { useLesson } from "@/lib/lesson/useLesson";
 import { useLatestAttempt } from "@/lib/storage/useLatestAttempt";
-import { LessonLoading, LessonNotFound } from "./LessonNotFound";
+import { LessonLoadError, LessonLoading, LessonNotFound } from "./LessonNotFound";
 
 export function QuizRoute() {
   const { id } = useParams<{ id: string }>();
@@ -15,6 +15,7 @@ export function QuizRoute() {
 
   if (lookup.status === "loading" || (showLastResults && latest.status === "loading")) return <LessonLoading />;
   if (lookup.status === "missing") return <LessonNotFound />;
+  if (lookup.status === "error") return <LessonLoadError message={lookup.message} />;
   const { lesson } = lookup;
   const previous = showLastResults && latest.status === "ready" ? latest.attempt : undefined;
 

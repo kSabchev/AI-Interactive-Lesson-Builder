@@ -3,9 +3,12 @@ import { GenerationError, type GenerationErrorCode, type GenerationEvent } from 
 import { generationInputSchema } from "@/lib/generation/input";
 import { generateLesson } from "@/lib/generation/pipeline";
 import { sampleLesson } from "@/lib/generation/sample";
-import { createClaudeClient } from "@/lib/generation/server/claude";
+import { createClaudeClient, type UsageReport } from "@/lib/generation/server/claude";
 import { generationConfig } from "@/lib/generation/server/config";
 import { checkDailyCap, checkVisitorLimit, recordGeneration } from "@/lib/generation/server/limits";
+import { getSessionUser } from "@/lib/server/auth";
+import { getDb } from "@/lib/server/db";
+import { generationUsage } from "@/lib/server/db/schema";
 
 /** Three model calls with possible repairs can take a few minutes. */
 export const maxDuration = 300;
@@ -16,6 +19,37 @@ const HOUR_MS = 60 * 60 * 1000;
 
 function errorResponse(status: number, code: GenerationErrorCode, message: string, headers?: HeadersInit) {
   return Response.json({ error: { code, message } }, { status, headers });
+}
+
+/** Stores one usage row per request for plan quotas and cost reporting. Never fails the generation. */
+async function recordUsage(
+  userId: string | null,
+  mode: string,
+  status: "succeeded" | GenerationErrorCode,
+  reports: UsageReport[],
+) {
+  try {
+    const db = await getDb();
+    await db.insert(generationUsage).values({
+      userId,
+      mode,
+      model: reports.at(-1)?.model ?? null,
+      status,
+      inputTokens: reports.reduce((sum, r) => sum + r.inputTokens, 0),
+      outputTokens: reports.reduce((sum, r) => sum + r.outputTokens, 0),
+      estimatedUsd: reports.reduce((sum, r) => sum + r.estimatedUsd, 0).toFixed(4),
+    });
+  } catch (error) {
+    console.error("[generation] couldn't record usage:", error);
+  }
+}
+
+async function currentUserId(request: Request): Promise<string | null> {
+  try {
+    return (await getSessionUser(request.headers))?.id ?? null;
+  } catch {
+    return null;
+  }
 }
 
 function visitorKey(request: Request): string {
@@ -42,6 +76,7 @@ export async function POST(request: Request) {
 
   const config = generationConfig();
   const visitor = visitorKey(request);
+  const userId = await currentUserId(request);
 
   if (config.mode === "live") {
     const limit = checkVisitorLimit(visitor, config.hourlyLimitPerVisitor, HOUR_MS);
@@ -63,6 +98,8 @@ export async function POST(request: Request) {
         }
       };
 
+      const usage: UsageReport[] = [];
+      let outcome: "succeeded" | GenerationErrorCode = "succeeded";
       const id = newId("lesson");
       const now = new Date().toISOString();
       emit({ type: "start", mode: config.mode });
@@ -81,6 +118,7 @@ export async function POST(request: Request) {
             model: config.model,
             effort: config.effort,
             signal: request.signal,
+            onUsage: (report) => usage.push(report),
           });
           const lesson = await generateLesson({ input, client, emit, id });
           emit({ type: "done", lesson });
@@ -91,8 +129,10 @@ export async function POST(request: Request) {
             ? error
             : new GenerationError("unavailable", "Something went wrong while generating. Please try again.");
         if (!(error instanceof GenerationError)) console.error("[generation] unexpected failure:", error);
+        outcome = known.code;
         emit({ type: "error", code: known.code, message: known.message });
       } finally {
+        await recordUsage(userId, config.mode, outcome, usage);
         try {
           controller.close();
         } catch {

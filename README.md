@@ -10,7 +10,8 @@ The product is becoming a subscription SaaS for parents and teachers. The milest
 | --- | --- |
 | 1–3. Player, quiz and results, review editor with local persistence | ✅ |
 | 4. AI generation | 🟡 Built and tested in sample mode; the live check with a real API key is still to do |
-| 5–9. Accounts, billing, evidence support, classroom tier, launch readiness | ⏳ |
+| 5. Accounts and cloud data | ✅ Magic-link sign-in (optional Google), lessons and quiz results saved to the account, guest import, account deletion |
+| 6–9. Billing, evidence support, classroom tier, launch readiness | ⏳ |
 
 ## Getting started
 
@@ -18,6 +19,12 @@ The product is becoming a subscription SaaS for parents and teachers. The milest
 npm install
 npm run dev          # http://localhost:3000
 ```
+
+### Accounts and database
+
+Nothing to set up locally: without `DATABASE_URL` the app uses an embedded Postgres (PGlite) in `.data/` and migrates it on first use. Sign-in links are written to `.data/mailbox.jsonl` and printed in the server console instead of being emailed. For production, set `DATABASE_URL`, `BETTER_AUTH_SECRET` and `BETTER_AUTH_URL`, and run `npm run db:migrate`; see `.env.example`. After changing `src/lib/server/db/schema.ts`, run `npm run db:generate` to create a migration.
+
+Guests can use everything without an account; their lessons stay in the browser. Signing in saves lessons to the account and offers to move any browser lessons across.
 
 ### AI generation
 
@@ -49,6 +56,8 @@ API usage is billed to the Console account that owns the key, separately from an
 - **`src/lib/storage/db.ts`** — IndexedDB storage for saved lessons and the latest quiz attempt per lesson. Lessons are validated on write and re-validated on read.
 - **`src/lib/generation/`** — staged generation pipeline (outline → content → quiz → check), each stage validated with Zod plus the lesson's cross-reference rules and repaired at most once by feeding the problems back to the model. The model writes content only; ids, section types, origin labels and sources are added in code, so it can't invent citations. `server/` holds the server-only Claude client, configuration and rate limits; `sample.ts` is the no-AI mode.
 - **`src/app/api/lessons/generate/route.ts`** — validates and rate-limits the request, then streams progress as newline-delimited JSON. **`/create`** shows only the stages the server reports and keeps the form filled in on failure.
+- **`src/lib/storage/store.ts`** — one `LessonStore` interface with two implementations: IndexedDB for guests and the account API for signed-in users. `StoreProvider` picks one from the session; the editor, player and library don't know which.
+- **`src/lib/server/`** — server-only code: Drizzle schema and connection (`db/`), Better Auth setup (`auth.ts`), per-user lesson storage (`lessons.ts`, every query filtered by owner) and request helpers (`http.ts`: session check, same-origin check for writes, body size limits). API routes live under `src/app/api/`.
 - **`src/components/editor/`** — form-based review editor. Curated samples are read-only, so saving an edited sample creates a copy. A failed save lists each problem with a link to the field that needs fixing (`src/lib/lesson/issues.ts`).
 
 Built with Next.js 16 (App Router, Cache Components), TypeScript, Tailwind CSS 4, Motion and Zod.

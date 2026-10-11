@@ -1,15 +1,9 @@
+/** Browser storage (IndexedDB) for guests. Signed-in users' data lives on the server; see `store.ts`. */
 import { type DBSchema, type IDBPDatabase, openDB } from "idb";
 import { type Lesson, lessonSchema } from "@/lib/lesson/schema";
-import type { QuizAnswers } from "@/lib/quiz/scoring";
+import type { QuizAttempt } from "@/lib/quiz/attempt";
 
-/** The most recent completed quiz attempt for a lesson. Only the latest one is kept. */
-export type QuizAttempt = {
-  lessonId: string;
-  answers: QuizAnswers;
-  score: number;
-  total: number;
-  completedAt: string;
-};
+export type { QuizAttempt };
 
 interface LessonBuilderDB extends DBSchema {
   lessons: { key: string; value: Lesson; indexes: { updatedAt: string } };
