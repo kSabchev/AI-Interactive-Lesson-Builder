@@ -32,9 +32,19 @@ export type Entitlements = {
   savedLessons: number;
 };
 
+/**
+ * `DEV_PLAN_OVERRIDE=pro` puts every account on that plan while developing, to try paid features without
+ * Stripe. Ignored in production.
+ */
+function devPlanOverride(): Plan | undefined {
+  const id = process.env.DEV_PLAN_OVERRIDE;
+  if (!id || process.env.NODE_ENV === "production") return undefined;
+  return Object.hasOwn(PLANS, id) ? PLANS[id as PlanId] : undefined;
+}
+
 export async function getEntitlements(db: Database, userId: string, now = new Date()): Promise<Entitlements> {
   const account = await getBillingAccount(db, userId);
-  const plan = PLANS[(account?.plan as PlanId | undefined) ?? "free"] ?? PLANS.free;
+  const plan = devPlanOverride() ?? PLANS[(account?.plan as PlanId | undefined) ?? "free"] ?? PLANS.free;
   const period = quotaPeriod(now);
   const [quota] = await db
     .select({ used: generationQuota.used })

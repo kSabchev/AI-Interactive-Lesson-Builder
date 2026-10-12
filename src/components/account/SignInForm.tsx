@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { TextField } from "@/components/editor/fields";
@@ -11,7 +12,7 @@ function safeNext(value: string | null): string {
   return value && value.startsWith("/") && !value.startsWith("//") ? value : "/";
 }
 
-export function SignInForm({ googleEnabled }: { googleEnabled: boolean }) {
+export function SignInForm({ googleEnabled, devMailbox = false }: { googleEnabled: boolean; devMailbox?: boolean }) {
   const params = useSearchParams();
   const next = safeNext(params.get("next"));
   const linkError = params.get("error");
@@ -42,6 +43,15 @@ export function SignInForm({ googleEnabled }: { googleEnabled: boolean }) {
         <p className="mt-2">
           We sent a sign-in link to <strong>{email.trim()}</strong>. It works once and expires in 15 minutes.
         </p>
+        {devMailbox && (
+          <p className="mt-3 rounded-2xl bg-surface p-3 text-sm ring-1 ring-line">
+            <strong>Development:</strong> emails aren&apos;t really sent.{" "}
+            <Link href="/dev/mailbox" className="font-bold text-brand-700 underline underline-offset-2">
+              Open the development mailbox
+            </Link>{" "}
+            to use the link.
+          </p>
+        )}
         <Button variant="ghost" className="mt-3" onClick={() => setState({ status: "idle" })}>
           Use a different email
         </Button>

@@ -75,3 +75,8 @@ test("deleting the account removes its lessons", async ({ page }) => {
   await signIn(page, email);
   await expect(page.getByText("Nothing saved yet")).toBeVisible();
 });
+
+test("the development mailbox doesn't exist in production", async ({ page }) => {
+  const response = await page.goto("/dev/mailbox");
+  expect(response?.status()).toBe(404);
+});
