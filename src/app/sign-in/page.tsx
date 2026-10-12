@@ -4,12 +4,13 @@ import { Suspense } from "react";
 import { AppHeader } from "@/components/account/AppHeader";
 import { SignInForm } from "@/components/account/SignInForm";
 import { isGoogleSignInEnabled } from "@/lib/server/auth";
+import { isDevMailboxEnabled } from "@/lib/server/email";
 
 export const metadata: Metadata = { title: "Sign in — Lesson Builder" };
 
 async function Form() {
   await connection();
-  return <SignInForm googleEnabled={isGoogleSignInEnabled()} />;
+  return <SignInForm googleEnabled={isGoogleSignInEnabled()} devMailbox={isDevMailboxEnabled()} />;
 }
 
 export default function SignInPage() {

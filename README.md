@@ -22,6 +22,14 @@ npm install
 npm run dev          # http://localhost:3000
 ```
 
+### Testing everything locally
+
+1. `cp .env.example .env.local`, then set `GENERATION_MODE=live` and `ANTHROPIC_API_KEY` to try real AI generation.
+2. Optionally set `DEV_PLAN_OVERRIDE=pro` to try Pro features (reference text, web research, high quality) without Stripe.
+3. `npm run dev` and open http://localhost:3000. Use `npm run dev` rather than `npm start` for local testing: the development mailbox below only exists in development.
+4. Sign in with any email address. No email is sent: open **http://localhost:3000/dev/mailbox** (also linked after you request a link) and click **Open link**.
+5. Create a lesson. Live generation needs an account, and each one is counted against the plan's monthly allowance.
+
 ### Accounts and database
 
 Nothing to set up locally: without `DATABASE_URL` the app uses an embedded Postgres (PGlite) in `.data/` and migrates it on first use. Sign-in links are written to `.data/mailbox.jsonl` and printed in the server console instead of being emailed. For production, set `DATABASE_URL`, `BETTER_AUTH_SECRET` and `BETTER_AUTH_URL`, and run `npm run db:migrate`; see `.env.example`. After changing `src/lib/server/db/schema.ts`, run `npm run db:generate` to create a migration.

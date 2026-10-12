@@ -192,3 +192,21 @@ describe("account deletion", () => {
     ).rejects.toThrow("Stripe is down");
   });
 });
+
+describe("development plan override", () => {
+  it("applies outside production only", async () => {
+    const userId = await newUser();
+    vi.stubEnv("DEV_PLAN_OVERRIDE", "pro");
+    vi.stubEnv("NODE_ENV", "development");
+    expect((await getEntitlements(db, userId)).plan.id).toBe("pro");
+    vi.stubEnv("NODE_ENV", "production");
+    expect((await getEntitlements(db, userId)).plan.id).toBe("free");
+  });
+
+  it("ignores unknown plan names", async () => {
+    const userId = await newUser();
+    vi.stubEnv("DEV_PLAN_OVERRIDE", "platinum");
+    vi.stubEnv("NODE_ENV", "development");
+    expect((await getEntitlements(db, userId)).plan.id).toBe("free");
+  });
+});
