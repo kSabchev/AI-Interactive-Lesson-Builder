@@ -61,8 +61,12 @@ API usage is billed to the Console account that owns the key, separately from an
 | --- | --- |
 | `npm test` | Unit tests (Vitest): lesson schema, scoring, activity checking, storage, generation pipeline and route |
 | `npm run e2e` | Playwright journey tests on desktop and tablet viewports (builds the app first; always in sample mode) |
-| `npm run typecheck` | TypeScript |
+| `npm run typecheck` | TypeScript (generates Next.js route types first) |
 | `npm run lint` | ESLint |
+
+## Continuous integration
+
+`.github/workflows/ci.yml` runs on every pull request and on pushes to `main`: typecheck, lint and unit tests in one job, and the Playwright suite in another (it uploads the report and traces when something fails). CI needs no secrets: tests run in sample mode with an in-memory database and dummy billing values, so they never call a paid API.
 
 ## How it fits together
 
