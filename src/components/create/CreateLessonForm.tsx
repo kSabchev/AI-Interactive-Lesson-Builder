@@ -91,6 +91,7 @@ export function CreateLessonForm({ mode, webResearch = false }: { mode: Generati
     const controller = new AbortController();
     abortRef.current = controller;
     let stages: StageState[] = [];
+    let researchFallback = false;
     setRun({ status: "running", stages });
     requestAnimationFrame(() => statusRef.current?.focus());
 
@@ -101,6 +102,8 @@ export function CreateLessonForm({ mode, webResearch = false }: { mode: Generati
           ? stages.map((s) => (s.stage === event.stage ? { ...s, status: event.status } : s))
           : [...stages, { stage: event.stage, status: event.status, retried: false }];
         setRun({ status: "running", stages });
+      } else if (event.type === "research_fallback") {
+        researchFallback = true;
       } else if (event.type === "retry") {
         stages = stages.map((s) => (s.stage === event.stage ? { ...s, retried: true } : s));
         setRun({ status: "running", stages });
@@ -110,7 +113,7 @@ export function CreateLessonForm({ mode, webResearch = false }: { mode: Generati
         try {
           if (storeState.status !== "ready") throw new Error("store not ready");
           await storeState.store.saveLesson(event.lesson);
-          router.push(`/lessons/${event.lesson.id}/edit?generated=1`);
+          router.push(`/lessons/${event.lesson.id}/edit?generated=${researchFallback ? "no-sources" : "1"}`);
         } catch (error) {
           setRun({
             status: "failed",

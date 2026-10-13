@@ -58,3 +58,27 @@ test("a web-researched draft is labelled as such and links the pages it used", a
   await page.getByRole("button", { name: "Sources (1)" }).click();
   await expect(page.getByText("Web-researched.")).toBeVisible();
 });
+
+test("when web research finds too few sources, the draft is kept and says it has none", async ({ page }) => {
+  const lesson = { ...structuredClone(solarSystemLesson), id: "lesson-web-2", contentOrigin: "ai-draft" as const, sources: [] };
+  lesson.sections = lesson.sections.map((s) => ({ ...s, sourceIds: [] }));
+  lesson.quiz = lesson.quiz.map((q) => ({ ...q, sourceIds: [] }));
+
+  const stream = [
+    { type: "start", mode: "live" },
+    { type: "stage", stage: "research", status: "start" },
+    { type: "stage", stage: "research", status: "done" },
+    { type: "research_fallback" },
+    { type: "done", lesson },
+  ];
+  await page.route("**/api/lessons/generate", (route) =>
+    route.fulfill({ contentType: "application/x-ndjson", body: stream.map((e) => JSON.stringify(e)).join("\n") + "\n" }),
+  );
+
+  await page.goto("/create");
+  await page.getByRole("textbox", { name: "Topic" }).fill("The planets");
+  await page.getByRole("button", { name: "Generate lesson" }).click();
+
+  await expect(page).toHaveURL(/lesson-web-2\/edit\?generated=no-sources/);
+  await expect(page.getByText(/Web research didn't find enough reliable sources/)).toBeVisible();
+});

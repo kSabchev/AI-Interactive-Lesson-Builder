@@ -24,13 +24,14 @@ export type GenerationErrorCode =
   | "unavailable"
   | "busy"
   | "refused"
-  | "invalid_output"
-  | "no_sources";
+  | "invalid_output";
 
 export type GenerationEvent =
   | { type: "start"; mode: GenerationMode }
   | { type: "stage"; stage: Stage; status: "start" | "done" }
   | { type: "retry"; stage: Stage; reason: string }
+  /** Web research found too few sources, so the lesson is being written without them. */
+  | { type: "research_fallback" }
   | { type: "done"; lesson: Lesson; notice?: string }
   | { type: "error"; code: GenerationErrorCode; message: string };
 

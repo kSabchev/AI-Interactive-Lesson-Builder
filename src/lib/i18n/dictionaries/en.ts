@@ -207,6 +207,8 @@ export const en = {
     sampleNotice: "This is a curated sample, so it stays as it is. Saving your edits creates your own copy in the library.",
     seePlans: "See plans",
     aiDraftNote: "AI draft written without sources. Check the facts before presenting.",
+    generatedWithoutSources:
+      "Web research didn't find enough reliable sources for this topic, so this draft was written without them and saved to your library. It was checked for structure, not for accuracy: read it through and fix anything that's wrong before presenting.",
     copiedNotice: "Saved a copy to your library. You're now editing your own lesson.",
     generated: {
       curated:
@@ -495,8 +497,6 @@ export const en = {
         `You've used all ${n} AI lessons in your ${plan} plan this month. They reset on ${resets}.`,
       refused: "This topic couldn't be turned into a lesson. Try rephrasing it as a science topic for children.",
       invalid_output: "The AI couldn't produce a complete, valid lesson. Please try again.",
-      no_sources:
-        "Couldn't find enough reliable sources on the web for this topic. Try rephrasing it, or turn off web research.",
       busy: "The AI service is busy right now. Please try again in a minute.",
       unavailable: "AI generation isn't available right now. Please try again later.",
       unexpected: "Something went wrong while generating. Please try again.",

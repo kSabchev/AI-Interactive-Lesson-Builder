@@ -167,7 +167,11 @@ export async function generateLesson({
   return result.data;
 }
 
-/** Reference text is split into excerpts; web research runs as its own stage and keeps only cited pages. */
+/**
+ * Reference text is split into excerpts; web research runs as its own stage and keeps only cited pages.
+ * Research that finds too few sources doesn't fail the request: the searches are already paid for, so the
+ * lesson is written without web sources (an ordinary AI draft) and the client is told why.
+ */
 async function gatherEvidence(input: GenerationInput, client: ModelClient, emit: Emit): Promise<Evidence | undefined> {
   if (input.referenceText) return { kind: "reference", excerpts: splitReference(input.referenceText) };
   if (!input.research) return undefined;
@@ -176,13 +180,11 @@ async function gatherEvidence(input: GenerationInput, client: ModelClient, emit:
   emit({ type: "stage", stage: "research", status: "start" });
   const { citations } = await client.research({ system: SYSTEM_PROMPT, prompt: researchPrompt(input) });
   const excerpts = excerptsFromCitations(citations);
-  if (excerpts.length < MIN_WEB_EXCERPTS) {
-    throw new GenerationError(
-      "no_sources",
-      "Couldn't find enough reliable sources on the web for this topic. Try rephrasing it, or turn off web research.",
-    );
-  }
   emit({ type: "stage", stage: "research", status: "done" });
+  if (excerpts.length < MIN_WEB_EXCERPTS) {
+    emit({ type: "research_fallback" });
+    return undefined;
+  }
   return { kind: "web", excerpts };
 }
 
