@@ -144,6 +144,16 @@ describe("generateLesson", () => {
     ]);
   });
 
+  it("writes the lesson in the topic's language", async () => {
+    const english = await run(happy());
+    expect(english.lesson.language).toBe("en");
+
+    const { lesson, calls } = await run(happy(), { topic: "Как действат магнитите" });
+    expect(lesson.language).toBe("bg");
+    const prompt = calls[0].turns[0];
+    expect(prompt.role === "user" && prompt.text).toContain("in Bulgarian");
+  });
+
   it("uses a diagram-labeling activity when the outline picks an approved diagram", async () => {
     const activity = {
       instructions: "Label the water cycle.",

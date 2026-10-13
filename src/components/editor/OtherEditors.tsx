@@ -1,9 +1,10 @@
 "use client";
 
+import { cn } from "@/lib/cn";
+import { useT } from "@/lib/i18n/client";
 import { replaceAt } from "@/lib/lesson/edit";
 import { originLabel } from "@/lib/lesson/labels";
 import { type Lesson, type QuizQuestion, SHORT_TEXT_MAX, TEXT_MAX } from "@/lib/lesson/schema";
-import { cn } from "@/lib/cn";
 import { EditorGroup, ListItemCard, SelectField, TextArea, TextField } from "./fields";
 
 export function DetailsEditor({
@@ -15,26 +16,29 @@ export function DetailsEditor({
   isSample: boolean;
   onChange: (lesson: Lesson) => void;
 }) {
+  const t = useT();
+  const d = t.editor.details;
   return (
-    <EditorGroup title="Lesson details">
+    <EditorGroup title={d.title}>
       <TextField
-        label="Lesson title"
+        label={d.lessonTitle}
         value={lesson.title}
         maxLength={SHORT_TEXT_MAX}
         onChange={(title) => onChange({ ...lesson, title })}
       />
       <TextField
-        label="Topic"
+        label={d.topic}
         value={lesson.topic}
         maxLength={SHORT_TEXT_MAX}
         onChange={(topic) => onChange({ ...lesson, topic })}
       />
-      <dl className="grid grid-cols-2 gap-3 rounded-2xl bg-paper/60 p-4 text-sm sm:grid-cols-4">
+      <dl className="grid grid-cols-2 gap-3 rounded-2xl bg-paper/60 p-4 text-sm sm:grid-cols-3">
         {[
-          ["Age group", `Ages ${lesson.ageGroup.replace("-", "–")}`],
-          ["Duration", `${lesson.durationMinutes} minutes`],
-          ["Template", "Explore a concept"],
-          ["Content origin", originLabel(lesson, isSample)],
+          [d.ageGroup, t.common.ages(lesson.ageGroup.replace("-", "–"))],
+          [d.duration, t.common.minutesLong(lesson.durationMinutes)],
+          [d.language, t.language.names[lesson.language]],
+          [d.template, d.templateName],
+          [d.origin, originLabel(lesson, isSample, t)],
         ].map(([term, value]) => (
           <div key={term}>
             <dt className="font-bold text-muted">{term}</dt>
@@ -42,26 +46,22 @@ export function DetailsEditor({
           </div>
         ))}
       </dl>
-      <p className="text-sm text-muted">
-        Age group and duration shape how the lesson was written, so they are fixed once the lesson exists.
-      </p>
+      <p className="text-sm text-muted">{d.fixedNote}</p>
     </EditorGroup>
   );
 }
 
 export function ObjectivesEditor({ lesson, onChange }: { lesson: Lesson; onChange: (lesson: Lesson) => void }) {
+  const o = useT().editor.objectives;
   return (
-    <EditorGroup
-      title="Learning objectives"
-      description="Every lesson has exactly three. Each quiz question checks one of them."
-    >
+    <EditorGroup title={o.title} description={o.description}>
       {lesson.objectives.map((objective, i) => {
         const questionCount = lesson.quiz.filter((q) => q.objectiveId === objective.id).length;
         return (
           <TextArea
             key={objective.id}
-            label={`Objective ${i + 1}`}
-            hint={`Checked by ${questionCount} quiz question${questionCount === 1 ? "" : "s"}.`}
+            label={o.label(i + 1)}
+            hint={o.checkedBy(questionCount)}
             rows={2}
             value={objective.description}
             maxLength={TEXT_MAX}
@@ -86,18 +86,19 @@ export function QuizQuestionEditor({
   index: number;
   onChange: (question: QuizQuestion) => void;
 }) {
+  const q = useT().editor.question;
   return (
     <div className="space-y-8">
-      <EditorGroup title={`Quiz question ${index + 1}`} description="Single answer, four options. Only test what the lesson teaches.">
+      <EditorGroup title={q.title(index + 1)} description={q.description}>
         <TextArea
-          label="Question"
+          label={q.question}
           rows={2}
           value={question.prompt}
           maxLength={TEXT_MAX}
           onChange={(prompt) => onChange({ ...question, prompt })}
         />
         <fieldset className="space-y-3">
-          <legend className="mb-2 font-bold">Answer options</legend>
+          <legend className="mb-2 font-bold">{q.options}</legend>
           {question.options.map((option, i) => {
             const isCorrect = option.id === question.correctOptionId;
             return (
@@ -116,44 +117,46 @@ export function QuizQuestionEditor({
                     onChange={() => onChange({ ...question, correctOptionId: option.id })}
                     className="size-5 accent-good-500"
                   />
-                  <span className={isCorrect ? "text-good-700" : "text-muted"}>Correct</span>
+                  <span className={isCorrect ? "text-good-700" : "text-muted"}>{q.correct}</span>
                 </label>
                 <TextField
                   className="flex-1"
-                  label={`Option ${String.fromCharCode(65 + i)}`}
+                  label={q.option(String.fromCharCode(65 + i))}
                   value={option.text}
                   maxLength={SHORT_TEXT_MAX}
-                  onChange={(text) => onChange({ ...question, options: replaceAt(question.options, i, { ...option, text }) })}
+                  onChange={(text) =>
+                    onChange({ ...question, options: replaceAt(question.options, i, { ...option, text }) })
+                  }
                 />
               </div>
             );
           })}
         </fieldset>
         <TextArea
-          label="Explanation"
-          hint="Shown after the learner answers, and on the results screen."
+          label={q.explanation}
+          hint={q.explanationHint}
           value={question.explanation}
           maxLength={TEXT_MAX}
           onChange={(explanation) => onChange({ ...question, explanation })}
         />
       </EditorGroup>
 
-      <EditorGroup title="What it checks" description="Used to suggest concepts to revisit when this question is missed.">
+      <EditorGroup title={q.checksTitle} description={q.checksDescription}>
         <SelectField
-          label="Learning objective"
+          label={q.objective}
           value={question.objectiveId}
           options={lesson.objectives.map((o, i) => ({ value: o.id, label: `${i + 1}. ${o.description}` }))}
           onChange={(objectiveId) => onChange({ ...question, objectiveId })}
         />
         <SelectField
-          label="Lesson section that teaches it"
+          label={q.section}
           value={question.sectionId}
           options={lesson.sections.map((s, i) => ({ value: s.id, label: `${i + 1}. ${s.title}` }))}
           onChange={(sectionId) => onChange({ ...question, sectionId })}
         />
         {lesson.sources.length > 0 && (
           <fieldset>
-            <legend className="mb-2 font-bold">Supporting sources</legend>
+            <legend className="mb-2 font-bold">{q.sources}</legend>
             <div className="space-y-2">
               {lesson.sources.map((source) => (
                 <label key={source.id} className="flex items-center gap-2">
@@ -182,40 +185,41 @@ export function QuizQuestionEditor({
 }
 
 export function SourcesPanel({ lesson, isSample }: { lesson: Lesson; isSample: boolean }) {
+  const t = useT();
+  const s = t.editor.sources;
   return (
-    <EditorGroup
-      title="Sources"
-      description="Where the lesson content came from. Sources can't be edited here, so citations always match the material that was actually used."
-    >
+    <EditorGroup title={s.title} description={s.description}>
       <p className="rounded-2xl bg-brand-50 p-4 text-sm">
-        <strong>{originLabel(lesson, isSample)}.</strong>{" "}
-        {lesson.contentOrigin === "ai-draft"
-          ? "This lesson was generated without supplied evidence. Check the facts carefully before presenting it."
-          : "Checking the content still matters: a valid structure doesn't prove every fact is right."}
+        <strong>{originLabel(lesson, isSample, t)}.</strong> {lesson.contentOrigin === "ai-draft" ? s.aiDraft : s.general}
       </p>
       {lesson.sources.length === 0 ? (
-        <p className="text-muted">No sources are attached to this lesson.</p>
+        <p className="text-muted">{s.none}</p>
       ) : (
         <ul className="space-y-3">
           {lesson.sources.map((source, i) => {
             const citedBy = lesson.quiz.filter((q) => q.sourceIds.includes(source.id)).length;
             return (
               <li key={source.id}>
-                <ListItemCard title={`Source ${i + 1}`}>
+                <ListItemCard title={s.source(i + 1)}>
                   <p className="font-bold">
                     {source.url ? (
-                      <a href={source.url} target="_blank" rel="noreferrer" className="text-brand-700 underline underline-offset-2">
+                      <a
+                        href={source.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-brand-700 underline underline-offset-2"
+                      >
                         {source.title}
-                        <span className="sr-only"> (opens in a new tab)</span>
+                        <span className="sr-only">{t.common.opensInNewTab}</span>
                       </a>
                     ) : (
                       source.title
                     )}
                   </p>
-                  {source.excerpt && <blockquote className="border-l-4 border-line pl-3 text-muted">“{source.excerpt}”</blockquote>}
-                  <p className="text-sm text-muted">
-                    Supports {citedBy} quiz question{citedBy === 1 ? "" : "s"}.
-                  </p>
+                  {source.excerpt && (
+                    <blockquote className="border-l-4 border-line pl-3 text-muted">“{source.excerpt}”</blockquote>
+                  )}
+                  <p className="text-sm text-muted">{s.supports(citedBy)}</p>
                 </ListItemCard>
               </li>
             );

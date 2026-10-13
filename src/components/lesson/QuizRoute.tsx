@@ -2,12 +2,15 @@
 
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
+import { LanguageToggle } from "@/components/i18n/LanguageToggle";
 import { QuizRunner } from "@/components/quiz/QuizRunner";
+import { LocaleScope, useT } from "@/lib/i18n/client";
 import { useLesson } from "@/lib/lesson/useLesson";
 import { useLatestAttempt } from "@/lib/storage/useLatestAttempt";
 import { LessonLoadError, LessonLoading, LessonNotFound } from "./LessonNotFound";
 
 export function QuizRoute() {
+  const t = useT();
   const { id } = useParams<{ id: string }>();
   const showLastResults = useSearchParams().get("view") === "results";
   const lookup = useLesson(id);
@@ -27,16 +30,22 @@ export function QuizRoute() {
             href={`/lessons/${lesson.id}/present`}
             className="rounded-full px-3 py-2 font-bold text-muted hover:bg-brand-50 hover:text-ink"
           >
-            <span aria-hidden="true">←</span> Lesson
+            <span aria-hidden="true">←</span> {t.quiz.lessonLink}
           </Link>
-          <p className="min-w-0 flex-1 truncate text-center font-extrabold">{lesson.title}</p>
+          <p lang={lesson.language} className="min-w-0 flex-1 truncate text-center font-extrabold">
+            {lesson.title}
+          </p>
           <Link href="/" className="rounded-full px-3 py-2 font-bold text-muted hover:bg-brand-50 hover:text-ink">
-            Library
+            {t.common.library}
           </Link>
+          <LanguageToggle />
         </div>
       </header>
       <main className="flex-1">
-        <QuizRunner lesson={lesson} previousAnswers={previous?.answers} />
+        {/* Learners answer the quiz, so it follows the lesson's language. */}
+        <LocaleScope locale={lesson.language}>
+          <QuizRunner lesson={lesson} previousAnswers={previous?.answers} />
+        </LocaleScope>
       </main>
     </div>
   );

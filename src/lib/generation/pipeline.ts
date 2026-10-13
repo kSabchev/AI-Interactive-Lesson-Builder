@@ -1,4 +1,5 @@
 import type { z } from "zod";
+import { en } from "@/lib/i18n/dictionaries/en";
 import { describeIssues } from "@/lib/lesson/issues";
 import { type Lesson, lessonSchema } from "@/lib/lesson/schema";
 import { GenerationError, type GenerationEvent, type Stage } from "./events";
@@ -110,7 +111,8 @@ function parseAndCheck<T>(text: string, schema: z.ZodType<T>, check: (data: T) =
 function lessonProblems(draft: unknown, filter: (target: string) => boolean): string[] {
   const result = lessonSchema.safeParse(draft);
   if (result.success) return [];
-  return describeIssues(draft as Lesson, result.error)
+  // Repair feedback goes to the model, so it stays in English whatever the interface language.
+  return describeIssues(draft as Lesson, result.error, en)
     .filter((issue) => filter(issue.target))
     .map((issue) => `${issue.where}: ${issue.message}`);
 }

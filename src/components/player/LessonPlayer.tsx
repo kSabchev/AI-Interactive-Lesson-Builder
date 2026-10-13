@@ -3,14 +3,16 @@
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { LanguageToggle } from "@/components/i18n/LanguageToggle";
 import { SourceList } from "@/components/lesson/SourceList";
 import { type ActivityStates, SectionView } from "@/components/sections/SectionView";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
-import { ORIGIN_LABELS } from "@/lib/lesson/labels";
+import { LocaleScope, useT } from "@/lib/i18n/client";
 import type { Lesson } from "@/lib/lesson/schema";
 
 export function LessonPlayer({ lesson, initialSectionId }: { lesson: Lesson; initialSectionId?: string }) {
+  const t = useT();
   const [index, setIndex] = useState(() =>
     Math.max(
       0,
@@ -94,12 +96,17 @@ export function LessonPlayer({ lesson, initialSectionId }: { lesson: Lesson; ini
       <header className="border-b border-line bg-surface/80 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-2 md:px-6">
           <Link href="/" className="rounded-full px-3 py-2 font-bold text-muted hover:bg-brand-50 hover:text-ink">
-            <span aria-hidden="true">←</span> Exit
+            <span aria-hidden="true">←</span> {t.player.exit}
           </Link>
-          <h1 className="min-w-0 flex-1 truncate text-center text-base font-extrabold md:text-lg">{lesson.title}</h1>
+          <h1
+            lang={lesson.language}
+            className="min-w-0 flex-1 truncate text-center text-base font-extrabold md:text-lg"
+          >
+            {lesson.title}
+          </h1>
           {lesson.contentOrigin !== "curated" && (
             <span className="hidden rounded-full bg-brand-50 px-3 py-1 text-xs font-bold text-brand-700 lg:inline">
-              {ORIGIN_LABELS[lesson.contentOrigin]}
+              {t.origin[lesson.contentOrigin]}
             </span>
           )}
           <Button
@@ -108,18 +115,19 @@ export function LessonPlayer({ lesson, initialSectionId }: { lesson: Lesson; ini
             onClick={() => setShowNotes((v) => !v)}
             className="hidden sm:inline-flex"
           >
-            Facilitator notes
+            {t.player.facilitatorNotes}
           </Button>
           <Button
             variant="ghost"
             onClick={toggleFullscreen}
-            aria-label={isFullscreen ? "Exit full screen" : "Full screen"}
+            aria-label={isFullscreen ? t.player.exitFullScreen : t.player.fullScreen}
           >
             <span aria-hidden="true">{isFullscreen ? "⤡" : "⤢"}</span>
-            <span className="hidden md:inline">{isFullscreen ? "Exit full screen" : "Full screen"}</span>
+            <span className="hidden md:inline">{isFullscreen ? t.player.exitFullScreen : t.player.fullScreen}</span>
           </Button>
+          <LanguageToggle className="hidden sm:inline-flex" />
         </div>
-        <nav aria-label="Lesson progress" className="mx-auto max-w-7xl px-4 pb-3 md:px-6">
+        <nav aria-label={t.player.progress} className="mx-auto max-w-7xl px-4 pb-3 md:px-6">
           <ol className="flex gap-1.5">
             {lesson.sections.map((s, i) => (
               <li key={s.id} className="flex-1">
@@ -127,7 +135,7 @@ export function LessonPlayer({ lesson, initialSectionId }: { lesson: Lesson; ini
                   type="button"
                   onClick={() => goTo(i)}
                   aria-current={i === index ? "step" : undefined}
-                  aria-label={`Section ${i + 1}: ${s.title}`}
+                  aria-label={t.player.sectionLabel(i + 1, s.title)}
                   title={s.title}
                   className="group block w-full py-1.5"
                 >
@@ -142,71 +150,78 @@ export function LessonPlayer({ lesson, initialSectionId }: { lesson: Lesson; ini
                 </button>
               </li>
             ))}
-            <li className="flex-1" aria-label="Final quiz">
+            <li className="flex-1" aria-label={t.player.finalQuiz}>
               <span className="my-1.5 block h-2.5 rounded-full border-2 border-dashed border-line" />
             </li>
           </ol>
         </nav>
       </header>
 
-      <main
-        ref={stageRef}
-        tabIndex={-1}
-        aria-label={`Section ${index + 1} of ${lesson.sections.length}: ${section.title}`}
-        className="flex-1 overflow-y-auto overflow-x-hidden outline-none"
-      >
-        <AnimatePresence mode="wait" initial={false} custom={direction}>
-          <motion.article
-            key={section.id}
-            custom={direction}
-            initial={{ opacity: 0, x: direction * offset }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: direction * -offset }}
-            transition={{ duration: 0.25, ease: "easeOut" }}
-            className="mx-auto max-w-6xl px-4 py-8 md:px-8 md:py-12"
-          >
-            <SectionView
-              section={section}
-              activityStates={activityStates}
-              onActivityChange={(id, state) => setActivityStates((prev) => ({ ...prev, [id]: state }))}
-            />
-            {showNotes && section.facilitatorNote && (
-              <aside className="mt-8 rounded-2xl border-l-4 border-sun-400 bg-sun-100 p-4 text-base md:text-lg">
-                <p className="font-extrabold text-sun-600">For the adult</p>
-                <p>{section.facilitatorNote}</p>
-              </aside>
-            )}
-            {section.sourceIds.length > 0 && (
-              <details className="mt-8 rounded-2xl bg-surface/70 p-4 text-sm ring-1 ring-line">
-                <summary className="cursor-pointer font-bold text-muted">
-                  Where this comes from ({section.sourceIds.length})
-                </summary>
-                <SourceList lesson={lesson} ids={section.sourceIds} className="mt-3" />
-              </details>
-            )}
-          </motion.article>
-        </AnimatePresence>
-      </main>
+      <LocaleScope locale={lesson.language}>
+        <main
+          ref={stageRef}
+          tabIndex={-1}
+          aria-label={t.player.stageLabel(index + 1, lesson.sections.length, section.title)}
+          className="flex-1 overflow-y-auto overflow-x-hidden outline-none"
+        >
+          <AnimatePresence mode="wait" initial={false} custom={direction}>
+            <motion.article
+              key={section.id}
+              custom={direction}
+              initial={{ opacity: 0, x: direction * offset }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: direction * -offset }}
+              transition={{ duration: 0.25, ease: "easeOut" }}
+              className="mx-auto max-w-6xl px-4 py-8 md:px-8 md:py-12"
+            >
+              <SectionView
+                section={section}
+                activityStates={activityStates}
+                onActivityChange={(id, state) => setActivityStates((prev) => ({ ...prev, [id]: state }))}
+              />
+              {showNotes && section.facilitatorNote && (
+                <aside className="mt-8 rounded-2xl border-l-4 border-sun-400 bg-sun-100 p-4 text-base md:text-lg">
+                  <p className="font-extrabold text-sun-600">{t.player.forTheAdult}</p>
+                  <p>{section.facilitatorNote}</p>
+                </aside>
+              )}
+              {section.sourceIds.length > 0 && (
+                <details className="mt-8 rounded-2xl bg-surface/70 p-4 text-sm ring-1 ring-line">
+                  <summary className="cursor-pointer font-bold text-muted">
+                    {t.player.whereFrom(section.sourceIds.length)}
+                  </summary>
+                  <SourceList lesson={lesson} ids={section.sourceIds} className="mt-3" />
+                </details>
+              )}
+            </motion.article>
+          </AnimatePresence>
+        </main>
 
-      <footer className="border-t border-line bg-surface/80 backdrop-blur">
-        <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-3 md:px-6">
-          <Button variant="secondary" size="lg" onClick={() => goTo(index - 1)} disabled={index === 0}>
-            <span aria-hidden="true">←</span> Back
-          </Button>
-          <p className="flex-1 text-center font-bold text-muted" aria-live="polite">
-            {index + 1} / {lesson.sections.length}
-          </p>
-          {isLast ? (
-            <ButtonLink href={quizHref} size="lg">
-              Finish lesson and start quiz <span aria-hidden="true">→</span>
-            </ButtonLink>
-          ) : (
-            <Button size="lg" onClick={() => goTo(index + 1)}>
-              Next <span aria-hidden="true">→</span>
+        <footer className="border-t border-line bg-surface/80 backdrop-blur">
+          <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-3 md:px-6">
+            <Button variant="secondary" size="lg" onClick={() => goTo(index - 1)} disabled={index === 0}>
+              <span aria-hidden="true">←</span> <LessonText k="back" />
             </Button>
-          )}
-        </div>
-      </footer>
+            <p className="flex-1 text-center font-bold text-muted" aria-live="polite">
+              {index + 1} / {lesson.sections.length}
+            </p>
+            {isLast ? (
+              <ButtonLink href={quizHref} size="lg">
+                <LessonText k="finish" /> <span aria-hidden="true">→</span>
+              </ButtonLink>
+            ) : (
+              <Button size="lg" onClick={() => goTo(index + 1)}>
+                <LessonText k="next" /> <span aria-hidden="true">→</span>
+              </Button>
+            )}
+          </div>
+        </footer>
+      </LocaleScope>
     </div>
   );
+}
+
+/** Footer labels in the lesson's language: learners read them, not just the adult. */
+function LessonText({ k }: { k: "back" | "next" | "finish" }) {
+  return <>{useT().player[k]}</>;
 }

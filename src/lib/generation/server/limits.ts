@@ -9,7 +9,9 @@ import "server-only";
 const visitorHits = new Map<string, number[]>();
 let daily = { day: "", count: 0 };
 
-export type LimitResult = { ok: true } | { ok: false; retryAfterSeconds: number; message: string };
+export type LimitResult =
+  | { ok: true }
+  | { ok: false; retryAfterSeconds: number; reason: "visitor" | "daily"; limit: number };
 
 export function checkVisitorLimit(visitor: string, limit: number, windowMs: number, now = Date.now()): LimitResult {
   const recent = (visitorHits.get(visitor) ?? []).filter((t) => now - t < windowMs);
@@ -18,7 +20,8 @@ export function checkVisitorLimit(visitor: string, limit: number, windowMs: numb
   return {
     ok: false,
     retryAfterSeconds: Math.ceil((recent[0] + windowMs - now) / 1000),
-    message: `You've reached the limit of ${limit} AI lessons per hour. Try again later, or open a sample lesson.`,
+    reason: "visitor",
+    limit,
   };
 }
 
@@ -30,7 +33,8 @@ export function checkDailyCap(cap: number, now = new Date()): LimitResult {
   return {
     ok: false,
     retryAfterSeconds: Math.ceil((midnight - now.getTime()) / 1000),
-    message: "Today's AI lesson allowance for this demo has been used up. Sample lessons are still available.",
+    reason: "daily",
+    limit: cap,
   };
 }
 

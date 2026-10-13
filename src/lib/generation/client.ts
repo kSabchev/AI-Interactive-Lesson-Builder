@@ -1,3 +1,4 @@
+import type { Dictionary } from "@/lib/i18n";
 import type { GenerationEvent } from "./events";
 import type { GenerationInput } from "./input";
 
@@ -8,6 +9,7 @@ import type { GenerationInput } from "./input";
 export async function requestGeneration(
   input: GenerationInput,
   onEvent: (event: GenerationEvent) => void,
+  t: Dictionary,
   signal?: AbortSignal,
 ): Promise<void> {
   let response: Response;
@@ -20,7 +22,7 @@ export async function requestGeneration(
     });
   } catch (error) {
     if (signal?.aborted) throw error;
-    onEvent({ type: "error", code: "unavailable", message: "Couldn't reach the server. Check your connection and try again." });
+    onEvent({ type: "error", code: "unavailable", message: t.generation.errors.connection });
     return;
   }
 
@@ -29,7 +31,7 @@ export async function requestGeneration(
     onEvent({
       type: "error",
       code: (body?.error?.code as Extract<GenerationEvent, { type: "error" }>["code"]) ?? "unavailable",
-      message: body?.error?.message ?? "Generation failed. Please try again.",
+      message: body?.error?.message ?? t.generation.errors.failed,
     });
     return;
   }
@@ -51,6 +53,6 @@ export async function requestGeneration(
     if (done) break;
   }
   if (!finished) {
-    onEvent({ type: "error", code: "unavailable", message: "The connection closed before the lesson was ready. Please try again." });
+    onEvent({ type: "error", code: "unavailable", message: t.generation.errors.closedEarly });
   }
 }

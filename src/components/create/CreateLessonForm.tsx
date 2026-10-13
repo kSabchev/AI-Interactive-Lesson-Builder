@@ -9,20 +9,17 @@ import { HIGH_QUALITY_COST } from "@/lib/billing/plans";
 import { useBilling } from "@/lib/billing/useBilling";
 import { cn } from "@/lib/cn";
 import { requestGeneration } from "@/lib/generation/client";
-import {
-  type GenerationErrorCode,
-  type GenerationEvent,
-  type GenerationMode,
-  type Stage,
-  STAGE_LABELS,
-} from "@/lib/generation/events";
+import { type GenerationErrorCode, type GenerationEvent, type GenerationMode, type Stage } from "@/lib/generation/events";
 import {
   EXAMPLE_INPUT,
   type GenerationFormValues,
   generationInputSchema,
+  inputIssueMessage,
   REFERENCE_MAX,
   TOPIC_MAX,
 } from "@/lib/generation/input";
+import { useT } from "@/lib/i18n/client";
+import { detectLanguage } from "@/lib/i18n/detect";
 import { StoreError } from "@/lib/storage/store";
 import { useStore } from "@/lib/storage/StoreProvider";
 
@@ -41,7 +38,10 @@ const EMPTY: GenerationFormValues = {
   quality: "standard",
 };
 
+const linkClass = "font-bold text-brand-700 underline underline-offset-2";
+
 export function CreateLessonForm({ mode, webResearch = false }: { mode: GenerationMode; webResearch?: boolean }) {
+  const t = useT();
   const router = useRouter();
   const storeState = useStore();
   const { lookup: billingLookup } = useBilling();
@@ -66,6 +66,7 @@ export function CreateLessonForm({ mode, webResearch = false }: { mode: Generati
   const running = run.status === "running";
   const set = <K extends keyof GenerationFormValues>(key: K, value: GenerationFormValues[K]) =>
     setValues((v) => ({ ...v, [key]: value }));
+  const lessonLanguage = values.topic.trim() ? detectLanguage(values.topic) : undefined;
 
   async function generate(e?: React.FormEvent) {
     e?.preventDefault();
@@ -79,7 +80,7 @@ export function CreateLessonForm({ mode, webResearch = false }: { mode: Generati
       const errors: typeof fieldErrors = {};
       for (const issue of parsed.error.issues) {
         const key = issue.path[0] as keyof GenerationFormValues;
-        errors[key] ??= issue.message;
+        errors[key] ??= inputIssueMessage(issue, t);
       }
       setFieldErrors(errors);
       requestAnimationFrame(() => document.querySelector<HTMLElement>("[aria-invalid='true']")?.focus());
@@ -116,20 +117,19 @@ export function CreateLessonForm({ mode, webResearch = false }: { mode: Generati
             stages,
             message:
               error instanceof StoreError && error.status === 403
-                ? `${error.message} The lesson wasn't saved.`
+                ? t.create.savedButLimit(error.message)
                 : storeState.status === "ready" && storeState.store.kind === "account"
-                  ? "The lesson was created but couldn't be saved to your account. Check your connection and try again."
-                  : "The lesson was created but couldn't be saved in this browser (private browsing can block storage). Try a normal window.",
+                  ? t.create.saveFailedAccount
+                  : t.create.saveFailedBrowser,
           });
         }
       }
     };
 
     try {
-      await requestGeneration(parsed.data, (event) => void onEvent(event), controller.signal);
+      await requestGeneration(parsed.data, (event) => void onEvent(event), t, controller.signal);
     } catch {
-      if (!controller.signal.aborted)
-        setRun({ status: "failed", stages, message: "Generation stopped unexpectedly. Please try again." });
+      if (!controller.signal.aborted) setRun({ status: "failed", stages, message: t.create.stoppedUnexpectedly });
     }
   }
 
@@ -146,38 +146,45 @@ export function CreateLessonForm({ mode, webResearch = false }: { mode: Generati
         className="space-y-6 rounded-3xl bg-surface p-6 shadow-sm ring-1 ring-line md:p-8"
       >
         <fieldset disabled={running} className="space-y-6">
-          <TextField
-            label="Topic"
-            hint="What should the lesson explain? For example, “How the water cycle works”."
-            value={values.topic}
-            maxLength={TOPIC_MAX}
-            error={fieldErrors.topic}
-            onChange={(topic) => set("topic", topic)}
-          />
+          <div className="space-y-1">
+            <TextField
+              label={t.create.topic}
+              hint={t.create.topicHint}
+              value={values.topic}
+              maxLength={TOPIC_MAX}
+              error={fieldErrors.topic}
+              onChange={(topic) => set("topic", topic)}
+            />
+            {lessonLanguage && (
+              <p className="text-sm font-semibold text-brand-700" aria-live="polite">
+                {t.create.lessonLanguage(t.language.names[lessonLanguage])}
+              </p>
+            )}
+          </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <SelectField
-              label="Learner age"
+              label={t.create.learnerAge}
               value={values.ageGroup}
               options={[
-                { value: "8-10", label: "Ages 8–10" },
-                { value: "11-12", label: "Ages 11–12" },
+                { value: "8-10", label: t.common.ages("8–10") },
+                { value: "11-12", label: t.common.ages("11–12") },
               ]}
               onChange={(ageGroup) => set("ageGroup", ageGroup)}
             />
             <SelectField
-              label="Lesson length"
+              label={t.create.lessonLength}
               value={String(values.durationMinutes) as "10" | "15"}
               options={[
-                { value: "10", label: "10 minutes" },
-                { value: "15", label: "15 minutes" },
+                { value: "10", label: t.common.minutesLong(10) },
+                { value: "15", label: t.common.minutesLong(15) },
               ]}
               onChange={(v) => set("durationMinutes", Number(v) as 10 | 15)}
             />
           </div>
           {canUseReference ? (
             <TextArea
-              label="Reference text (optional)"
-              hint="Paste educational material to base the lesson on, such as a textbook page. The lesson will be labelled as reference-based."
+              label={t.create.reference}
+              hint={t.create.referenceHint}
               rows={5}
               value={values.referenceText ?? ""}
               maxLength={REFERENCE_MAX}
@@ -186,9 +193,9 @@ export function CreateLessonForm({ mode, webResearch = false }: { mode: Generati
             />
           ) : (
             <p className="rounded-2xl border-2 border-dashed border-line p-4 text-sm">
-              <strong>Reference text</strong> — base lessons on your own material with{" "}
-              <Link href="/pricing" className="font-bold text-brand-700 underline underline-offset-2">
-                Pro
+              <strong>{t.create.referenceLocked}</strong> {t.create.referenceLockedText}{" "}
+              <Link href="/pricing" className={linkClass}>
+                {t.common.pro}
               </Link>
               .
             </p>
@@ -205,20 +212,20 @@ export function CreateLessonForm({ mode, webResearch = false }: { mode: Generati
                   aria-describedby="research-hint"
                 />
                 <span>
-                  <span className="font-bold">Research the topic on the web</span>
+                  <span className="font-bold">{t.create.research}</span>
                   <span id="research-hint" className="block text-sm text-muted">
                     {!canResearch ? (
                       <>
-                        Finds reliable pages and cites them in the lesson. Part of{" "}
-                        <Link href="/pricing" className="font-bold text-brand-700 underline underline-offset-2">
-                          Pro
+                        {t.create.researchLocked}{" "}
+                        <Link href="/pricing" className={linkClass}>
+                          {t.common.pro}
                         </Link>
                         .
                       </>
                     ) : hasReference ? (
-                      "Your reference text is used instead."
+                      t.create.researchUsesReference
                     ) : (
-                      "Finds reliable pages and cites them, so you can check every fact. Takes a little longer."
+                      t.create.researchHint
                     )}
                   </span>
                 </span>
@@ -227,41 +234,40 @@ export function CreateLessonForm({ mode, webResearch = false }: { mode: Generati
           )}
           {canUseHighQuality && (
             <SelectField
-              label="Quality"
-              hint={`High quality uses a larger model and counts as ${HIGH_QUALITY_COST} AI lessons.`}
+              label={t.create.quality}
+              hint={t.create.qualityHint(HIGH_QUALITY_COST)}
               value={values.quality ?? "standard"}
               options={[
-                { value: "standard", label: "Standard" },
-                { value: "high", label: `High quality (counts as ${HIGH_QUALITY_COST})` },
+                { value: "standard", label: t.create.standard },
+                { value: "high", label: t.create.high(HIGH_QUALITY_COST) },
               ]}
               onChange={(quality) => set("quality", quality)}
             />
           )}
           <p className="rounded-2xl bg-paper/60 p-4 text-sm">
-            <strong>Template:</strong> Explore a concept — hook, prediction, explanation, hands-on activity, examples,
-            sorting, recap, then a five-question quiz.
+            <strong>{t.create.template}</strong> {t.create.templateText}
           </p>
         </fieldset>
 
         <div className="flex flex-wrap gap-3">
           {running ? (
             <Button variant="secondary" size="lg" onClick={cancel}>
-              Cancel
+              {t.common.cancel}
             </Button>
           ) : (
             <>
               <Button type="submit" size="lg" disabled={storeState.status !== "ready" || needsSignIn}>
-                {run.status === "failed" ? "Try again" : "Generate lesson"}
+                {run.status === "failed" ? t.create.tryAgain : t.create.generate}
               </Button>
               <Button
                 variant="secondary"
                 size="lg"
                 onClick={() => {
-                  setValues(EXAMPLE_INPUT);
+                  setValues({ ...EXAMPLE_INPUT, topic: t.create.exampleTopic });
                   setFieldErrors({});
                 }}
               >
-                Load example
+                {t.create.loadExample}
               </Button>
             </>
           )}
@@ -273,26 +279,22 @@ export function CreateLessonForm({ mode, webResearch = false }: { mode: Generati
         <ModeNotice mode={mode} />
         {needsSignIn && (
           <div className="rounded-3xl bg-surface p-5 ring-1 ring-line">
-            <p className="font-bold">Sign in to create AI lessons</p>
-            <p className="mt-1 text-sm text-muted">
-              Free accounts get {billing?.plan.generationsPerMonth} AI lessons a month. Sample lessons work without one.
-            </p>
+            <p className="font-bold">{t.create.signInTitle}</p>
+            <p className="mt-1 text-sm text-muted">{t.create.signInBody(billing?.plan.generationsPerMonth ?? 0)}</p>
             <ButtonLink href="/sign-in?next=/create" className="mt-3">
-              Sign in
+              {t.common.signIn}
             </ButtonLink>
           </div>
         )}
         {live && billing?.signedIn && plan && (
           <p className="rounded-3xl bg-surface p-5 text-sm ring-1 ring-line">
-            <strong>
-              {billing.remaining} of {plan.generationsPerMonth} AI lessons left
-            </strong>{" "}
-            this month on {plan.name}.
+            <strong>{t.create.remaining(billing.remaining, plan.generationsPerMonth)}</strong>{" "}
+            {t.create.remainingSuffix(t.pricing.plans[plan.id].name)}
             {plan.id === "free" && (
               <>
                 {" "}
-                <Link href="/pricing" className="font-bold text-brand-700 underline underline-offset-2">
-                  Get more with Pro
+                <Link href="/pricing" className={linkClass}>
+                  {t.create.getMore}
                 </Link>
               </>
             )}
@@ -306,7 +308,7 @@ export function CreateLessonForm({ mode, webResearch = false }: { mode: Generati
             aria-live="polite"
             className="rounded-3xl bg-surface p-6 shadow-sm ring-1 ring-line outline-none"
           >
-            <h2 className="mb-3 text-lg font-extrabold">{running ? "Creating your lesson…" : "Generation stopped"}</h2>
+            <h2 className="mb-3 text-lg font-extrabold">{running ? t.create.creating : t.create.stopped}</h2>
             <ol className="space-y-2">
               {run.stages.map((s) => (
                 <li key={s.stage} className="flex items-center gap-3">
@@ -320,33 +322,33 @@ export function CreateLessonForm({ mode, webResearch = false }: { mode: Generati
                     {s.status === "done" ? "✓" : ""}
                   </span>
                   <span className={s.status === "done" ? "text-muted" : "font-bold"}>
-                    {STAGE_LABELS[s.stage]}
+                    {t.create.stages[s.stage]}
                     {s.retried && (
-                      <span className="block text-sm font-normal text-muted">Fixed a problem and tried again</span>
+                      <span className="block text-sm font-normal text-muted">{t.create.fixedProblem}</span>
                     )}
-                    <span className="sr-only">{s.status === "done" ? " — done" : " — in progress"}</span>
+                    <span className="sr-only">{s.status === "done" ? t.create.done : t.create.inProgress}</span>
                   </span>
                 </li>
               ))}
-              {running && run.stages.length === 0 && <li className="text-muted">Connecting…</li>}
+              {running && run.stages.length === 0 && <li className="text-muted">{t.create.connecting}</li>}
             </ol>
             {run.status === "failed" && (
               <div className="mt-4 rounded-2xl bg-miss-50 p-4 ring-2 ring-miss-500">
                 <p className="font-bold text-miss-700">{run.message}</p>
                 {run.code === "sign_in_required" && (
                   <ButtonLink href="/sign-in?next=/create" className="mt-3">
-                    Sign in
+                    {t.common.signIn}
                   </ButtonLink>
                 )}
                 {(run.code === "upgrade_required" || run.code === "quota_exceeded") && (
                   <ButtonLink href="/pricing" className="mt-3">
-                    See plans
+                    {t.common.seePlans}
                   </ButtonLink>
                 )}
                 <p className="mt-2 text-sm">
-                  Your answers are still in the form.{" "}
-                  <Link href="/" className="font-bold text-brand-700 underline underline-offset-2">
-                    Or open a sample lesson
+                  {t.create.stillInForm}{" "}
+                  <Link href="/" className={linkClass}>
+                    {t.create.orOpenSample}
                   </Link>
                   .
                 </p>
@@ -360,18 +362,17 @@ export function CreateLessonForm({ mode, webResearch = false }: { mode: Generati
 }
 
 function ModeNotice({ mode }: { mode: GenerationMode }) {
+  const t = useT();
   if (mode === "live") {
     return (
       <p className="rounded-3xl bg-brand-50 p-5 text-sm leading-relaxed">
-        <strong>AI-generated drafts.</strong> Lessons are written by Claude and checked for structure, but structure
-        isn&apos;t proof of accuracy. You&apos;ll review and edit every lesson before presenting it.
+        <strong>{t.create.liveNoticeTitle}</strong> {t.create.liveNotice}
       </p>
     );
   }
   return (
     <p className="rounded-3xl bg-sun-100 p-5 text-sm leading-relaxed">
-      <strong>Sample mode.</strong> Live AI generation is switched off on this site. Generating gives you a copy of the
-      closest curated lesson, so you can try the full workflow without an AI request.
+      <strong>{t.create.sampleNoticeTitle}</strong> {t.create.sampleNotice}
     </p>
   );
 }

@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { generationInputSchema } from "./input";
+import { bg } from "@/lib/i18n/dictionaries/bg";
+import { en } from "@/lib/i18n/dictionaries/en";
 import { sampleLesson } from "./sample";
 
 describe("generationInputSchema", () => {
@@ -31,14 +33,30 @@ describe("sampleLesson", () => {
   const input = { ageGroup: "8-10", durationMinutes: 10, quality: "standard", research: false } as const;
 
   it("picks the closest curated lesson and says so", () => {
-    const { lesson, notice } = sampleLesson({ ...input, topic: "Why do leaves need sunlight?" }, "lesson-x", "2026-10-11T00:00:00.000Z");
+    const { lesson, notice } = sampleLesson({ ...input, topic: "Why do leaves need sunlight?" }, "lesson-x", "2026-10-11T00:00:00.000Z", en);
     expect(lesson.title).toMatch(/Photosynthesis/);
     expect(lesson).toMatchObject({ id: "lesson-x", contentOrigin: "curated", createdAt: "2026-10-11T00:00:00.000Z" });
     expect(notice).toContain("closest match");
   });
 
   it("is upfront when no curated lesson covers the topic", () => {
-    const { notice } = sampleLesson({ ...input, topic: "Volcanoes" }, "lesson-y", "2026-10-11T00:00:00.000Z");
+    const { notice } = sampleLesson({ ...input, topic: "Volcanoes" }, "lesson-y", "2026-10-11T00:00:00.000Z", en);
     expect(notice).toContain("none of our curated lessons covers “Volcanoes”");
+  });
+});
+
+describe("sampleLesson with Bulgarian topics", () => {
+  const input = { ageGroup: "8-10", durationMinutes: 10, quality: "standard", research: false } as const;
+
+  it("matches Bulgarian keywords and explains in Bulgarian that samples are in English", () => {
+    const { lesson, notice } = sampleLesson({ ...input, topic: "Защо листата имат нужда от светлина?" }, "lesson-z", "2026-10-11T00:00:00.000Z", bg);
+    expect(lesson.title).toMatch(/Photosynthesis/);
+    expect(notice).toContain("Режим с примерни уроци");
+    expect(notice).toContain("на английски");
+  });
+
+  it("finds the water cycle for a Bulgarian water topic", () => {
+    const { lesson } = sampleLesson({ ...input, topic: "Кръговратът на водата" }, "lesson-w", "2026-10-11T00:00:00.000Z", bg);
+    expect(lesson.title).toMatch(/Water Cycle/);
   });
 });

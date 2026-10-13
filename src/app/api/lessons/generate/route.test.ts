@@ -107,6 +107,16 @@ describe("POST /api/lessons/generate", () => {
       await signInAs("free");
     });
 
+    it("answers in the requester's language", async () => {
+      send.mockRejectedValueOnce(new GenerationError("busy", "busy"));
+      const stream = await events(await post(valid, { cookie: "locale=bg" }));
+      expect(stream.at(-1)).toMatchObject({ type: "error", code: "busy", message: expect.stringContaining("натоварена") });
+
+      sessionUser = null;
+      const guest = await post(valid, { "accept-language": "bg-BG,bg;q=0.9" });
+      expect((await guest.json()).error.message).toContain("Влезте");
+    });
+
     it("asks guests to sign in", async () => {
       sessionUser = null;
       const response = await post(valid);
@@ -184,7 +194,11 @@ describe("POST /api/lessons/generate", () => {
       const stream = await events(await post(valid));
       expect(stream[0]).toEqual({ type: "start", mode: "live" });
       expect(stream).toContainEqual({ type: "stage", stage: "outline", status: "start" });
-      expect(stream.at(-1)).toEqual({ type: "error", code: "busy", message: "The AI service is busy right now." });
+      expect(stream.at(-1)).toEqual({
+        type: "error",
+        code: "busy",
+        message: "The AI service is busy right now. Please try again in a minute.",
+      });
     });
 
     it("records one usage row per request, including failures", async () => {

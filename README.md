@@ -13,6 +13,7 @@ The product is becoming a subscription SaaS for parents and teachers. The milest
 | 5. Accounts and cloud data | ✅ Magic-link sign-in (optional Google), lessons and quiz results saved to the account, guest import, account deletion |
 | 6. Subscriptions and billing | ✅ Stripe Checkout and Customer Portal, webhook-synced plans, monthly AI lesson quotas, saved-lesson cap |
 | 7. Evidence support | ✅ Reference text split into cited excerpts, optional web research (Pro) with sources taken only from search citations, sources shown in the player, quiz and editor |
+| Languages | ✅ English and Bulgarian interface; lessons written in the topic's language |
 | 8–9. Classroom tier, launch readiness | ⏳ |
 
 ## Getting started
@@ -57,6 +58,12 @@ ANTHROPIC_API_KEY=sk-ant-...   # server-side only; set a spend limit in the Clau
 
 API usage is billed to the Console account that owns the key, separately from any Claude subscription. Each model call logs its token usage and an estimated cost (`[generation] usage`) to the server console. `GENERATION_MODEL`, `GENERATION_EFFORT`, `GENERATION_HOURLY_LIMIT` and `GENERATION_DAILY_CAP` are optional; see `.env.example`.
 
+### Languages
+
+The interface is available in English and Bulgarian. The **EN / БГ** toggle in the header saves the choice in a `locale` cookie; without one, the browser's language decides. Server-rendered pages, API error messages, sign-in emails and Stripe Checkout all follow the same choice.
+
+Each lesson has its own `language`, detected from the topic: a topic written mostly in Cyrillic produces a Bulgarian lesson, anything else an English one. The model is told to write every learner-facing word in that language, translating English sources if needed. The parts learners see (the lesson stage, the player controls, the quiz and its results, the editor preview) follow the lesson's language, while the adult's header and editor follow the interface language, so a Bulgarian lesson can be presented from an English interface and the other way round. The curated samples are English.
+
 | Script | Purpose |
 | --- | --- |
 | `npm test` | Unit tests (Vitest): lesson schema, scoring, activity checking, storage, generation pipeline and route |
@@ -84,6 +91,8 @@ API usage is billed to the Console account that owns the key, separately from an
 - **`src/lib/storage/store.ts`** — one `LessonStore` interface with two implementations: IndexedDB for guests and the account API for signed-in users. `StoreProvider` picks one from the session; the editor, player and library don't know which.
 - **`src/lib/server/`** — server-only code: Drizzle schema and connection (`db/`), Better Auth setup (`auth.ts`), per-user lesson storage (`lessons.ts`, every query filtered by owner) and request helpers (`http.ts`: session check, same-origin check for writes, body size limits). API routes live under `src/app/api/`.
 - **`src/lib/server/billing/`** — Stripe client and configuration, webhook handling (each event applied once, late or out-of-order events ignored), entitlements and the atomic monthly quota. Deleting an account cancels its subscription first.
+- **`src/lib/i18n/`** — interface languages. `dictionaries/en.ts` is the source of truth and its type (`Dictionary`) makes `bg.ts` complete; a missing or extra key fails the typecheck. Server code uses `getT()` (pages) or `localeFromRequest()` (API routes); client components use `useT()`. `LocaleScope` switches a subtree to the lesson's language. `detect.ts` picks a lesson's language from its topic.
+- **`src/app/dev/mailbox/page.dev.tsx`** — the development mailbox. The `.dev.tsx` page extension is only registered outside production builds (`next.config.ts`), so the route does not exist in production.
 - **`src/components/editor/`** — form-based review editor. Curated samples are read-only, so saving an edited sample creates a copy. A failed save lists each problem with a link to the field that needs fixing (`src/lib/lesson/issues.ts`).
 
 Built with Next.js 16 (App Router, Cache Components), TypeScript, Tailwind CSS 4, Motion and Zod.

@@ -1,6 +1,7 @@
 import { DIAGRAMS } from "@/lib/assets/diagrams";
 import { VISUALS } from "@/lib/assets/visuals";
 import { formatExcerpts } from "./evidence";
+import { detectLanguage } from "@/lib/i18n/detect";
 import type { GenerationInput } from "./input";
 import { chosenDiagram, type Content, type Evidence, type Outline, SECTION_IDS, SLOTS } from "./stages";
 
@@ -27,11 +28,19 @@ function durationGuidance(input: GenerationInput): string {
     : "This is a 15-minute lesson: explanations may use 2-3 paragraphs, and facilitator notes can suggest a question to ask or a quick demonstration.";
 }
 
+/** The lesson is written in the language of the topic, whatever language the evidence is in. */
+function languageInstruction(input: GenerationInput): string {
+  return detectLanguage(input.topic) === "bg"
+    ? "Language: write every piece of text the learner or adult will read (titles, objectives, explanations, options, feedback, notes) in Bulgarian, using natural Bulgarian suited to the age group and the scientific terms used in Bulgarian schools. Evidence may be in another language; translate what you use. Keep JSON keys and ids exactly as specified."
+    : "Language: write every piece of text the learner or adult will read in English. Evidence may be in another language; translate what you use.";
+}
+
 function brief(input: GenerationInput, evidence?: Evidence): string {
   const lines = [
     `Topic: ${input.topic}`,
     `Learner age group: ${input.ageGroup}`,
     durationGuidance(input),
+    languageInstruction(input),
   ];
   if (evidence) {
     lines.push(
@@ -143,9 +152,14 @@ Return the complete JSON again with these problems fixed. Keep everything else t
 
 /** Instructions for the web research call, which runs before the lesson is planned. */
 export function researchPrompt(input: GenerationInput): string {
+  const bulgarian = detectLanguage(input.topic) === "bg";
   return `Research this topic for a short science lesson for children aged ${input.ageGroup}: ${input.topic}
 
 Search the web for reliable, accurate sources. Prefer educational and scientific organisations (for example space agencies, geological surveys, natural history museums, universities) and reputable encyclopaedias. Avoid forums, social media, shops and AI-generated content.
 
-Then write concise factual notes that cover the key concepts a child would need, with everyday examples. Support every fact with a citation from your searches. Do not include anything you couldn't find a source for.`;
+Then write concise factual notes that cover the key concepts a child would need, with everyday examples. Support every fact with a citation from your searches. Do not include anything you couldn't find a source for.${
+    bulgarian
+      ? "\n\nThe topic is in Bulgarian and the lesson will be in Bulgarian. Search in Bulgarian and in English, and prefer reputable Bulgarian educational sources where they exist."
+      : ""
+  }`;
 }

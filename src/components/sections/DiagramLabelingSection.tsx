@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { checkLabels, type LabelPlacements } from "@/lib/activities/checking";
 import { DIAGRAMS, isDiagramId } from "@/lib/assets/diagrams";
 import { cn } from "@/lib/cn";
+import { useT } from "@/lib/i18n/client";
 import type { SectionOfType } from "@/lib/lesson/schema";
 import { SectionHeading } from "./SectionHeading";
 
@@ -24,9 +25,13 @@ export function DiagramLabelingSection({
 }) {
   const [selectedLabelId, setSelectedLabelId] = useState<string | null>(null);
   const [announcement, setAnnouncement] = useState("");
+  const t = useT();
+  const d = t.sections.diagram;
 
   if (!isDiagramId(section.diagramId)) return null;
   const diagram = DIAGRAMS[section.diagramId];
+  const targetName = (id: string, fallback: string) =>
+    isDiagramId(section.diagramId) ? (t.diagrams[section.diagramId].targets[id] ?? fallback) : fallback;
   const Art = DIAGRAM_ART[section.diagramId];
 
   const { placements, checked } = state;
@@ -39,7 +44,7 @@ export function DiagramLabelingSection({
   function selectLabel(labelId: string) {
     const next = selectedLabelId === labelId ? null : labelId;
     setSelectedLabelId(next);
-    setAnnouncement(next ? `Selected ${labelsById.get(next)?.text}. Now choose a spot on the picture.` : "");
+    setAnnouncement(next ? d.selected(labelsById.get(next)?.text ?? "") : "");
   }
 
   function pressTarget(targetId: string, targetName: string) {
@@ -50,13 +55,13 @@ export function DiagramLabelingSection({
       // Move the selected label here; a label already on this spot returns to the bank.
       for (const [t, l] of Object.entries(next)) if (l === selectedLabelId) delete next[t];
       next[targetId] = selectedLabelId;
-      setAnnouncement(`Placed ${labelsById.get(selectedLabelId)?.text} on ${targetName}.`);
+      setAnnouncement(d.placed(labelsById.get(selectedLabelId)?.text ?? "", targetName));
       setSelectedLabelId(null);
     } else if (current) {
       delete next[targetId];
-      setAnnouncement(`Removed ${labelsById.get(current)?.text}. It is back with the labels.`);
+      setAnnouncement(d.removed(labelsById.get(current)?.text ?? ""));
     } else {
-      setAnnouncement("Pick a label first.");
+      setAnnouncement(d.pickFirst);
       return;
     }
     onChange({ placements: next, checked: false });
@@ -64,13 +69,13 @@ export function DiagramLabelingSection({
 
   function reset() {
     setSelectedLabelId(null);
-    setAnnouncement("All labels are back with the labels list.");
+    setAnnouncement(d.resetDone);
     onChange({ placements: {}, checked: false });
   }
 
   return (
     <div>
-      <SectionHeading kicker="Label the diagram" title={section.title} />
+      <SectionHeading kicker={d.kicker} title={section.title} />
       <p className="mb-5 text-xl md:text-2xl">{section.instructions}</p>
 
       <div className="grid gap-6 lg:grid-cols-[1fr_16rem]">
@@ -83,12 +88,13 @@ export function DiagramLabelingSection({
             const label = placements[target.id] ? labelsById.get(placements[target.id]) : undefined;
             const isCorrect = checked && result.correctIds.includes(target.id);
             const isWrong = checked && result.incorrectIds.includes(target.id);
+            const name = targetName(target.id, target.name);
             return (
               <button
                 key={target.id}
                 type="button"
-                onClick={() => pressTarget(target.id, target.name)}
-                aria-label={`${target.name}: ${label ? label.text : "empty"}${isCorrect ? ", correct" : ""}${isWrong ? ", not quite" : ""}`}
+                onClick={() => pressTarget(target.id, name)}
+                aria-label={`${name}: ${label ? label.text : d.empty}${isCorrect ? d.correct : ""}${isWrong ? d.notQuite : ""}`}
                 className={cn(
                   "absolute min-h-11 min-w-11 -translate-x-1/2 -translate-y-1/2 rounded-full border-[3px] px-3 py-1.5 text-sm font-extrabold shadow-md transition-colors sm:text-base",
                   label ? "bg-surface" : "border-dashed bg-surface/80",
@@ -108,7 +114,7 @@ export function DiagramLabelingSection({
         <div className="space-y-4">
           <div>
             <p className="mb-2 font-extrabold text-muted" id={`${section.id}-bank`}>
-              Labels
+              {d.labels}
             </p>
             <ul className="flex flex-wrap gap-2 lg:flex-col" aria-labelledby={`${section.id}-bank`}>
               {bank.map((label) => (
@@ -128,15 +134,15 @@ export function DiagramLabelingSection({
                   </button>
                 </li>
               ))}
-              {bank.length === 0 && <li className="text-muted">All labels placed!</li>}
+              {bank.length === 0 && <li className="text-muted">{d.allPlaced}</li>}
             </ul>
           </div>
           <div className="flex flex-wrap gap-2">
             <Button onClick={() => onChange({ ...state, checked: true })} disabled={!allPlaced}>
-              Check
+              {d.check}
             </Button>
             <Button variant="secondary" onClick={reset} disabled={placedLabelIds.size === 0}>
-              Reset
+              {d.reset}
             </Button>
           </div>
         </div>
@@ -149,9 +155,7 @@ export function DiagramLabelingSection({
       {checked && (
         <div role="status" className="mt-6 rounded-3xl bg-surface p-5 ring-1 ring-line">
           <p className="text-xl font-extrabold">
-            {result.allCorrect
-              ? "Brilliant — every label is in the right place!"
-              : `${result.correctIds.length} of ${section.labels.length} in the right place. Tap a red label to move it.`}
+            {result.allCorrect ? d.allRight : d.someRight(result.correctIds.length, section.labels.length)}
           </p>
           <ul className="mt-3 space-y-2 text-lg">
             {section.labels.map((label) => {
@@ -162,7 +166,7 @@ export function DiagramLabelingSection({
                     {ok ? "✔" : "✘"}
                   </span>
                   <span>
-                    <strong>{label.text}:</strong> {ok ? label.explanation : "Not in the right spot yet."}
+                    <strong>{label.text}:</strong> {ok ? label.explanation : d.notYet}
                   </span>
                 </li>
               );

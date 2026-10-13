@@ -4,6 +4,7 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { magicLink } from "better-auth/plugins/magic-link";
 import { cancelSubscriptionForDeletedUser } from "./billing/account";
 import { getStripe } from "./billing/stripe";
+import { cookieLocale, getDictionary, resolveLocale } from "@/lib/i18n";
 import { getDb, schema } from "./db";
 import { sendEmail } from "./email";
 
@@ -41,13 +42,13 @@ async function createAuth() {
     plugins: [
       magicLink({
         expiresIn: 15 * 60,
-        sendMagicLink: async ({ email, url }) => {
-          await sendEmail({
-            to: email,
-            subject: "Your sign-in link for Lesson Builder",
-            text: `Click to sign in to Lesson Builder:\n\n${url}\n\nThe link works once and expires in 15 minutes. If you didn't ask for it, you can ignore this email.`,
-            url,
-          });
+        sendMagicLink: async ({ email, url }, ctx) => {
+          // The email is written in the language the person is using the app in.
+          const headers = ctx?.headers ?? ctx?.request?.headers;
+          const t = getDictionary(
+            resolveLocale(cookieLocale(headers?.get("cookie")), headers?.get("accept-language")),
+          );
+          await sendEmail({ to: email, subject: t.email.signInSubject, text: t.email.signInBody(url), url });
         },
       }),
     ],

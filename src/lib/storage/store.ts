@@ -45,7 +45,8 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
   });
   if (!response.ok) {
     const body = (await response.json().catch(() => null)) as { error?: { message?: string } } | null;
-    throw new StoreError(response.status, body?.error?.message ?? "Couldn't reach your account. Please try again.");
+    // An empty message lets the interface show its own translated fallback.
+    throw new StoreError(response.status, body?.error?.message ?? "");
   }
   return (response.status === 204 ? undefined : await response.json()) as T;
 }

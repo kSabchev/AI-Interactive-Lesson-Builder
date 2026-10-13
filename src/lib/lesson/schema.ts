@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { DIAGRAMS, isDiagramId } from "@/lib/assets/diagrams";
 import { VISUAL_IDS } from "@/lib/assets/visuals";
+import { LOCALES } from "@/lib/i18n/config";
 
 export const SHORT_TEXT_MAX = 160;
 export const TEXT_MAX = 1200;
@@ -138,6 +139,8 @@ export const lessonSchema = z
     durationMinutes: z.union([z.literal(10), z.literal(15)]),
     templateId: z.literal("explore-concept"),
     contentOrigin: z.enum(CONTENT_ORIGINS),
+    /** Language of the lesson content (and of the learner-facing controls around it). */
+    language: z.enum(LOCALES).default("en"),
     objectives: z.array(learningObjectiveSchema).length(3),
     sources: z.array(sourceSchema).default([]),
     sections: z.array(lessonSectionSchema).min(3).max(10),

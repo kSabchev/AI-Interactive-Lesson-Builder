@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { SourceList } from "@/components/lesson/SourceList";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
+import { useT } from "@/lib/i18n/client";
 import type { Lesson } from "@/lib/lesson/schema";
 import { isCorrect, type QuizAnswers, scoreQuiz } from "@/lib/quiz/scoring";
 import { useStore } from "@/lib/storage/StoreProvider";
@@ -22,6 +23,7 @@ export function QuizRunner({ lesson, previousAnswers }: { lesson: Lesson; previo
   const headingRef = useRef<HTMLHeadingElement>(null);
   const reduceMotion = useReducedMotion();
   const storeState = useStore();
+  const t = useT().quiz;
 
   const question = lesson.quiz[index];
   const submitted = answers[question.id];
@@ -76,14 +78,12 @@ export function QuizRunner({ lesson, previousAnswers }: { lesson: Lesson; previo
     <div className="mx-auto w-full max-w-3xl px-4 py-8 md:py-12">
       <div className="mb-6">
         <div className="mb-2 flex items-center justify-between font-bold text-muted">
-          <span>Final quiz</span>
-          <span>
-            Question {index + 1} of {lesson.quiz.length}
-          </span>
+          <span>{t.finalQuiz}</span>
+          <span>{t.questionOf(index + 1, lesson.quiz.length)}</span>
         </div>
         <div
           role="progressbar"
-          aria-label="Quiz progress"
+          aria-label={t.progress}
           aria-valuemin={0}
           aria-valuemax={lesson.quiz.length}
           aria-valuenow={Object.keys(answers).length}
@@ -151,8 +151,8 @@ export function QuizRunner({ lesson, previousAnswers }: { lesson: Lesson; previo
                         {showCorrect ? "✔" : showWrong ? "✘" : String.fromCharCode(65 + i)}
                       </span>
                       <span className="flex-1">{option.text}</span>
-                      {showCorrect && <span className="sr-only">(correct answer)</span>}
-                      {showWrong && <span className="sr-only">(your answer)</span>}
+                      {showCorrect && <span className="sr-only">{t.correctAnswerSr}</span>}
+                      {showWrong && <span className="sr-only">{t.yourAnswerSr}</span>}
                     </label>
                   );
                 })}
@@ -161,7 +161,7 @@ export function QuizRunner({ lesson, previousAnswers }: { lesson: Lesson; previo
 
             {!submitted && (
               <Button type="submit" size="lg" className="mt-6" disabled={!pending}>
-                Submit answer
+                {t.submit}
               </Button>
             )}
           </form>
@@ -177,23 +177,23 @@ export function QuizRunner({ lesson, previousAnswers }: { lesson: Lesson; previo
               )}
             >
               <p className={cn("text-2xl font-extrabold", correct ? "text-good-700" : "text-miss-700")}>
-                {correct ? "Correct!" : "Not quite."}
+                {correct ? t.correct : t.notQuite}
               </p>
               {!correct && (
                 <p className="mt-1 text-lg">
-                  The answer is <strong>{correctOption.text}</strong>.
+                  {t.theAnswerIs} <strong>{correctOption.text}</strong>.
                 </p>
               )}
               <p className="mt-2 text-lg leading-relaxed">{question.explanation}</p>
               {question.sourceIds.length > 0 && (
                 <div className="mt-3 text-sm">
-                  <p className="font-bold text-muted">Source</p>
+                  <p className="font-bold text-muted">{t.source}</p>
                   <SourceList lesson={lesson} ids={question.sourceIds} showExcerpts={false} />
                 </div>
               )}
               {section && (
                 <p className="mt-3 text-base text-muted">
-                  From the lesson:{" "}
+                  {t.fromTheLesson}{" "}
                   <Link
                     href={`/lessons/${lesson.id}/present?section=${section.id}`}
                     className="font-bold text-brand-700 underline underline-offset-2"
@@ -203,7 +203,7 @@ export function QuizRunner({ lesson, previousAnswers }: { lesson: Lesson; previo
                 </p>
               )}
               <Button size="lg" className="mt-5" onClick={next}>
-                {isLast ? "See my results" : "Next question"} <span aria-hidden="true">→</span>
+                {isLast ? t.seeResults : t.nextQuestion} <span aria-hidden="true">→</span>
               </Button>
             </div>
           )}

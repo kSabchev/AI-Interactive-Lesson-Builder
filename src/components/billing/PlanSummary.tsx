@@ -4,11 +4,13 @@ import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { redirectToStripe, useBilling } from "@/lib/billing/useBilling";
-
-const dateFormat = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
+import { intlLocale } from "@/lib/i18n";
+import { useLocale, useT } from "@/lib/i18n/client";
 
 /** Plan, usage and billing controls on the account page. */
 export function PlanSummary() {
+  const t = useT();
+  const { locale } = useLocale();
   const { lookup, refresh } = useBilling();
   const justPaid = useSearchParams().get("checkout") === "success";
   const [busy, setBusy] = useState(false);
@@ -28,10 +30,15 @@ export function PlanSummary() {
     return () => clearTimeout(timer);
   }, [waitingForWebhook, polls, refresh]);
 
-  if (lookup.status === "loading") return <p className="text-muted">Loading your plan…</p>;
-  if (lookup.status === "error" || !billing) return <p className="text-miss-700">Your plan couldn&apos;t be loaded.</p>;
+  if (lookup.status === "loading") return <p className="text-muted">{t.plan.loading}</p>;
+  if (lookup.status === "error" || !billing) return <p className="text-miss-700">{t.plan.loadFailed}</p>;
 
   const { plan, subscription } = billing;
+  const planName = t.pricing.plans[plan.id].name;
+  const date = (iso: string) =>
+    new Intl.DateTimeFormat(intlLocale(locale), { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }).format(
+      new Date(iso),
+    );
 
   async function manage() {
     setBusy(true);
@@ -39,7 +46,7 @@ export function PlanSummary() {
     try {
       await redirectToStripe("/api/billing/portal");
     } catch (e) {
-      setError((e as Error).message);
+      setError((e as Error).message || t.pricing.billingUnavailable);
       setBusy(false);
     }
   }
@@ -48,43 +55,32 @@ export function PlanSummary() {
     <section aria-labelledby="plan-heading" className="rounded-3xl bg-surface p-6 shadow-sm ring-1 ring-line">
       {justPaid && (
         <p role="status" className="mb-4 rounded-2xl bg-good-50 p-4 font-semibold text-good-700">
-          {waitingForWebhook
-            ? polls >= 10
-              ? "Payment received. Your plan is taking longer than usual to update. Refresh in a minute."
-              : "Thanks! Confirming your subscription…"
-            : `Thanks! You're on ${plan.name}.`}
+          {waitingForWebhook ? (polls >= 10 ? t.plan.paymentSlow : t.plan.confirming) : t.plan.thanks(planName)}
         </p>
       )}
       <h2 id="plan-heading" className="text-xl font-extrabold">
-        {plan.name} plan
+        {t.plan.title(planName)}
       </h2>
       <dl className="mt-3 grid gap-3 sm:grid-cols-2">
         <div>
-          <dt className="text-sm font-bold text-muted">AI lessons this month</dt>
-          <dd className="text-lg font-semibold">
-            {billing.used} of {plan.generationsPerMonth} used
-          </dd>
-          <dd className="text-sm text-muted">Resets on {dateFormat.format(new Date(billing.resetsAt))}</dd>
+          <dt className="text-sm font-bold text-muted">{t.plan.aiThisMonth}</dt>
+          <dd className="text-lg font-semibold">{t.plan.used(billing.used, plan.generationsPerMonth)}</dd>
+          <dd className="text-sm text-muted">{t.plan.resetsOn(date(billing.resetsAt))}</dd>
         </div>
         <div>
-          <dt className="text-sm font-bold text-muted">Saved lessons</dt>
-          <dd className="text-lg font-semibold">
-            {billing.savedLessons}
-            {plan.savedLessons !== null ? ` of ${plan.savedLessons}` : ""}
-          </dd>
+          <dt className="text-sm font-bold text-muted">{t.plan.savedLessons}</dt>
+          <dd className="text-lg font-semibold">{t.plan.savedOf(billing.savedLessons, plan.savedLessons)}</dd>
         </div>
       </dl>
 
       {subscription && (
         <p className="mt-4 text-sm">
           {subscription.status === "past_due" ? (
-            <strong className="text-miss-700">
-              Your last payment didn&apos;t go through. Update your card in Manage billing to keep {plan.name}.
-            </strong>
+            <strong className="text-miss-700">{t.plan.pastDue(planName)}</strong>
           ) : subscription.cancelAtPeriodEnd && subscription.currentPeriodEnd ? (
-            <>Cancels on {dateFormat.format(new Date(subscription.currentPeriodEnd))}. You keep Pro until then.</>
+            t.plan.cancels(date(subscription.currentPeriodEnd))
           ) : subscription.currentPeriodEnd && plan.id !== "free" ? (
-            <>Renews on {dateFormat.format(new Date(subscription.currentPeriodEnd))}.</>
+            t.plan.renews(date(subscription.currentPeriodEnd))
           ) : null}
         </p>
       )}
@@ -96,11 +92,11 @@ export function PlanSummary() {
       )}
       <div className="mt-4 flex flex-wrap gap-2">
         {plan.id === "free" && (
-          <ButtonLink href="/pricing">{billing.billingEnabled ? "Upgrade to Pro" : "See plans"}</ButtonLink>
+          <ButtonLink href="/pricing">{billing.billingEnabled ? t.plan.upgrade : t.common.seePlans}</ButtonLink>
         )}
         {billing.billingEnabled && billing.hasBillingAccount && (
           <Button variant="secondary" disabled={busy} onClick={() => void manage()}>
-            Manage billing
+            {t.plan.manage}
           </Button>
         )}
       </div>

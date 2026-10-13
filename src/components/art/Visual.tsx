@@ -1,11 +1,14 @@
+"use client";
+
 import type { VisualId } from "@/lib/assets/visuals";
-import { VISUALS } from "@/lib/assets/visuals";
+import { useT } from "@/lib/i18n/client";
 
 /** Small predefined illustrations referenced by hook and explanation sections. */
 export function Visual({ id, className }: { id: VisualId; className?: string }) {
+  const t = useT();
   return (
     <figure className={className}>
-      <svg viewBox="0 0 240 180" role="img" aria-label={VISUALS[id]} className="h-full w-full overflow-hidden rounded-[2rem]">
+      <svg viewBox="0 0 240 180" role="img" aria-label={t.visuals[id]} className="h-full w-full overflow-hidden rounded-[2rem]">
         <rect width="240" height="180" rx="24" fill="#eef6ff" />
         {ART[id]}
       </svg>

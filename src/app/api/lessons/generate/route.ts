@@ -1,7 +1,9 @@
-import { generationCost, PLANS } from "@/lib/billing/plans";
+import { generationCost } from "@/lib/billing/plans";
+import { type Dictionary, getDictionary, intlLocale } from "@/lib/i18n";
+import { localeFromRequest } from "@/lib/i18n/server";
 import { newId } from "@/lib/lesson/edit";
 import { GenerationError, type GenerationErrorCode, type GenerationEvent } from "@/lib/generation/events";
-import { generationInputSchema } from "@/lib/generation/input";
+import { generationInputSchema, inputIssueMessage } from "@/lib/generation/input";
 import { generateLesson } from "@/lib/generation/pipeline";
 import { sampleLesson } from "@/lib/generation/sample";
 import { createClaudeClient, type UsageReport } from "@/lib/generation/server/claude";
@@ -22,7 +24,19 @@ const HOUR_MS = 60 * 60 * 1000;
 /** Failures caused by the service rather than the request; their generations are given back. */
 const REFUNDABLE: GenerationErrorCode[] = ["busy", "unavailable", "invalid_output", "no_sources"];
 
-const monthDay = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "long", timeZone: "UTC" });
+/** The user-facing message for a failure raised while generating, in the requester's language. */
+function streamErrorMessage(code: GenerationErrorCode, t: Dictionary): string {
+  switch (code) {
+    case "refused":
+    case "invalid_output":
+    case "no_sources":
+    case "busy":
+    case "unavailable":
+      return t.generation.errors[code];
+    default:
+      return t.generation.errors.unexpected;
+  }
+}
 
 function errorResponse(status: number, code: GenerationErrorCode, message: string, headers?: HeadersInit) {
   return Response.json({ error: { code, message } }, { status, headers });
@@ -64,20 +78,24 @@ function visitorKey(request: Request): string {
 }
 
 export async function POST(request: Request) {
+  const locale = localeFromRequest(request);
+  const t = getDictionary(locale);
+  const errors = t.generation.errors;
   const raw = await request.text();
   if (raw.length > MAX_BODY_BYTES) {
-    return errorResponse(413, "invalid_input", "That request is too large. Shorten the reference text and try again.");
+    return errorResponse(413, "invalid_input", errors.too_large);
   }
 
   let body: unknown;
   try {
     body = JSON.parse(raw);
   } catch {
-    return errorResponse(400, "invalid_input", "The request couldn't be read.");
+    return errorResponse(400, "invalid_input", errors.unreadable);
   }
   const parsed = generationInputSchema.safeParse(body);
   if (!parsed.success) {
-    return errorResponse(400, "invalid_input", parsed.error.issues[0]?.message ?? "Check the form and try again.");
+    const issue = parsed.error.issues[0];
+    return errorResponse(400, "invalid_input", issue ? inputIssueMessage(issue, t) : errors.invalid_input);
   }
   const input = parsed.data;
 
@@ -91,44 +109,46 @@ export async function POST(request: Request) {
   if (config.mode === "live") {
     // Quotas belong to accounts, so live AI generation needs one. Sample mode stays open to everyone.
     if (!userId) {
-      return errorResponse(401, "sign_in_required", "Sign in to create AI lessons. It's free, and sample lessons work without an account.");
+      return errorResponse(401, "sign_in_required", errors.sign_in_required);
     }
     const db = await getDb();
     const entitlements = await getEntitlements(db, userId);
     const { plan } = entitlements;
+    const planName = t.pricing.plans[plan.id].name;
     if (input.referenceText && !plan.referenceText) {
-      return errorResponse(403, "upgrade_required", `Lessons from reference material are part of ${PLANS.pro.name}. Remove the reference text or upgrade.`);
+      return errorResponse(403, "upgrade_required", errors.reference_pro);
     }
     if (input.research && !input.referenceText && !config.webResearch) {
-      return errorResponse(403, "upgrade_required", "Web research isn't available on this site right now.");
+      return errorResponse(403, "upgrade_required", errors.research_off);
     }
     if (input.research && !input.referenceText && !plan.webResearch) {
-      return errorResponse(403, "upgrade_required", `Web-researched lessons are part of ${PLANS.pro.name}.`);
+      return errorResponse(403, "upgrade_required", errors.research_pro);
     }
     if (input.quality === "high" && !plan.highQuality) {
-      return errorResponse(403, "upgrade_required", `High-quality generation is part of ${PLANS.pro.name}.`);
+      return errorResponse(403, "upgrade_required", errors.high_pro);
     }
     // Don't spend a generation on a lesson the account couldn't save.
     if (plan.savedLessons !== null && entitlements.savedLessons >= plan.savedLessons) {
-      return errorResponse(
-        403,
-        "upgrade_required",
-        `Your ${plan.name} plan keeps up to ${plan.savedLessons} lessons and your library is full. Delete a lesson or upgrade first.`,
-      );
+      return errorResponse(403, "upgrade_required", errors.library_full(planName, plan.savedLessons));
     }
 
     const limit = checkVisitorLimit(visitor, config.hourlyLimitPerVisitor, HOUR_MS);
     const cap = limit.ok ? checkDailyCap(config.dailyCap) : limit;
     if (!cap.ok) {
-      return errorResponse(429, "rate_limited", cap.message, { "Retry-After": String(cap.retryAfterSeconds) });
+      const message = cap.reason === "visitor" ? errors.rate_limited_visitor(cap.limit) : errors.rate_limited_daily;
+      return errorResponse(429, "rate_limited", message, { "Retry-After": String(cap.retryAfterSeconds) });
     }
 
     if (!(await reserveGenerations(db, userId, cost, plan.generationsPerMonth, entitlements.period))) {
-      const resets = monthDay.format(new Date(entitlements.resetsAt));
+      const resets = new Intl.DateTimeFormat(intlLocale(locale), {
+        day: "numeric",
+        month: "long",
+        timeZone: "UTC",
+      }).format(new Date(entitlements.resetsAt));
       const message =
         entitlements.remaining > 0
-          ? `This needs ${cost} AI lessons but you have ${entitlements.remaining} left this month. Use standard quality, or wait until ${resets}.`
-          : `You've used all ${plan.generationsPerMonth} AI lessons in your ${plan.name} plan this month. They reset on ${resets}.`;
+          ? errors.quota_partial(cost, entitlements.remaining, resets)
+          : errors.quota_used(plan.generationsPerMonth, planName, resets);
       return errorResponse(429, "quota_exceeded", message);
     }
     reserved = { userId, period: entitlements.period };
@@ -157,7 +177,7 @@ export async function POST(request: Request) {
       try {
         if (config.mode === "sample") {
           emit({ type: "stage", stage: "sample", status: "start" });
-          const { lesson, notice } = sampleLesson(input, id, now);
+          const { lesson, notice } = sampleLesson(input, id, now, t);
           emit({ type: "stage", stage: "sample", status: "done" });
           emit({ type: "done", lesson, notice });
         } else {
@@ -172,10 +192,7 @@ export async function POST(request: Request) {
           emit({ type: "done", lesson });
         }
       } catch (error) {
-        const known =
-          error instanceof GenerationError
-            ? error
-            : new GenerationError("unavailable", "Something went wrong while generating. Please try again.");
+        const known = error instanceof GenerationError ? error : new GenerationError("unavailable", "unexpected");
         if (!(error instanceof GenerationError)) console.error("[generation] unexpected failure:", error);
         outcome = known.code;
         if (reserved && REFUNDABLE.includes(known.code)) {
@@ -183,7 +200,11 @@ export async function POST(request: Request) {
             console.error("[generation] couldn't refund quota:", e),
           );
         }
-        emit({ type: "error", code: known.code, message: known.message });
+        emit({
+          type: "error",
+          code: known.code,
+          message: error instanceof GenerationError ? streamErrorMessage(known.code, t) : errors.unexpected,
+        });
       } finally {
         await recordUsage(userId, config.mode, outcome, usage);
         try {
