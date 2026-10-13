@@ -128,7 +128,16 @@ export function createClaudeClient({
               max_tokens: 16_000,
               system,
               messages,
-              tools: [{ type: "web_search_20260209", name: "web_search", max_uses: MAX_WEB_SEARCHES }],
+              tools: [
+                {
+                  type: "web_search_20260209",
+                  name: "web_search",
+                  max_uses: MAX_WEB_SEARCHES,
+                  // Results must reach the model directly: with dynamic filtering (the default) it reads
+                  // filtered code output instead, which it can't cite, so the notes came back without sources.
+                  allowed_callers: ["direct"],
+                },
+              ],
               output_config: { effort },
               ...(FALLBACK_MODELS.has(model) ? { betas: ["server-side-fallback-2026-07-01"], fallbacks: "default" as const } : {}),
             },
@@ -136,6 +145,7 @@ export function createClaudeClient({
           );
           const message = await stream.finalMessage();
           onUsage?.(logUsage("research", message.model, message.usage));
+          const before = citations.length;
 
           for (const block of message.content) {
             if (block.type !== "text") continue;
@@ -145,6 +155,16 @@ export function createClaudeClient({
               }
             }
           }
+
+          console.info(
+            "[generation] research",
+            JSON.stringify({
+              turn,
+              stopReason: message.stop_reason,
+              results: countSearchResults(message.content),
+              citations: citations.length - before,
+            }),
+          );
 
           if (message.stop_reason === "refusal") {
             throw new GenerationError("refused", "This topic couldn't be researched. Try rephrasing it as a science topic for children.");
@@ -159,6 +179,18 @@ export function createClaudeClient({
       }
     },
   };
+}
+
+/** Search results returned in a reply, and searches that failed, for diagnosing research with too few sources. */
+function countSearchResults(content: Anthropic.Beta.BetaContentBlock[]) {
+  let pages = 0;
+  let errors = 0;
+  for (const block of content) {
+    if (block.type !== "web_search_tool_result") continue;
+    if (Array.isArray(block.content)) pages += block.content.length;
+    else errors++;
+  }
+  return { pages, errors };
 }
 
 function toGenerationError(error: unknown): GenerationError {

@@ -240,15 +240,19 @@ describe("generateLesson", () => {
     expect(events).toContainEqual({ type: "stage", stage: "research", status: "done" });
   });
 
-  it("stops before writing when web research finds too little", async () => {
-    const { client } = fakeClient({});
-    const promise = generateLesson({
+  it("writes an unsourced draft, and says so, when web research finds too little", async () => {
+    const { client } = fakeClient(happy());
+    const events: GenerationEvent[] = [];
+    const lesson = await generateLesson({
       input: { ...input, research: true },
       client: { ...client, research: async () => ({ citations: [{ url: "https://example.org", title: null, citedText: "One fact." }] }) },
-      emit: () => {},
+      emit: (e) => events.push(e),
       id: "lesson-none",
     });
-    await expect(promise).rejects.toMatchObject({ code: "no_sources" });
+
+    expect(lesson.contentOrigin).toBe("ai-draft");
+    expect(lesson.sources).toEqual([]);
+    expect(events).toContainEqual({ type: "research_fallback" });
   });
 
   it("feeds problems back to the model once and succeeds on the repaired reply", async () => {

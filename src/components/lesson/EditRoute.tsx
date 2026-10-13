@@ -10,7 +10,8 @@ export function EditRoute() {
   const { id } = useParams<{ id: string }>();
   const searchParams = useSearchParams();
   const justCopied = searchParams.get("copied") === "1";
-  const justGenerated = searchParams.get("generated") === "1";
+  const generated = searchParams.get("generated");
+  const justGenerated = generated === "1" || generated === "no-sources";
   const lookup = useLesson(id);
   // Samples resolve before the session does, but the editor needs to know where saving goes.
   const storeReady = useStore().status === "ready";
@@ -25,6 +26,7 @@ export function EditRoute() {
       isSample={lookup.isSample}
       justCopied={justCopied}
       justGenerated={justGenerated}
+      researchFoundNoSources={generated === "no-sources"}
     />
   );
 }

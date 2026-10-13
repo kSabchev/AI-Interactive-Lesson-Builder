@@ -22,14 +22,13 @@ const MAX_BODY_BYTES = 64_000;
 const HOUR_MS = 60 * 60 * 1000;
 
 /** Failures caused by the service rather than the request; their generations are given back. */
-const REFUNDABLE: GenerationErrorCode[] = ["busy", "unavailable", "invalid_output", "no_sources"];
+const REFUNDABLE: GenerationErrorCode[] = ["busy", "unavailable", "invalid_output"];
 
 /** The user-facing message for a failure raised while generating, in the requester's language. */
 function streamErrorMessage(code: GenerationErrorCode, t: Dictionary): string {
   switch (code) {
     case "refused":
     case "invalid_output":
-    case "no_sources":
     case "busy":
     case "unavailable":
       return t.generation.errors[code];

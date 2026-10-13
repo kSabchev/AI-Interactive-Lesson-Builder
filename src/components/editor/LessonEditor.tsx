@@ -52,11 +52,14 @@ export function LessonEditor({
   isSample,
   justCopied,
   justGenerated = false,
+  researchFoundNoSources = false,
 }: {
   lesson: Lesson;
   isSample: boolean;
   justCopied: boolean;
   justGenerated?: boolean;
+  /** Web research was asked for but found too few sources, so the draft was written without them. */
+  researchFoundNoSources?: boolean;
 }) {
   const t = useT();
   const router = useRouter();
@@ -196,7 +199,9 @@ export function LessonEditor({
         )}
         {justGenerated ? (
           <p role="status" className="border-t border-line bg-sun-100 px-4 py-2 text-sm font-semibold md:px-6">
-            {t.editor.generated[saved.contentOrigin]}
+            {researchFoundNoSources && saved.contentOrigin === "ai-draft"
+              ? t.editor.generatedWithoutSources
+              : t.editor.generated[saved.contentOrigin]}
           </p>
         ) : (
           saved.contentOrigin === "ai-draft" && (
