@@ -2,7 +2,7 @@ import { z } from "zod";
 import { quizAttemptSchema } from "@/lib/quiz/attempt";
 import { getEntitlements } from "@/lib/server/billing/account";
 import { getDb } from "@/lib/server/db";
-import { jsonError, readJson, requireUser } from "@/lib/server/http";
+import { jsonError, readJson, requestT, requireUser } from "@/lib/server/http";
 import { importGuestData } from "@/lib/server/lessons";
 
 const importSchema = z.object({
@@ -19,7 +19,7 @@ export async function POST(request: Request) {
   if ("error" in read) return read.error;
 
   const parsed = importSchema.safeParse(read.body);
-  if (!parsed.success) return jsonError(422, "The import data isn't valid.");
+  if (!parsed.success) return jsonError(422, requestT(request).server.importInvalid);
   const db = await getDb();
   const { plan, savedLessons } = await getEntitlements(db, auth.user.id);
   const allowance = plan.savedLessons === null ? undefined : Math.max(plan.savedLessons - savedLessons, 0);

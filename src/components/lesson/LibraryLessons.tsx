@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { SAMPLE_LESSONS } from "@/content/samples";
+import { useT } from "@/lib/i18n/client";
 import type { Lesson } from "@/lib/lesson/schema";
 import type { QuizAttempt } from "@/lib/quiz/attempt";
 import { browserStore, importBrowserData } from "@/lib/storage/store";
@@ -15,15 +16,17 @@ const actionClass =
   "rounded-full px-3 py-1.5 text-sm font-bold text-brand-700 ring-1 ring-line hover:bg-brand-50 hover:ring-brand-200";
 
 function LastScore({ lesson, attempt }: { lesson: Lesson; attempt: QuizAttempt | undefined }) {
+  const t = useT();
   if (!attempt) return null;
   return (
     <Link href={`/lessons/${lesson.id}/quiz?view=results`} className={actionClass}>
-      Last quiz: {attempt.score}/{attempt.total}
+      {t.library.lastQuiz(attempt.score, attempt.total)}
     </Link>
   );
 }
 
 function DeleteButton({ lesson, onDelete }: { lesson: Lesson; onDelete: () => Promise<void> }) {
+  const t = useT();
   const [confirming, setConfirming] = useState(false);
   if (!confirming) {
     return (
@@ -32,26 +35,26 @@ function DeleteButton({ lesson, onDelete }: { lesson: Lesson; onDelete: () => Pr
         onClick={() => setConfirming(true)}
         className="ml-auto rounded-full px-3 py-1.5 text-sm font-bold text-miss-700 hover:bg-miss-50"
       >
-        Delete
+        {t.common.delete}
       </button>
     );
   }
   return (
-    <span className="ml-auto flex items-center gap-1" role="group" aria-label={`Delete ${lesson.title}?`}>
+    <span className="ml-auto flex items-center gap-1" role="group" aria-label={t.library.deleteConfirmLabel(lesson.title)}>
       <button
         type="button"
         autoFocus
         onClick={() => void onDelete()}
         className="rounded-full bg-miss-500 px-3 py-1.5 text-sm font-bold text-white hover:bg-miss-700"
       >
-        Delete for good
+        {t.library.deleteForGood}
       </button>
       <button
         type="button"
         onClick={() => setConfirming(false)}
         className="rounded-full px-3 py-1.5 text-sm font-bold text-muted hover:bg-paper"
       >
-        Cancel
+        {t.common.cancel}
       </button>
     </span>
   );
@@ -59,6 +62,7 @@ function DeleteButton({ lesson, onDelete }: { lesson: Lesson; onDelete: () => Pr
 
 /** After signing in, offers to move lessons saved in this browser into the account. */
 function ImportBanner({ onImported }: { onImported: () => void }) {
+  const t = useT();
   const state = useStore();
   const signedIn = state.status === "ready" && state.user !== null;
   const [count, setCount] = useState(0);
@@ -90,22 +94,20 @@ function ImportBanner({ onImported }: { onImported: () => void }) {
   }
 
   return (
-    <section aria-label="Lessons in this browser" className="mt-8 rounded-3xl bg-brand-50 p-5 ring-1 ring-brand-200">
-      <p className="font-bold">
-        {count === 1 ? "1 lesson is" : `${count} lessons are`} saved in this browser but not in your account.
-      </p>
-      <p className="mt-1 text-muted">Move them to your account to keep them safe and use them on other devices.</p>
+    <section aria-label={t.library.importRegion} className="mt-8 rounded-3xl bg-brand-50 p-5 ring-1 ring-brand-200">
+      <p className="font-bold">{t.library.importCount(count)}</p>
+      <p className="mt-1 text-muted">{t.library.importHint}</p>
       {status === "failed" && (
         <p role="alert" className="mt-2 font-bold text-miss-700">
-          The import didn&apos;t finish. Your lessons are still in this browser; try again.
+          {t.library.importFailed}
         </p>
       )}
       <div className="mt-3 flex flex-wrap gap-2">
         <Button onClick={() => void runImport()} disabled={status === "importing"}>
-          {status === "importing" ? "Moving…" : "Move to my account"}
+          {status === "importing" ? t.library.importing : t.library.importAction}
         </Button>
         <Button variant="ghost" onClick={() => setStatus("dismissed")}>
-          Not now
+          {t.library.notNow}
         </Button>
       </div>
     </section>
@@ -113,6 +115,7 @@ function ImportBanner({ onImported }: { onImported: () => void }) {
 }
 
 export function LibraryLessons() {
+  const t = useT();
   const { library, remove, refresh } = useLibrary();
   const attempts = library.status === "ready" ? library.attempts : new Map<string, QuizAttempt>();
 
@@ -122,28 +125,26 @@ export function LibraryLessons() {
   const savedSection = (
     <section className="mt-12" aria-labelledby="saved-heading">
       <h2 id="saved-heading" className="mb-4 text-2xl font-extrabold">
-        Your lessons
+        {t.library.yourLessons}
       </h2>
-      {library.status === "loading" && <p className="text-muted">Loading your lessons…</p>}
+      {library.status === "loading" && <p className="text-muted">{t.library.loadingLessons}</p>}
       {library.status === "error" && (
         <p className="rounded-2xl bg-miss-50 p-4 text-miss-700">
-          {library.store === "account"
-            ? "Your saved lessons couldn't be loaded from your account. Check your connection and reload. The sample lessons still work."
-            : "Your saved lessons couldn't be loaded. This browser may be blocking local storage (for example in private browsing). The sample lessons still work."}
+          {library.store === "account" ? t.library.loadErrorAccount : t.library.loadErrorBrowser}
         </p>
       )}
       {library.status === "ready" && library.lessons.length === 0 && (
         <p className="rounded-2xl border-2 border-dashed border-line p-6 text-muted">
-          Nothing saved yet. Create a lesson, or choose <strong>Edit a copy</strong> on a sample to make it your own.{" "}
+          {t.library.emptyStart} <strong>{t.library.editACopy}</strong> {t.library.emptyEnd}{" "}
           {library.store === "account" ? (
-            "Your lessons are saved to your account."
+            t.library.savedToAccount
           ) : (
             <>
-              Your lessons are kept in this browser.{" "}
+              {t.library.keptInBrowser}{" "}
               <Link href="/sign-in" className="font-bold text-brand-700 underline underline-offset-2">
-                Sign in
-              </Link>{" "}
-              to keep them in an account instead.
+                {t.common.signIn}
+              </Link>
+              {t.library.signInToKeep}
             </>
           )}
         </p>
@@ -154,7 +155,7 @@ export function LibraryLessons() {
             <li key={lesson.id}>
               <LessonCard lesson={lesson} isSample={false}>
                 <Link href={`/lessons/${lesson.id}/edit`} className={actionClass}>
-                  Edit
+                  {t.common.edit}
                 </Link>
                 <LastScore lesson={lesson} attempt={attempts.get(lesson.id)} />
                 <DeleteButton lesson={lesson} onDelete={() => remove(lesson.id)} />
@@ -169,14 +170,14 @@ export function LibraryLessons() {
   const samplesSection = (
     <section className="mt-12" aria-labelledby="samples-heading">
       <h2 id="samples-heading" className="mb-4 text-2xl font-extrabold">
-        Try a sample lesson
+        {t.library.trySample}
       </h2>
       <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {SAMPLE_LESSONS.map((lesson) => (
           <li key={lesson.id}>
             <LessonCard lesson={lesson} isSample>
               <Link href={`/lessons/${lesson.id}/edit`} className={actionClass}>
-                Edit a copy
+                {t.library.editACopy}
               </Link>
               <LastScore lesson={lesson} attempt={attempts.get(lesson.id)} />
             </LessonCard>

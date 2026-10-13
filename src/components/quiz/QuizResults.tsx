@@ -5,14 +5,16 @@ import { useEffect, useRef } from "react";
 import { SourceList } from "@/components/lesson/SourceList";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
+import type { Dictionary } from "@/lib/i18n";
+import { useT } from "@/lib/i18n/client";
 import type { Lesson } from "@/lib/lesson/schema";
 import { type QuizAnswers, scoreQuiz } from "@/lib/quiz/scoring";
 
-function headline(score: number, total: number) {
-  if (score === total) return "Amazing — a perfect score!";
-  if (score >= total - 1) return "Great work!";
-  if (score >= Math.ceil(total / 2)) return "Good effort!";
-  return "Nice try — let's look back together.";
+function headline(score: number, total: number, t: Dictionary["quiz"]) {
+  if (score === total) return t.headlines.perfect;
+  if (score >= total - 1) return t.headlines.great;
+  if (score >= Math.ceil(total / 2)) return t.headlines.good;
+  return t.headlines.tryAgain;
 }
 
 export function QuizResults({
@@ -24,6 +26,7 @@ export function QuizResults({
   answers: QuizAnswers;
   onRetry: () => void;
 }) {
+  const t = useT().quiz;
   const result = scoreQuiz(lesson, answers);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const sectionHref = (sectionId: string) => `/lessons/${lesson.id}/present?section=${sectionId}`;
@@ -33,19 +36,19 @@ export function QuizResults({
   return (
     <div className="mx-auto w-full max-w-3xl px-4 py-8 md:py-12">
       <section className="rounded-3xl bg-surface p-8 text-center shadow-sm ring-1 ring-line">
-        <p className="font-bold text-muted">Your score</p>
+        <p className="font-bold text-muted">{t.yourScore}</p>
         <p className="my-2 text-7xl font-extrabold text-brand-600">
           {result.score} <span className="text-4xl text-muted">/ {result.total}</span>
         </p>
         <h1 ref={headingRef} tabIndex={-1} className="text-2xl font-extrabold outline-none md:text-3xl">
-          {headline(result.score, result.total)}
+          {headline(result.score, result.total, t)}
         </h1>
         <div className="mt-6 flex flex-wrap justify-center gap-3">
           <Button size="lg" onClick={onRetry}>
-            Retry quiz
+            {t.retry}
           </Button>
           <ButtonLink href="/" variant="secondary" size="lg">
-            Return to library
+            {t.returnToLibrary}
           </ButtonLink>
         </div>
       </section>
@@ -53,7 +56,7 @@ export function QuizResults({
       {result.conceptsToRevisit.length > 0 && (
         <section className="mt-8" aria-labelledby="revisit-heading">
           <h2 id="revisit-heading" className="mb-3 text-2xl font-extrabold">
-            Concepts to revisit
+            {t.conceptsToRevisit}
           </h2>
           <ul className="space-y-3">
             {result.conceptsToRevisit.map(({ objective, sections }) => (
@@ -66,7 +69,7 @@ export function QuizResults({
                       href={sectionHref(s.id)}
                       className="rounded-full bg-surface px-4 py-2 font-bold text-brand-700 ring-1 ring-line hover:ring-brand-500"
                     >
-                      Revisit: {s.title} <span aria-hidden="true">→</span>
+                      {t.revisit(s.title)} <span aria-hidden="true">→</span>
                     </Link>
                   ))}
                 </p>
@@ -78,7 +81,7 @@ export function QuizResults({
 
       <section className="mt-8" aria-labelledby="review-heading">
         <h2 id="review-heading" className="mb-3 text-2xl font-extrabold">
-          Answer review
+          {t.answerReview}
         </h2>
         <ol className="space-y-3">
           {result.questions.map(({ question, selectedOptionId, correct, section }, i) => {
@@ -93,16 +96,16 @@ export function QuizResults({
                 )}
               >
                 <p className="font-bold text-muted">
-                  Question {i + 1} · {correct ? "Correct" : "Missed"}
+                  {t.questionStatus(i + 1, correct)}
                 </p>
                 <p className="mt-1 text-lg font-extrabold">{question.prompt}</p>
                 <p className="mt-2">
-                  Your answer: <strong>{selected?.text ?? "No answer"}</strong>
+                  {t.yourAnswer} <strong>{selected?.text ?? t.noAnswer}</strong>
                 </p>
                 {!correct && (
                   <>
                     <p>
-                      Correct answer: <strong>{right.text}</strong>
+                      {t.correctAnswer} <strong>{right.text}</strong>
                     </p>
                     <p className="mt-2 text-muted">{question.explanation}</p>
                     <SourceList
@@ -116,7 +119,7 @@ export function QuizResults({
                         href={sectionHref(section.id)}
                         className="mt-2 inline-block font-bold text-brand-700 underline underline-offset-2"
                       >
-                        Revisit “{section.title}”
+                        {t.revisitQuoted(section.title)}
                       </Link>
                     )}
                   </>

@@ -36,6 +36,7 @@ Margin check: 30 Sonnet lessons at ~$0.15 cost ~$4.50, which fits $9 after payme
 | 5 | Accounts and cloud data | ✅ (email delivery provider pending, see milestone 9) |
 | 6 | Subscriptions and billing | ✅ Free and Pro; Classroom waits for milestone 8 |
 | 7 | Evidence support | ✅ reference excerpts and web research cited per section and question |
+| 7b | English and Bulgarian | ✅ interface toggle; lessons in the topic's language (Bulgarian text needs a native-speaker review) |
 | 8 | Classroom tier | ⏳ (build when there is demand) |
 | 9 | Launch readiness | 🚧 CI done |
 
@@ -76,6 +77,14 @@ Margin check: 30 Sonnet lessons at ~$0.15 cost ~$4.50, which fits $9 after payme
 2. Content-origin labels in the player, editor and results; "check the facts" banner on AI drafts; sources shown at the end of the lesson and beside quiz explanations.
 3. Optional web research via Claude's web search tool; source URLs come only from search results; `contentOrigin: "web-research"`.
 4. Tests: every source id resolves; every URL exists in the stored search results.
+
+### 7b. English and Bulgarian
+
+1. Typed dictionaries (`src/lib/i18n/`), English as the source of truth; locale from a `locale` cookie, falling back to `Accept-Language`; EN / БГ toggle in every header.
+2. Everything localized: pages and metadata, API and quota messages, sign-in emails, Stripe Checkout and Customer Portal, diagram labels and image descriptions, the Cyrillic subset of the Nunito font.
+3. Lesson language detected from the topic's script (`lesson.language`, default `en`); the prompts ask for all learner-facing text in that language; repair feedback to the model stays in English.
+4. Learner-facing parts follow the lesson's language (`LocaleScope`), adult-facing parts follow the interface.
+5. Still to do: a native-speaker review of `bg.ts`; Bulgarian sample lessons, if sample mode should match Bulgarian topics with Bulgarian content; a live check of a Bulgarian topic with web research.
 
 ### 8. Classroom tier
 

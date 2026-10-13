@@ -1,4 +1,6 @@
 import { z } from "zod";
+import type { z as zod } from "zod";
+import type { Dictionary } from "@/lib/i18n";
 import { AGE_GROUPS } from "@/lib/lesson/schema";
 
 export const TOPIC_MAX = 120;
@@ -36,3 +38,13 @@ export const EXAMPLE_INPUT: GenerationFormValues = {
   quality: "standard",
   research: false,
 };
+
+/** A validation problem in the interface language (the schema's own messages are English). */
+export function inputIssueMessage(issue: zod.core.$ZodIssue, t: Dictionary): string {
+  const field = issue.path[0];
+  if (field === "topic") {
+    return issue.code === "too_big" ? t.create.validation.topicLong(TOPIC_MAX) : t.create.validation.topicShort;
+  }
+  if (field === "referenceText" && issue.code === "too_big") return t.create.validation.referenceLong(REFERENCE_MAX);
+  return t.generation.errors.invalid_input;
+}

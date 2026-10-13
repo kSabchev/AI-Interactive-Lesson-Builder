@@ -1,9 +1,10 @@
 "use client";
 
-import { DIAGRAMS, isDiagramId } from "@/lib/assets/diagrams";
-import { VISUALS, type VisualId } from "@/lib/assets/visuals";
-import { newId, optionalText, removeAt, replaceAt } from "@/lib/lesson/edit";
 import { SourceList } from "@/components/lesson/SourceList";
+import { DIAGRAMS, isDiagramId } from "@/lib/assets/diagrams";
+import { VISUAL_IDS, type VisualId } from "@/lib/assets/visuals";
+import { useT } from "@/lib/i18n/client";
+import { newId, optionalText, removeAt, replaceAt } from "@/lib/lesson/edit";
 import { type Lesson, type LessonSection, SHORT_TEXT_MAX, type SectionOfType, TEXT_MAX } from "@/lib/lesson/schema";
 import { AddButton, EditorGroup, ListItemCard, SelectField, TextArea, TextField } from "./fields";
 
@@ -13,10 +14,6 @@ type EditorProps<T extends LessonSection["type"]> = {
 };
 
 const NO_VISUAL = "none";
-const visualOptions = [
-  { value: NO_VISUAL, label: "No picture" },
-  ...Object.entries(VISUALS).map(([value, label]) => ({ value, label })),
-];
 
 function VisualSelect({
   value,
@@ -25,12 +22,16 @@ function VisualSelect({
   value: VisualId | undefined;
   onChange: (value: VisualId | undefined) => void;
 }) {
+  const t = useT();
   return (
     <SelectField
-      label="Picture"
-      hint="Pictures come from an approved set so they always match the content."
+      label={t.editor.section.picture}
+      hint={t.editor.section.pictureHint}
       value={value ?? NO_VISUAL}
-      options={visualOptions}
+      options={[
+        { value: NO_VISUAL, label: t.editor.section.noPicture },
+        ...VISUAL_IDS.map((id) => ({ value: id, label: t.visuals[id] })),
+      ]}
       onChange={(v) => onChange(v === NO_VISUAL ? undefined : (v as VisualId))}
     />
   );
@@ -45,11 +46,13 @@ export function SectionEditor({
   section: LessonSection;
   onChange: (section: LessonSection) => void;
 }) {
+  const t = useT();
+  const s = t.editor.section;
   return (
     <div className="space-y-8">
-      <EditorGroup title="Basics">
+      <EditorGroup title={s.basics}>
         <TextField
-          label="Section title"
+          label={s.sectionTitle}
           value={section.title}
           maxLength={SHORT_TEXT_MAX}
           onChange={(title) => onChange({ ...section, title })}
@@ -59,20 +62,17 @@ export function SectionEditor({
       <TypeEditor section={section} onChange={onChange} />
 
       {section.sourceIds.length > 0 && (
-        <EditorGroup
-          title="Sources"
-          description="The evidence this section was written from. If you change what it says, check it still matches."
-        >
+        <EditorGroup title={s.sources} description={s.sourcesDescription}>
           <SourceList lesson={lesson} ids={section.sourceIds} />
         </EditorGroup>
       )}
 
-      <EditorGroup title="For the adult" description="Shown in the player only when facilitator notes are switched on.">
+      <EditorGroup title={s.forTheAdult} description={s.forTheAdultDescription}>
         <TextArea
-          label="Facilitator note"
+          label={s.facilitatorNote}
           value={section.facilitatorNote ?? ""}
           maxLength={TEXT_MAX}
-          placeholder="Optional guidance, questions to ask, or demonstrations to try."
+          placeholder={s.facilitatorPlaceholder}
           onChange={(v) => onChange({ ...section, facilitatorNote: optionalText(v) })}
         />
       </EditorGroup>
@@ -98,16 +98,17 @@ function TypeEditor({ section, onChange }: { section: LessonSection; onChange: (
 }
 
 function HookEditor({ section, onChange }: EditorProps<"hook">) {
+  const s = useT().editor.section;
   return (
-    <EditorGroup title="Hook">
+    <EditorGroup title={s.hook}>
       <TextField
-        label="Big question"
+        label={s.bigQuestion}
         value={section.question}
         maxLength={SHORT_TEXT_MAX}
         onChange={(question) => onChange({ ...section, question })}
       />
       <TextArea
-        label="Story"
+        label={s.story}
         value={section.body}
         maxLength={TEXT_MAX}
         onChange={(body) => onChange({ ...section, body })}
@@ -118,13 +119,14 @@ function HookEditor({ section, onChange }: EditorProps<"hook">) {
 }
 
 function ExplanationEditor({ section, onChange }: EditorProps<"explanation">) {
+  const s = useT().editor.section;
   return (
     <>
-      <EditorGroup title="Explanation" description="Keep each paragraph to one idea. Up to 4 paragraphs.">
+      <EditorGroup title={s.explanation} description={s.explanationDescription}>
         {section.paragraphs.map((paragraph, i) => (
           <ListItemCard
             key={i}
-            title={`Paragraph ${i + 1}`}
+            title={s.paragraph(i + 1)}
             onRemove={
               section.paragraphs.length > 1
                 ? () => onChange({ ...section, paragraphs: removeAt(section.paragraphs, i) })
@@ -132,7 +134,7 @@ function ExplanationEditor({ section, onChange }: EditorProps<"explanation">) {
             }
           >
             <TextArea
-              label="Text"
+              label={s.text}
               value={paragraph}
               maxLength={TEXT_MAX}
               onChange={(v) => onChange({ ...section, paragraphs: replaceAt(section.paragraphs, i, v) })}
@@ -143,25 +145,25 @@ function ExplanationEditor({ section, onChange }: EditorProps<"explanation">) {
           disabled={section.paragraphs.length >= 4}
           onClick={() => onChange({ ...section, paragraphs: [...section.paragraphs, ""] })}
         >
-          Add paragraph
+          {s.addParagraph}
         </AddButton>
       </EditorGroup>
 
-      <EditorGroup title="Key words" description="Define unfamiliar words. Up to 4.">
+      <EditorGroup title={s.keyWords} description={s.keyWordsDescription}>
         {section.keyTerms.map((term, i) => (
           <ListItemCard
             key={i}
-            title={`Key word ${i + 1}`}
+            title={s.keyWord(i + 1)}
             onRemove={() => onChange({ ...section, keyTerms: removeAt(section.keyTerms, i) })}
           >
             <TextField
-              label="Word"
+              label={s.word}
               value={term.term}
               maxLength={SHORT_TEXT_MAX}
               onChange={(v) => onChange({ ...section, keyTerms: replaceAt(section.keyTerms, i, { ...term, term: v }) })}
             />
             <TextArea
-              label="Definition"
+              label={s.definition}
               rows={2}
               value={term.definition}
               maxLength={TEXT_MAX}
@@ -175,16 +177,16 @@ function ExplanationEditor({ section, onChange }: EditorProps<"explanation">) {
           disabled={section.keyTerms.length >= 4}
           onClick={() => onChange({ ...section, keyTerms: [...section.keyTerms, { term: "", definition: "" }] })}
         >
-          Add key word
+          {s.addKeyWord}
         </AddButton>
       </EditorGroup>
 
-      <EditorGroup title="Example and picture">
+      <EditorGroup title={s.exampleAndPicture}>
         <TextArea
-          label="Real-life example"
+          label={s.realLifeExample}
           value={section.example ?? ""}
           maxLength={TEXT_MAX}
-          placeholder="Optional: a concrete, everyday example."
+          placeholder={s.examplePlaceholder}
           onChange={(v) => onChange({ ...section, example: optionalText(v) })}
         />
         <VisualSelect value={section.visualId} onChange={(visualId) => onChange({ ...section, visualId })} />
@@ -194,14 +196,12 @@ function ExplanationEditor({ section, onChange }: EditorProps<"explanation">) {
 }
 
 function PredictionEditor({ section, onChange }: EditorProps<"prediction">) {
+  const s = useT().editor.section;
   const NONE = "none";
   return (
-    <EditorGroup
-      title="Prediction"
-      description="Predictions are never scored — they get learners thinking before the explanation."
-    >
+    <EditorGroup title={s.prediction} description={s.predictionDescription}>
       <TextField
-        label="Question"
+        label={s.question}
         value={section.question}
         maxLength={SHORT_TEXT_MAX}
         onChange={(question) => onChange({ ...section, question })}
@@ -209,7 +209,7 @@ function PredictionEditor({ section, onChange }: EditorProps<"prediction">) {
       {section.options.map((option, i) => (
         <ListItemCard
           key={option.id}
-          title={`Option ${i + 1}`}
+          title={s.option(i + 1)}
           onRemove={
             section.options.length > 2
               ? () =>
@@ -222,7 +222,7 @@ function PredictionEditor({ section, onChange }: EditorProps<"prediction">) {
           }
         >
           <TextField
-            label="Text"
+            label={s.text}
             value={option.text}
             maxLength={SHORT_TEXT_MAX}
             onChange={(text) => onChange({ ...section, options: replaceAt(section.options, i, { ...option, text }) })}
@@ -233,20 +233,20 @@ function PredictionEditor({ section, onChange }: EditorProps<"prediction">) {
         disabled={section.options.length >= 4}
         onClick={() => onChange({ ...section, options: [...section.options, { id: newId("opt"), text: "" }] })}
       >
-        Add option
+        {s.addOption}
       </AddButton>
       <SelectField
-        label="Highlight after the reveal"
-        hint="Optional: the option the reveal marks as what really happens."
+        label={s.highlight}
+        hint={s.highlightHint}
         value={section.answerOptionId ?? NONE}
         options={[
-          { value: NONE, label: "Don't highlight an option" },
-          ...section.options.map((o, i) => ({ value: o.id, label: `Option ${i + 1}: ${o.text || "(empty)"}` })),
+          { value: NONE, label: s.noHighlight },
+          ...section.options.map((o, i) => ({ value: o.id, label: s.optionLabel(i + 1, o.text || s.emptyText) })),
         ]}
         onChange={(v) => onChange({ ...section, answerOptionId: v === NONE ? undefined : v })}
       />
       <TextArea
-        label="Reveal explanation"
+        label={s.reveal}
         value={section.reveal}
         maxLength={TEXT_MAX}
         onChange={(reveal) => onChange({ ...section, reveal })}
@@ -256,39 +256,42 @@ function PredictionEditor({ section, onChange }: EditorProps<"prediction">) {
 }
 
 function DiagramEditor({ section, onChange }: EditorProps<"diagram-labeling">) {
+  const t = useT();
+  const s = t.editor.section;
   const diagram = isDiagramId(section.diagramId) ? DIAGRAMS[section.diagramId] : undefined;
+  const copy = isDiagramId(section.diagramId) ? t.diagrams[section.diagramId] : undefined;
   return (
-    <EditorGroup
-      title="Diagram labeling"
-      description={diagram ? `Diagram: ${diagram.title}. Each label must go on a different spot.` : undefined}
-    >
+    <EditorGroup title={s.diagram} description={copy ? s.diagramDescription(copy.title) : undefined}>
       <TextArea
-        label="Instructions"
+        label={s.instructions}
         rows={2}
         value={section.instructions}
         maxLength={TEXT_MAX}
         onChange={(instructions) => onChange({ ...section, instructions })}
       />
       {section.labels.map((label, i) => (
-        <ListItemCard key={label.id} title={`Label ${i + 1}`}>
+        <ListItemCard key={label.id} title={s.label(i + 1)}>
           <TextField
-            label="Label text"
+            label={s.labelText}
             value={label.text}
             maxLength={SHORT_TEXT_MAX}
             onChange={(text) => onChange({ ...section, labels: replaceAt(section.labels, i, { ...label, text }) })}
           />
           {diagram && (
             <SelectField
-              label="Correct spot on the diagram"
+              label={s.correctSpot}
               value={label.targetId}
-              options={diagram.targets.map((t) => ({ value: t.id, label: t.name }))}
+              options={diagram.targets.map((target) => ({
+                value: target.id,
+                label: copy?.targets[target.id] ?? target.name,
+              }))}
               onChange={(targetId) =>
                 onChange({ ...section, labels: replaceAt(section.labels, i, { ...label, targetId }) })
               }
             />
           )}
           <TextArea
-            label="Feedback when placed correctly"
+            label={s.labelFeedback}
             rows={2}
             value={label.explanation}
             maxLength={TEXT_MAX}
@@ -303,11 +306,12 @@ function DiagramEditor({ section, onChange }: EditorProps<"diagram-labeling">) {
 }
 
 function SortingEditor({ section, onChange }: EditorProps<"sorting">) {
+  const s = useT().editor.section;
   return (
     <>
-      <EditorGroup title="Sorting">
+      <EditorGroup title={s.sorting}>
         <TextArea
-          label="Instructions"
+          label={s.instructions}
           rows={2}
           value={section.instructions}
           maxLength={TEXT_MAX}
@@ -317,7 +321,7 @@ function SortingEditor({ section, onChange }: EditorProps<"sorting">) {
           {section.categories.map((category, i) => (
             <TextField
               key={category.id}
-              label={`Group ${i + 1}`}
+              label={s.group(i + 1)}
               value={category.label}
               maxLength={SHORT_TEXT_MAX}
               onChange={(label) =>
@@ -328,31 +332,31 @@ function SortingEditor({ section, onChange }: EditorProps<"sorting">) {
         </div>
       </EditorGroup>
 
-      <EditorGroup title="Examples to sort" description="Between 3 and 8 examples.">
+      <EditorGroup title={s.examples} description={s.examplesDescription}>
         {section.items.map((item, i) => (
           <ListItemCard
             key={item.id}
-            title={`Example ${i + 1}`}
+            title={s.example(i + 1)}
             onRemove={
               section.items.length > 3 ? () => onChange({ ...section, items: removeAt(section.items, i) }) : undefined
             }
           >
             <TextField
-              label="Example"
+              label={s.exampleText}
               value={item.text}
               maxLength={SHORT_TEXT_MAX}
               onChange={(text) => onChange({ ...section, items: replaceAt(section.items, i, { ...item, text }) })}
             />
             <SelectField
-              label="Correct group"
+              label={s.correctGroup}
               value={item.categoryId}
-              options={section.categories.map((c) => ({ value: c.id, label: c.label || "(unnamed group)" }))}
+              options={section.categories.map((c) => ({ value: c.id, label: c.label || s.unnamedGroup }))}
               onChange={(categoryId) =>
                 onChange({ ...section, items: replaceAt(section.items, i, { ...item, categoryId }) })
               }
             />
             <TextArea
-              label="Explanation if placed wrongly"
+              label={s.wrongExplanation}
               rows={2}
               value={item.explanation}
               maxLength={TEXT_MAX}
@@ -374,7 +378,7 @@ function SortingEditor({ section, onChange }: EditorProps<"sorting">) {
             })
           }
         >
-          Add example
+          {s.addExample}
         </AddButton>
       </EditorGroup>
     </>
@@ -382,12 +386,13 @@ function SortingEditor({ section, onChange }: EditorProps<"sorting">) {
 }
 
 function RecapEditor({ section, onChange }: EditorProps<"recap">) {
+  const s = useT().editor.section;
   return (
-    <EditorGroup title="Recap" description="Exactly three key ideas to reinforce.">
+    <EditorGroup title={s.recap} description={s.recapDescription}>
       {section.keyPoints.map((point, i) => (
         <TextArea
           key={i}
-          label={`Key idea ${i + 1}`}
+          label={s.keyIdea(i + 1)}
           rows={2}
           value={point}
           maxLength={TEXT_MAX}

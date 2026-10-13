@@ -2,6 +2,7 @@
 
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
+import { useT } from "@/lib/i18n/client";
 import type { SectionOfType } from "@/lib/lesson/schema";
 import { SectionHeading } from "./SectionHeading";
 
@@ -19,10 +20,11 @@ export function PredictionSection({
   onChange: (state: PredictionState) => void;
 }) {
   const { selectedOptionId, submitted } = state;
+  const t = useT().sections.prediction;
 
   return (
     <div>
-      <SectionHeading kicker="Make a prediction" title={section.title} />
+      <SectionHeading kicker={t.kicker} title={section.title} />
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -55,7 +57,7 @@ export function PredictionSection({
                   />
                   <span className="flex-1">{option.text}</span>
                   {submitted && selected && (
-                    <span className="rounded-full bg-brand-600 px-3 py-1 text-sm text-white">Your guess</span>
+                    <span className="rounded-full bg-brand-600 px-3 py-1 text-sm text-white">{t.yourGuess}</span>
                   )}
                 </label>
               );
@@ -65,11 +67,11 @@ export function PredictionSection({
 
         {!submitted ? (
           <Button type="submit" size="lg" className="mt-6" disabled={!selectedOptionId}>
-            Lock in my prediction
+            {t.lockIn}
           </Button>
         ) : (
           <div role="status" className="mt-6 rounded-3xl bg-good-50 p-6 ring-2 ring-good-500">
-            <p className="mb-1 text-lg font-extrabold text-good-700">What really happens</p>
+            <p className="mb-1 text-lg font-extrabold text-good-700">{t.whatReallyHappens}</p>
             <p className="text-xl leading-relaxed md:text-2xl">{section.reveal}</p>
           </div>
         )}

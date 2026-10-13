@@ -3,12 +3,14 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { LanguageToggle } from "@/components/i18n/LanguageToggle";
 import { type ActivityStates, SectionView } from "@/components/sections/SectionView";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
+import type { Dictionary } from "@/lib/i18n";
+import { LocaleScope, useT } from "@/lib/i18n/client";
 import { newId, replaceAt } from "@/lib/lesson/edit";
 import { describeIssues, type EditorTarget, type LessonIssue } from "@/lib/lesson/issues";
-import { SECTION_TYPE_LABELS } from "@/lib/lesson/labels";
 import { type Lesson, lessonSchema } from "@/lib/lesson/schema";
 import { StoreError } from "@/lib/storage/store";
 import { useReadyStore } from "@/lib/storage/StoreProvider";
@@ -19,28 +21,29 @@ type SaveStatus = "idle" | "saving" | "saved" | "invalid" | "failed";
 
 type NavItem = { target: EditorTarget; label: string; detail?: string };
 
-function navGroups(lesson: Lesson): { title: string; items: NavItem[] }[] {
+function navGroups(lesson: Lesson, t: Dictionary): { title: string; items: NavItem[] }[] {
+  const nav = t.editor.nav;
   return [
     {
-      title: "Overview",
+      title: nav.overview,
       items: [
-        { target: "details", label: "Lesson details" },
-        { target: "objectives", label: "Learning objectives" },
+        { target: "details", label: nav.details },
+        { target: "objectives", label: nav.objectives },
       ],
     },
     {
-      title: "Sections",
+      title: nav.sections,
       items: lesson.sections.map((s, i) => ({
         target: `section:${s.id}`,
-        label: `${i + 1}. ${s.title || "(untitled)"}`,
-        detail: SECTION_TYPE_LABELS[s.type],
+        label: `${i + 1}. ${s.title || nav.untitled}`,
+        detail: t.sectionTypes[s.type],
       })),
     },
     {
-      title: "Final quiz",
-      items: lesson.quiz.map((q, i) => ({ target: `quiz:${q.id}`, label: `Q${i + 1}. ${q.prompt || "(empty)"}` })),
+      title: nav.finalQuiz,
+      items: lesson.quiz.map((q, i) => ({ target: `quiz:${q.id}`, label: `Q${i + 1}. ${q.prompt || nav.empty}` })),
     },
-    { title: "Evidence", items: [{ target: "sources", label: `Sources (${lesson.sources.length})` }] },
+    { title: nav.evidence, items: [{ target: "sources", label: nav.sources(lesson.sources.length) }] },
   ];
 }
 
@@ -55,6 +58,7 @@ export function LessonEditor({
   justCopied: boolean;
   justGenerated?: boolean;
 }) {
+  const t = useT();
   const router = useRouter();
   const store = useReadyStore();
   const [saved, setSaved] = useState(lesson);
@@ -73,8 +77,8 @@ export function LessonEditor({
   const issues: LessonIssue[] = useMemo(() => {
     if (!showIssues) return [];
     const result = lessonSchema.safeParse(draft);
-    return result.success ? [] : describeIssues(draft, result.error);
-  }, [draft, showIssues]);
+    return result.success ? [] : describeIssues(draft, result.error, t);
+  }, [draft, showIssues, t]);
   const issueTargets = new Set(issues.map((i) => i.target));
 
   useEffect(() => {
@@ -146,18 +150,20 @@ export function LessonEditor({
     ? draft.sections.find((s) => `section:${s.id}` === selected)
     : undefined;
   const quizIndex = selected.startsWith("quiz:") ? draft.quiz.findIndex((q) => `quiz:${q.id}` === selected) : -1;
-  const groups = navGroups(draft);
+  const groups = navGroups(draft, t);
 
   return (
     <div className="flex h-dvh flex-col">
       <header className="border-b border-line bg-surface">
         <div className="flex flex-wrap items-center gap-3 px-4 py-3 md:px-6">
           <Link href="/" className="rounded-full px-3 py-2 font-bold text-muted hover:bg-brand-50 hover:text-ink">
-            <span aria-hidden="true">←</span> Library
+            <span aria-hidden="true">←</span> {t.common.library}
           </Link>
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-bold uppercase tracking-wider text-brand-600">Review &amp; edit</p>
-            <h1 className="truncate text-lg font-extrabold">{draft.title || "Untitled lesson"}</h1>
+            <p className="text-sm font-bold uppercase tracking-wider text-brand-600">{t.editor.reviewEdit}</p>
+            <h1 lang={draft.language} className="truncate text-lg font-extrabold">
+              {draft.title || t.editor.untitledLesson}
+            </h1>
           </div>
           <p role="status" className="text-sm font-bold text-muted">
             <StatusText status={status} dirty={dirty} isSample={isSample} />
@@ -167,16 +173,15 @@ export function LessonEditor({
             onClick={() => void save()}
             disabled={status === "saving" || (!dirty && !isSample)}
           >
-            {isSample ? "Save as my copy" : "Save"}
+            {isSample ? t.editor.saveAsCopy : t.editor.save}
           </Button>
           <Button onClick={startLesson} disabled={status === "saving"}>
-            Start lesson <span aria-hidden="true">→</span>
+            {t.editor.startLesson} <span aria-hidden="true">→</span>
           </Button>
+          <LanguageToggle />
         </div>
         {isSample && (
-          <p className="border-t border-line bg-sun-100 px-4 py-2 text-sm md:px-6">
-            This is a curated sample, so it stays as it is. Saving your edits creates your own copy in the library.
-          </p>
+          <p className="border-t border-line bg-sun-100 px-4 py-2 text-sm md:px-6">{t.editor.sampleNotice}</p>
         )}
         {status === "failed" && limitMessage && (
           <p
@@ -185,34 +190,34 @@ export function LessonEditor({
           >
             {limitMessage}{" "}
             <Link href="/pricing" className="underline underline-offset-2">
-              See plans
+              {t.editor.seePlans}
             </Link>
           </p>
         )}
         {justGenerated ? (
-          <GeneratedNotice lesson={saved} />
+          <p role="status" className="border-t border-line bg-sun-100 px-4 py-2 text-sm font-semibold md:px-6">
+            {t.editor.generated[saved.contentOrigin]}
+          </p>
         ) : (
           saved.contentOrigin === "ai-draft" && (
-            <p className="border-t border-line bg-sun-100 px-4 py-2 text-sm md:px-6">
-              AI draft written without sources. Check the facts before presenting.
-            </p>
+            <p className="border-t border-line bg-sun-100 px-4 py-2 text-sm md:px-6">{t.editor.aiDraftNote}</p>
           )
         )}
         {justCopied && !isSample && status === "saved" && !dirty && (
           <p className="border-t border-line bg-good-50 px-4 py-2 text-sm font-semibold text-good-700 md:px-6">
-            Saved a copy to your library. You&apos;re now editing your own lesson.
+            {t.editor.copiedNotice}
           </p>
         )}
       </header>
 
       <div className="flex min-h-0 flex-1 flex-col md:flex-row">
         <nav
-          aria-label="Lesson parts"
+          aria-label={t.editor.nav.label}
           className="border-b border-line bg-surface md:w-72 md:shrink-0 md:overflow-y-auto md:border-r md:border-b-0"
         >
           {/* Compact picker on narrow screens, full outline from tablet up. */}
           <label className="block p-3 md:hidden">
-            <span className="sr-only">Edit part of the lesson</span>
+            <span className="sr-only">{t.editor.nav.pickPart}</span>
             <select
               value={selected}
               onChange={(e) => select(e.target.value as EditorTarget)}
@@ -253,7 +258,7 @@ export function LessonEditor({
                           </span>
                         )}
                         {issueTargets.has(item.target) && (
-                          <span className="shrink-0 text-miss-500" aria-label="Has problems to fix">
+                          <span className="shrink-0 text-miss-500" aria-label={t.editor.nav.hasProblems}>
                             ●
                           </span>
                         )}
@@ -273,7 +278,7 @@ export function LessonEditor({
               className="mx-4 mt-4 rounded-2xl bg-miss-50 p-4 ring-2 ring-miss-500 md:mx-6"
             >
               <h2 id="issues-heading" className="font-extrabold text-miss-700">
-                Fix {issues.length} problem{issues.length === 1 ? "" : "s"} before saving
+                {t.editor.issues.title(issues.length)}
               </h2>
               <ul className="mt-2 space-y-1 text-sm">
                 {issues.slice(0, 8).map((issue, i) => (
@@ -287,7 +292,7 @@ export function LessonEditor({
                     </button>
                   </li>
                 ))}
-                {issues.length > 8 && <li className="text-muted">…and {issues.length - 8} more.</li>}
+                {issues.length > 8 && <li className="text-muted">{t.editor.issues.more(issues.length - 8)}</li>}
               </ul>
             </section>
           )}
@@ -301,7 +306,7 @@ export function LessonEditor({
                   href="#section-preview"
                   className="mb-4 inline-block font-bold text-brand-700 underline underline-offset-2 2xl:hidden"
                 >
-                  See preview <span aria-hidden="true">↓</span>
+                  {t.editor.seePreview} <span aria-hidden="true">↓</span>
                 </a>
               )}
               {selected === "details" && <DetailsEditor lesson={draft} isSample={isSample} onChange={update} />}
@@ -336,16 +341,21 @@ export function LessonEditor({
             </div>
 
             {selectedSection && (
-              <aside id="section-preview" aria-label="Section preview" className="min-w-0 scroll-mt-4">
+              <aside id="section-preview" aria-label={t.editor.previewLabel} className="min-w-0 scroll-mt-4">
                 <div className="sticky top-0">
-                  <h2 className="mb-2 text-sm font-extrabold uppercase tracking-wider text-muted">Preview</h2>
+                  <h2 className="mb-2 text-sm font-extrabold uppercase tracking-wider text-muted">
+                    {t.editor.preview}
+                  </h2>
                   <div className="overflow-hidden rounded-3xl bg-paper p-6 shadow-sm ring-1 ring-line">
                     <div style={{ zoom: 0.6 }}>
-                      <SectionView
-                        section={selectedSection}
-                        activityStates={previewStates}
-                        onActivityChange={(id, state) => setPreviewStates((prev) => ({ ...prev, [id]: state }))}
-                      />
+                      {/* The preview shows what learners will see, in the lesson's language. */}
+                      <LocaleScope locale={draft.language}>
+                        <SectionView
+                          section={selectedSection}
+                          activityStates={previewStates}
+                          onActivityChange={(id, state) => setPreviewStates((prev) => ({ ...prev, [id]: state }))}
+                        />
+                      </LocaleScope>
                     </div>
                   </div>
                 </div>
@@ -358,27 +368,12 @@ export function LessonEditor({
   );
 }
 
-function GeneratedNotice({ lesson }: { lesson: Lesson }) {
-  const message =
-    lesson.contentOrigin === "curated"
-      ? "Sample mode: AI generation is switched off on this site, so this is a copy of a curated lesson rather than one written for your topic. It's saved in your library."
-      : lesson.contentOrigin === "reference"
-        ? "Draft generated from your reference material and saved to your library. Each section lists the excerpts it used; check they match before presenting."
-        : lesson.contentOrigin === "web-research"
-          ? "Draft researched on the web and saved to your library. Each section links the pages it used; skim them before presenting."
-          : "AI-generated draft, saved to your library. It was checked for structure, not for accuracy, so read it through and fix anything that's wrong before presenting.";
-  return (
-    <p role="status" className="border-t border-line bg-sun-100 px-4 py-2 text-sm font-semibold md:px-6">
-      {message}
-    </p>
-  );
-}
-
 function StatusText({ status, dirty, isSample }: { status: SaveStatus; dirty: boolean; isSample: boolean }) {
-  if (status === "saving") return <>Saving…</>;
-  if (status === "invalid") return <span className="text-miss-700">Some fields need attention</span>;
-  if (status === "failed") return <span className="text-miss-700">Couldn&apos;t save — your edits are still here</span>;
-  if (dirty) return <>Unsaved changes</>;
-  if (status === "saved") return <span className="text-good-700">All changes saved</span>;
-  return isSample ? <>Curated sample</> : <>No changes</>;
+  const s = useT().editor.status;
+  if (status === "saving") return <>{s.saving}</>;
+  if (status === "invalid") return <span className="text-miss-700">{s.invalid}</span>;
+  if (status === "failed") return <span className="text-miss-700">{s.failed}</span>;
+  if (dirty) return <>{s.unsaved}</>;
+  if (status === "saved") return <span className="text-good-700">{s.saved}</span>;
+  return <>{isSample ? s.curated : s.noChanges}</>;
 }

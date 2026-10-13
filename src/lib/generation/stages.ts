@@ -2,6 +2,7 @@ import { z } from "zod";
 import { DIAGRAM_IDS, DIAGRAMS, type DiagramId } from "@/lib/assets/diagrams";
 import { VISUAL_IDS } from "@/lib/assets/visuals";
 import { type LessonInput, SHORT_TEXT_MAX, TEXT_MAX } from "@/lib/lesson/schema";
+import { detectLanguage } from "@/lib/i18n/detect";
 import type { Excerpt } from "./evidence";
 import type { GenerationInput } from "./input";
 
@@ -282,6 +283,7 @@ export function assembleLesson({
     ageGroup: input.ageGroup,
     durationMinutes: input.durationMinutes,
     templateId: "explore-concept",
+    language: detectLanguage(input.topic),
     contentOrigin: evidence?.kind === "reference" ? "reference" : evidence?.kind === "web" ? "web-research" : "ai-draft",
     createdAt: now,
     updatedAt: now,

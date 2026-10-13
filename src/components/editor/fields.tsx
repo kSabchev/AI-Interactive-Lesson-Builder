@@ -2,6 +2,7 @@
 
 import { useId } from "react";
 import { cn } from "@/lib/cn";
+import { useT } from "@/lib/i18n/client";
 
 const control =
   "w-full rounded-xl border-2 border-line bg-surface px-3 py-2 text-base text-ink transition-colors hover:border-brand-200 focus:border-brand-500 focus:outline-none";
@@ -160,6 +161,7 @@ export function ListItemCard({
   removeLabel?: string;
   children: React.ReactNode;
 }) {
+  const t = useT();
   return (
     <fieldset className="space-y-3 rounded-2xl border-2 border-line bg-paper/60 p-4">
       <div className="flex items-center justify-between gap-2">
@@ -168,10 +170,10 @@ export function ListItemCard({
           <button
             type="button"
             onClick={onRemove}
-            aria-label={removeLabel ?? `Remove ${title}`}
+            aria-label={removeLabel ?? t.editor.fields.removeItem(title)}
             className="rounded-full px-3 py-1 text-sm font-bold text-miss-700 hover:bg-miss-50"
           >
-            Remove
+            {t.editor.fields.remove}
           </button>
         )}
       </div>

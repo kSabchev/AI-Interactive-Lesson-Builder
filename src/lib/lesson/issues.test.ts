@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { getSampleLesson } from "@/content/samples";
+import { en } from "@/lib/i18n/dictionaries/en";
+import { bg } from "@/lib/i18n/dictionaries/bg";
 import { describeIssues } from "./issues";
 import { type Lesson, lessonSchema } from "./schema";
 
@@ -10,7 +12,7 @@ function issuesFor(mutate: (lesson: Lesson) => void) {
   mutate(lesson);
   const result = lessonSchema.safeParse(lesson);
   if (result.success) throw new Error("expected the lesson to be invalid");
-  return describeIssues(lesson, result.error);
+  return describeIssues(lesson, result.error, en);
 }
 
 describe("describeIssues", () => {
@@ -46,5 +48,18 @@ describe("describeIssues", () => {
       l.objectives[2].description = " ";
     });
     expect(issue).toMatchObject({ target: "objectives", where: "Objective 3" });
+  });
+});
+
+describe("describeIssues in Bulgarian", () => {
+  it("describes the location and problem in the interface language", () => {
+    const lesson = structuredClone(sample);
+    lesson.quiz[1].options[2].text = "";
+    const result = lessonSchema.safeParse(lesson);
+    if (result.success) throw new Error("expected the lesson to be invalid");
+    expect(describeIssues(lesson, result.error, bg)[0]).toMatchObject({
+      where: "Въпрос 2 от теста · Отговори 3 · Текст",
+      message: "Това поле не може да е празно.",
+    });
   });
 });

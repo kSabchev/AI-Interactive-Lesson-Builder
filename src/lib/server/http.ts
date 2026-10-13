@@ -1,5 +1,12 @@
 import "server-only";
+import { type Dictionary, getDictionary } from "@/lib/i18n";
+import { localeFromRequest } from "@/lib/i18n/server";
 import { getSessionUser, type SessionUser } from "./auth";
+
+/** The interface dictionary for whoever sent this request, for user-facing error messages. */
+export function requestT(request: Request): Dictionary {
+  return getDictionary(localeFromRequest(request));
+}
 
 export function jsonError(status: number, message: string, code?: string) {
   return Response.json({ error: code ? { code, message } : { message } }, { status });
@@ -22,20 +29,22 @@ export function isSameOrigin(request: Request): boolean {
 
 /** Reads a JSON body up to `maxBytes`, or returns an error response. */
 export async function readJson(request: Request, maxBytes: number): Promise<{ body: unknown } | { error: Response }> {
+  const t = requestT(request);
   const raw = await request.text();
-  if (raw.length > maxBytes) return { error: jsonError(413, "That request is too large.") };
+  if (raw.length > maxBytes) return { error: jsonError(413, t.server.tooLarge) };
   try {
     return { body: JSON.parse(raw) };
   } catch {
-    return { error: jsonError(400, "The request couldn't be read.") };
+    return { error: jsonError(400, t.server.unreadable) };
   }
 }
 
 /** Resolves the signed-in user for an API route, or the error response to return. */
 export async function requireUser(request: Request): Promise<{ user: SessionUser } | { error: Response }> {
+  const t = requestT(request);
   if (request.method !== "GET" && !isSameOrigin(request)) {
-    return { error: jsonError(403, "Cross-site requests aren't allowed.") };
+    return { error: jsonError(403, t.server.crossSite) };
   }
   const user = await getSessionUser(request.headers);
-  return user ? { user } : { error: jsonError(401, "Sign in to continue.") };
+  return user ? { user } : { error: jsonError(401, t.server.signInToContinue) };
 }

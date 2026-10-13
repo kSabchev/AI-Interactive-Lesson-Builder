@@ -1,4 +1,7 @@
+"use client";
+
 import { cn } from "@/lib/cn";
+import { useT } from "@/lib/i18n/client";
 import type { Lesson } from "@/lib/lesson/schema";
 
 /** The lesson's sources with the given ids, in the lesson's order. Unknown ids are ignored. */
@@ -22,6 +25,7 @@ export function SourceList({
   showExcerpts?: boolean;
   className?: string;
 }) {
+  const t = useT();
   const sources = sourcesFor(lesson, ids);
   if (sources.length === 0) return null;
   return (
@@ -36,7 +40,7 @@ export function SourceList({
               className="font-bold text-brand-700 underline underline-offset-2"
             >
               {source.title}
-              <span className="sr-only"> (opens in a new tab)</span>
+              <span className="sr-only">{t.common.opensInNewTab}</span>
             </a>
           ) : (
             <span className="font-bold">{source.title}</span>

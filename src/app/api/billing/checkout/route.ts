@@ -2,7 +2,8 @@ import { z } from "zod";
 import { getBillingAccount, getEntitlements, linkCustomer } from "@/lib/server/billing/account";
 import { appUrl, billingConfig, getStripe } from "@/lib/server/billing/stripe";
 import { getDb } from "@/lib/server/db";
-import { jsonError, readJson, requireUser } from "@/lib/server/http";
+import { jsonError, readJson, requestT, requireUser } from "@/lib/server/http";
+import { localeFromRequest } from "@/lib/i18n/server";
 
 const bodySchema = z.object({ interval: z.enum(["month", "year"]) });
 
@@ -10,20 +11,21 @@ const bodySchema = z.object({ interval: z.enum(["month", "year"]) });
 export async function POST(request: Request) {
   const auth = await requireUser(request);
   if ("error" in auth) return auth.error;
+  const t = requestT(request);
   const config = billingConfig();
-  if (!config.enabled) return jsonError(503, "Subscriptions aren't available yet.", "billing_disabled");
+  if (!config.enabled) return jsonError(503, t.server.billingDisabled, "billing_disabled");
 
   const read = await readJson(request, 1_000);
   if ("error" in read) return read.error;
   const parsed = bodySchema.safeParse(read.body);
-  if (!parsed.success) return jsonError(400, "Choose monthly or yearly billing.");
+  if (!parsed.success) return jsonError(400, t.server.chooseInterval);
   const price = config.proPrices[parsed.data.interval];
-  if (!price) return jsonError(400, "That billing interval isn't offered.");
+  if (!price) return jsonError(400, t.server.intervalUnavailable);
 
   const db = await getDb();
   const { plan } = await getEntitlements(db, auth.user.id);
   if (plan.id !== "free") {
-    return jsonError(409, "You already have a subscription. Use Manage billing to change it.", "already_subscribed");
+    return jsonError(409, t.server.alreadySubscribed, "already_subscribed");
   }
 
   const stripe = getStripe(config);
@@ -41,10 +43,12 @@ export async function POST(request: Request) {
     line_items: [{ price, quantity: 1 }],
     subscription_data: { metadata: { userId: auth.user.id } },
     allow_promotion_codes: true,
+    // Stripe's checkout page in the same language as the app.
+    locale: localeFromRequest(request) === "bg" ? "bg" : "en",
     success_url: `${base}/account?checkout=success`,
     cancel_url: `${base}/pricing?checkout=cancelled`,
     ...(config.automaticTax ? { automatic_tax: { enabled: true }, customer_update: { address: "auto" as const } } : {}),
   });
-  if (!session.url) return jsonError(502, "Stripe didn't return a checkout page. Please try again.");
+  if (!session.url) return jsonError(502, t.server.noCheckoutPage);
   return Response.json({ url: session.url });
 }

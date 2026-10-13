@@ -41,6 +41,6 @@ export async function redirectToStripe(path: "/api/billing/checkout" | "/api/bil
     credentials: "same-origin",
   });
   const data = (await response.json().catch(() => null)) as { url?: string; error?: { message?: string } } | null;
-  if (!response.ok || !data?.url) throw new Error(data?.error?.message ?? "Billing is unavailable right now. Please try again.");
+  if (!response.ok || !data?.url) throw new Error(data?.error?.message ?? "");
   window.location.assign(data.url);
 }
