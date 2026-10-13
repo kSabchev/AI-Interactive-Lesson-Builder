@@ -47,3 +47,6 @@ next-env.d.ts
 
 # local embedded database
 /.data/
+
+# CI
+/blob-report/
