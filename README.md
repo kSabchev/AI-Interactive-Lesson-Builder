@@ -56,7 +56,7 @@ GENERATION_MODE=live
 ANTHROPIC_API_KEY=sk-ant-...   # server-side only; set a spend limit in the Claude Console
 ```
 
-API usage is billed to the Console account that owns the key, separately from any Claude subscription. Each model call logs its token usage and an estimated cost (`[generation] usage`) to the server console. `GENERATION_MODEL`, `GENERATION_EFFORT`, `GENERATION_HOURLY_LIMIT` and `GENERATION_DAILY_CAP` are optional; see `.env.example`.
+API usage is billed to the Console account that owns the key, separately from any Claude subscription. Each model call logs its token usage and an estimated cost (`[generation] usage`) to the server console, and is stored for the **generation log** at `/admin/generations` (linked from the account page): every request with its settings, outcome, tokens, cache use, web searches, estimated cost and time, and a per-call breakdown by stage, including repairs. Set `ADMIN_EMAILS` to choose who can see it; while developing with it unset, any signed-in user can. `GENERATION_MODEL`, `GENERATION_EFFORT`, `GENERATION_HOURLY_LIMIT` and `GENERATION_DAILY_CAP` are optional; see `.env.example`.
 
 ### Languages
 

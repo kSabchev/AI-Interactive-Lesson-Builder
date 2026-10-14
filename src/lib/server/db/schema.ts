@@ -109,7 +109,10 @@ export const quizAttempt = pgTable(
   (t) => [primaryKey({ columns: [t.userId, t.lessonId] })],
 );
 
-/** One row per generation request; the basis for plan quotas and cost reporting. */
+/**
+ * One row per generation request; the basis for plan quotas and cost reporting. Token totals are the sum of
+ * the request's model calls (`generation_call`). `inputTokens` excludes cached input, which is counted apart.
+ */
 export const generationUsage = pgTable(
   "generation_usage",
   {
@@ -120,10 +123,51 @@ export const generationUsage = pgTable(
     status: text("status").notNull(),
     inputTokens: integer("input_tokens").notNull().default(0),
     outputTokens: integer("output_tokens").notNull().default(0),
+    cacheReadTokens: integer("cache_read_tokens").notNull().default(0),
+    cacheWriteTokens: integer("cache_write_tokens").notNull().default(0),
+    webSearches: integer("web_searches").notNull().default(0),
     estimatedUsd: numeric("estimated_usd", { precision: 10, scale: 4 }).notNull().default("0"),
+    /** The lesson this request produced (or would have produced), and what was asked for. */
+    lessonId: text("lesson_id"),
+    lessonTitle: text("lesson_title"),
+    topic: text("topic"),
+    ageGroup: text("age_group"),
+    language: text("language"),
+    quality: text("quality"),
+    /** "none", "reference" or "web". */
+    evidence: text("evidence"),
+    durationMs: integer("duration_ms"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index("generation_usage_user_created_idx").on(t.userId, t.createdAt)],
+  (t) => [
+    index("generation_usage_user_created_idx").on(t.userId, t.createdAt),
+    index("generation_usage_created_idx").on(t.createdAt),
+  ],
+);
+
+/** One row per model call within a generation request, in call order: the per-stage cost breakdown. */
+export const generationCall = pgTable(
+  "generation_call",
+  {
+    id: serial("id").primaryKey(),
+    usageId: integer("usage_id")
+      .notNull()
+      .references(() => generationUsage.id, { onDelete: "cascade" }),
+    seq: integer("seq").notNull(),
+    /** research, outline, content or quiz. */
+    stage: text("stage").notNull(),
+    /** 1 for the first try, 2 for a repair; for research, the continuation turn. */
+    attempt: integer("attempt").notNull(),
+    model: text("model").notNull(),
+    inputTokens: integer("input_tokens").notNull(),
+    outputTokens: integer("output_tokens").notNull(),
+    cacheReadTokens: integer("cache_read_tokens").notNull(),
+    cacheWriteTokens: integer("cache_write_tokens").notNull(),
+    webSearches: integer("web_searches").notNull(),
+    estimatedUsd: numeric("estimated_usd", { precision: 10, scale: 4 }).notNull(),
+    durationMs: integer("duration_ms").notNull(),
+  },
+  (t) => [index("generation_call_usage_idx").on(t.usageId, t.seq)],
 );
 
 // --- Billing ---
