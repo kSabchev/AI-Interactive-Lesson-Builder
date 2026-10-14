@@ -5,13 +5,7 @@ import type { WebCitation } from "../evidence";
 import { GenerationError } from "../events";
 import type { ModelClient } from "../pipeline";
 import type { Effort } from "./config";
-
-/** USD per million tokens (input, output), used only to log an estimated cost per call. */
-const PRICES: Record<string, [number, number]> = {
-  "claude-opus-5-5": [4, 20],
-  "claude-sonnet-5-5": [2, 10],
-  "claude-haiku-5-5": [0.1, 0.5],
-};
+import { type CallTokens, estimateUsd } from "./cost";
 
 /** Models that accept the server-side `fallbacks: "default"` refusal fallback. */
 const FALLBACK_MODELS = new Set(["claude-opus-5-5", "claude-opus-5", "claude-fable-5-1", "claude-sonnet-5-5"]);
@@ -19,8 +13,6 @@ const FALLBACK_MODELS = new Set(["claude-opus-5-5", "claude-opus-5", "claude-fab
 /** Plenty for the largest stage (all seven sections) plus thinking, while bounding the cost of a runaway reply. */
 const MAX_TOKENS = 32_000;
 
-/** Web search is billed per search on top of tokens: $10 per 1,000 searches. */
-const USD_PER_WEB_SEARCH = 0.01;
 /** Searches allowed per research call, bounding its cost. */
 const MAX_WEB_SEARCHES = 5;
 /** Times a research turn may be resumed after the server pauses it. */
@@ -30,29 +22,24 @@ type Usage = {
   input_tokens: number;
   output_tokens: number;
   cache_read_input_tokens?: number | null;
+  cache_creation_input_tokens?: number | null;
   server_tool_use?: { web_search_requests?: number } | null;
 };
 
-export type UsageReport = { model: string; inputTokens: number; outputTokens: number; estimatedUsd: number };
+/** One model call's tokens and estimated cost, reported to the caller for the generation log. */
+export type UsageReport = CallTokens & { stage: string; model: string; estimatedUsd: number; durationMs: number };
 
-function logUsage(stage: string, model: string, usage: Usage): UsageReport {
-  const [inPrice, outPrice] = PRICES[model] ?? [0, 0];
-  const searches = usage.server_tool_use?.web_search_requests ?? 0;
-  const estimatedUsd =
-    (usage.input_tokens * inPrice + usage.output_tokens * outPrice) / 1_000_000 + searches * USD_PER_WEB_SEARCH;
-  console.info(
-    "[generation] usage",
-    JSON.stringify({
-      stage,
-      model,
-      inputTokens: usage.input_tokens,
-      outputTokens: usage.output_tokens,
-      cacheReadTokens: usage.cache_read_input_tokens ?? 0,
-      webSearches: searches,
-      estimatedUsd: Number(estimatedUsd.toFixed(4)),
-    }),
-  );
-  return { model, inputTokens: usage.input_tokens, outputTokens: usage.output_tokens, estimatedUsd };
+function logUsage(stage: string, model: string, usage: Usage, startedAt: number): UsageReport {
+  const tokens: CallTokens = {
+    inputTokens: usage.input_tokens,
+    outputTokens: usage.output_tokens,
+    cacheReadTokens: usage.cache_read_input_tokens ?? 0,
+    cacheWriteTokens: usage.cache_creation_input_tokens ?? 0,
+    webSearches: usage.server_tool_use?.web_search_requests ?? 0,
+  };
+  const report = { stage, model, ...tokens, estimatedUsd: estimateUsd(model, tokens), durationMs: Date.now() - startedAt };
+  console.info("[generation] usage", JSON.stringify({ ...report, estimatedUsd: Number(report.estimatedUsd.toFixed(4)) }));
+  return report;
 }
 
 export function createClaudeClient({
@@ -78,6 +65,7 @@ export function createClaudeClient({
       const fallback = FALLBACK_MODELS.has(model);
 
       try {
+        const startedAt = Date.now();
         const stream = anthropic.beta.messages.stream(
           {
             model,
@@ -94,7 +82,7 @@ export function createClaudeClient({
           { signal },
         );
         const message = await stream.finalMessage();
-        onUsage?.(logUsage(stage, message.model, message.usage));
+        onUsage?.(logUsage(stage, message.model, message.usage, startedAt));
 
         const text = message.content
           .filter((block): block is Anthropic.Beta.BetaTextBlock => block.type === "text")
@@ -122,6 +110,7 @@ export function createClaudeClient({
       const citations: WebCitation[] = [];
       try {
         for (let turn = 0; turn <= MAX_CONTINUATIONS; turn++) {
+          const startedAt = Date.now();
           const stream = anthropic.beta.messages.stream(
             {
               model,
@@ -144,7 +133,7 @@ export function createClaudeClient({
             { signal },
           );
           const message = await stream.finalMessage();
-          onUsage?.(logUsage("research", message.model, message.usage));
+          onUsage?.(logUsage("research", message.model, message.usage, startedAt));
           const before = citations.length;
 
           for (const block of message.content) {

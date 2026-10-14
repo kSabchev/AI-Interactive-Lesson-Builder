@@ -12,7 +12,8 @@ import { checkDailyCap, checkVisitorLimit, recordGeneration } from "@/lib/genera
 import { getSessionUser } from "@/lib/server/auth";
 import { getEntitlements, releaseGenerations, reserveGenerations } from "@/lib/server/billing/account";
 import { getDb } from "@/lib/server/db";
-import { generationUsage } from "@/lib/server/db/schema";
+import { type GenerationRecord, saveGenerationLog } from "@/lib/server/generationLog";
+import { detectLanguage } from "@/lib/i18n/detect";
 
 /** Three model calls with possible repairs can take a few minutes. */
 export const maxDuration = 300;
@@ -41,24 +42,10 @@ function errorResponse(status: number, code: GenerationErrorCode, message: strin
   return Response.json({ error: { code, message } }, { status, headers });
 }
 
-/** Stores one usage row per request for plan quotas and cost reporting. Never fails the generation. */
-async function recordUsage(
-  userId: string | null,
-  mode: string,
-  status: "succeeded" | GenerationErrorCode,
-  reports: UsageReport[],
-) {
+/** Stores the request and its model calls for quotas, cost reporting and the generation log. Never fails the generation. */
+async function recordUsage(record: GenerationRecord) {
   try {
-    const db = await getDb();
-    await db.insert(generationUsage).values({
-      userId,
-      mode,
-      model: reports.at(-1)?.model ?? null,
-      status,
-      inputTokens: reports.reduce((sum, r) => sum + r.inputTokens, 0),
-      outputTokens: reports.reduce((sum, r) => sum + r.outputTokens, 0),
-      estimatedUsd: reports.reduce((sum, r) => sum + r.estimatedUsd, 0).toFixed(4),
-    });
+    await saveGenerationLog(await getDb(), record);
   } catch (error) {
     console.error("[generation] couldn't record usage:", error);
   }
@@ -157,7 +144,12 @@ export async function POST(request: Request) {
   const encoder = new TextEncoder();
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
+      const startedAt = Date.now();
+      let lessonTitle: string | null = null;
+      let researchFallback = false;
       const emit = (event: GenerationEvent) => {
+        if (event.type === "research_fallback") researchFallback = true;
+        if (event.type === "done") lessonTitle = event.lesson.title;
         try {
           controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
         } catch {
@@ -205,7 +197,20 @@ export async function POST(request: Request) {
           message: error instanceof GenerationError ? streamErrorMessage(known.code, t) : errors.unexpected,
         });
       } finally {
-        await recordUsage(userId, config.mode, outcome, usage);
+        await recordUsage({
+          userId,
+          mode: config.mode,
+          status: outcome,
+          lessonId: id,
+          lessonTitle,
+          topic: input.topic,
+          ageGroup: input.ageGroup,
+          language: detectLanguage(input.topic),
+          quality: input.quality,
+          evidence: input.referenceText ? "reference" : input.research ? (researchFallback ? "web-fallback" : "web") : "none",
+          durationMs: Date.now() - startedAt,
+          calls: usage,
+        });
         try {
           controller.close();
         } catch {

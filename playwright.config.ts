@@ -39,6 +39,8 @@ export default defineConfig({
       BETTER_AUTH_SECRET: "e2e-only-secret-not-for-production-0123456789",
       BETTER_AUTH_URL: `http://localhost:${PORT}`,
       DISABLE_AUTH_RATE_LIMIT: "true",
+      // One operator per project, so parallel projects don't read each other's sign-in links.
+      ADMIN_EMAILS: "operator-desktop@example.com,operator-tablet@example.com",
       // Billing switched on with test values. Tests never reach Stripe's API; they deliver signed webhooks.
       STRIPE_SECRET_KEY: "sk_test_e2e_dummy",
       STRIPE_WEBHOOK_SECRET: STRIPE_WEBHOOK_SECRET,
