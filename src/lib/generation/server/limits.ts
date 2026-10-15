@@ -38,6 +38,18 @@ export function checkDailyCap(cap: number, now = new Date()): LimitResult {
   };
 }
 
+/**
+ * Whether the daily count still needs loading for today. The count lives in memory, so after a restart or
+ * deploy it is rebuilt from the generation log (`seedDailyCount`) instead of starting again from zero.
+ */
+export function dailyCountNeedsSeed(now = new Date()): boolean {
+  return daily.day !== now.toISOString().slice(0, 10);
+}
+
+export function seedDailyCount(count: number, now = new Date()) {
+  daily = { day: now.toISOString().slice(0, 10), count };
+}
+
 /** Counts a generation against both limits. Called when a generation starts, so failed runs still count. */
 export function recordGeneration(visitor: string, now = new Date()) {
   visitorHits.set(visitor, [...(visitorHits.get(visitor) ?? []), now.getTime()]);

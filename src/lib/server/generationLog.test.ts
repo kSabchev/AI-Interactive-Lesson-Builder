@@ -2,7 +2,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 import type { UsageReport } from "@/lib/generation/server/claude";
 import { type Database, getDb } from "./db";
 import { user } from "./db/schema";
-import { getGeneration, listGenerations, saveGenerationLog } from "./generationLog";
+import { countLiveGenerationsSince, getGeneration, listGenerations, saveGenerationLog } from "./generationLog";
 
 let db: Database;
 
@@ -87,5 +87,15 @@ describe("generation log", () => {
     expect(latest).toMatchObject({ email: null, inputTokens: 0, estimatedUsd: "0.0000" });
     expect((await getGeneration(db, latest.id))?.calls).toEqual([]);
     expect(await getGeneration(db, 999_999)).toBeNull();
+  });
+
+  it("counts only live requests for the daily cap", async () => {
+    const since = new Date(Date.now() - 60_000);
+    const before = await countLiveGenerationsSince(db, since);
+    const base = { userId: null, status: "succeeded", lessonId: "lesson-count", lessonTitle: null, topic: "x", ageGroup: "8-10", language: "en", quality: "standard", evidence: "none", durationMs: 1, calls: [] };
+    await saveGenerationLog(db, { ...base, mode: "live" });
+    await saveGenerationLog(db, { ...base, mode: "sample" });
+    expect(await countLiveGenerationsSince(db, since)).toBe(before + 1);
+    expect(await countLiveGenerationsSince(db, new Date(Date.now() + 60_000))).toBe(0);
   });
 });

@@ -38,7 +38,18 @@ Margin check: 30 Sonnet lessons at ~$0.15 cost ~$4.50, which fits $9 after payme
 | 7 | Evidence support | ✅ reference excerpts and web research cited per section and question |
 | 7b | English and Bulgarian | ✅ interface toggle; lessons in the topic's language (Bulgarian text needs a native-speaker review) |
 | 8 | Classroom tier | ⏳ (build when there is demand) |
-| 9 | Launch readiness | 🚧 CI done |
+| 9 | Launch readiness | 🚧 CI, generation log, Resend sign-in email and a Render demo Blueprint done |
+
+## Next steps (October 2026)
+
+Order agreed after reviewing the project: prove the core before adding more around it.
+
+1. **Prove generation on real topics.** 10–15 live lessons across English and Bulgarian, web research and reference text. Read each one for accuracy, age fit and quiz alignment, and use the generation log for cost and repair rates. Fix what this finds. Before merging pipeline changes, run a small manual live check (never in CI).
+2. **Demo deployment.** Resend for sign-in email, the Render Blueprint, a demo-only Claude key with a Console spend limit, low daily cap, `ADMIN_EMAILS`. ← code done; deploying needs accounts.
+3. **Real users.** 3–5 parents or teachers, and a native speaker for the Bulgarian text.
+4. **Tune with data.** Per-stage model and effort (e.g. Haiku 5.5 for outline and quiz), regenerating a single section, prompt caching only if the log shows frequent repairs.
+5. **Launch readiness (milestone 9).** Rate limits in shared storage, security headers, `@axe-core/playwright` checks, a verified Stripe test checkout, error tracking, legal and privacy pages.
+6. **Later, if there is demand.** Share links with "save a copy", the 12–14 age group, then the Classroom tier and a moderated shared library.
 
 ### 4. AI generation
 
@@ -94,7 +105,7 @@ Schools as organizations with seats, invitations and owner/teacher roles; shared
 
 1. Legal: terms of service, privacy policy, cookie notice if analytics are added, statement that no learner data is collected.
 2. Data protection: export and deletion; EU hosting option for EU schools.
-3. Transactional email (Resend or Postmark): sign-in, receipts, quota warnings.
+3. Transactional email: sign-in through Resend done (`EMAIL_TRANSPORT=resend`); receipts come from Stripe; quota warnings still to do.
 4. Operations: error tracking, AI spend dashboard with alerts and a Console spend limit, simple admin view.
 5. Security: rate limits on sign-in and generation in shared storage, CSRF protection, security headers, security review.
 6. Delivery: accessibility checks (`@axe-core/playwright`), keyboard and screen-reader pass, responsive check, CI (lint, typecheck, unit, end-to-end in sample mode), preview and production environments, migrations in CI.

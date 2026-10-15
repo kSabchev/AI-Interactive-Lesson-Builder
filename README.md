@@ -4,17 +4,18 @@ A web app that turns a science topic into an interactive lesson and follow-up qu
 
 ## Status
 
-The product is becoming a subscription SaaS for parents and teachers. The milestone plan, decisions and draft tiers are in [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
+The product is becoming a subscription SaaS for parents and teachers. The milestone plan, decisions, draft tiers and the agreed next steps are in [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md). The next step is proving generation on 10–15 real topics before adding more features.
 
 | Milestone | State |
 | --- | --- |
 | 1–3. Player, quiz and results, review editor with local persistence | ✅ |
-| 4. AI generation | 🟡 Built and tested in sample mode; the live check with a real API key is still to do |
+| 4. AI generation | 🟡 Built and tested in sample mode; web research fixed after the first live run; a systematic live check on real topics is still to do |
 | 5. Accounts and cloud data | ✅ Magic-link sign-in (optional Google), lessons and quiz results saved to the account, guest import, account deletion |
 | 6. Subscriptions and billing | ✅ Stripe Checkout and Customer Portal, webhook-synced plans, monthly AI lesson quotas, saved-lesson cap |
 | 7. Evidence support | ✅ Reference text split into cited excerpts, optional web research (Pro) with sources taken only from search citations, sources shown in the player, quiz and editor |
 | Languages | ✅ English and Bulgarian interface; lessons written in the topic's language |
-| 8–9. Classroom tier, launch readiness | ⏳ |
+| 8. Classroom tier | ⏳ When there is demand |
+| 9. Launch readiness | 🚧 CI, generation log, Resend sign-in email and a Render demo Blueprint done; security headers, accessibility checks, shared rate limits and legal pages to do |
 
 ## Getting started
 
@@ -25,15 +26,25 @@ npm run dev          # http://localhost:3000
 
 ### Testing everything locally
 
-1. `cp .env.example .env.local`, then set `GENERATION_MODE=live` and `ANTHROPIC_API_KEY` to try real AI generation.
+1. `cp .env.example .env.local`, then set `GENERATION_MODE=live` and `ANTHROPIC_API_KEY` to try real AI generation. Leave `BETTER_AUTH_SECRET` and `EMAIL_TRANSPORT` empty: locally a built-in development secret is used and sign-in links go to the development mailbox.
 2. Optionally set `DEV_PLAN_OVERRIDE=pro` to try Pro features (reference text, web research, high quality) without Stripe.
-3. `npm run dev` and open http://localhost:3000. Use `npm run dev` rather than `npm start` for local testing: the development mailbox below only exists in development.
-4. Sign in with any email address. No email is sent: open **http://localhost:3000/dev/mailbox** (also linked after you request a link) and click **Open link**.
-5. Create a lesson. Live generation needs an account, and each one is counted against the plan's monthly allowance.
+3. If `DATABASE_URL` points at a Postgres database, run `npm run db:migrate` after pulling changes that add migrations. The embedded database migrates itself.
+4. `npm run dev` and open http://localhost:3000. Use `npm run dev` rather than `npm start` for local testing: the development mailbox only exists in development, and production mode needs a real secret and email provider before anyone can sign in.
+5. Sign in with any email address. No email is sent: open **http://localhost:3000/dev/mailbox** (also linked after you request a link) and click **Open link**.
+6. Create a lesson. Live generation needs an account, and each one is counted against the plan's monthly allowance.
+7. Open the **generation log** (linked from the account page, or `/admin/generations`) to see what each lesson cost, stage by stage.
+
+### Troubleshooting the dev server
+
+- **The page reloads over and over:** the dev server's build cache is out of step, which can happen after switching branches or running production builds in the same folder. Stop the server, delete `.next/dev`, and run `npm run dev` again.
+- **"Another next dev server is already running":** an earlier dev server is still running in the background, for example one started from another terminal or tool. Stop the `node` processes running `next` for this folder (Task Manager on Windows), then start again.
+- **`/dev/mailbox` shows "not found":** the app is running in production mode (`npm start`), or `EMAIL_TRANSPORT` is set to something other than `file`.
 
 ### Accounts and database
 
 Nothing to set up locally: without `DATABASE_URL` the app uses an embedded Postgres (PGlite) in `.data/` and migrates it on first use. Sign-in links are written to `.data/mailbox.jsonl` and printed in the server console instead of being emailed. For production, set `DATABASE_URL`, `BETTER_AUTH_SECRET` and `BETTER_AUTH_URL`, and run `npm run db:migrate`; see `.env.example`. After changing `src/lib/server/db/schema.ts`, run `npm run db:generate` to create a migration.
+
+Sign-in emails go wherever `EMAIL_TRANSPORT` says: `file` (the default while developing) writes them to the local mailbox, and `resend` sends them through [Resend](https://resend.com) with `RESEND_API_KEY` and an `EMAIL_FROM` address on a domain verified there. In production with no transport set, sending fails with an error rather than pretending to deliver.
 
 Guests can use everything without an account; their lessons stay in the browser. Signing in saves lessons to the account and offers to move any browser lessons across.
 
@@ -56,20 +67,55 @@ GENERATION_MODE=live
 ANTHROPIC_API_KEY=sk-ant-...   # server-side only; set a spend limit in the Claude Console
 ```
 
-API usage is billed to the Console account that owns the key, separately from any Claude subscription. Each model call logs its token usage and an estimated cost (`[generation] usage`) to the server console, and is stored for the **generation log** at `/admin/generations` (linked from the account page): every request with its settings, outcome, tokens, cache use, web searches, estimated cost and time, and a per-call breakdown by stage, including repairs. Set `ADMIN_EMAILS` to choose who can see it; while developing with it unset, any signed-in user can. `GENERATION_MODEL`, `GENERATION_EFFORT`, `GENERATION_HOURLY_LIMIT` and `GENERATION_DAILY_CAP` are optional; see `.env.example`.
+API usage is billed to the Console account that owns the key, separately from any Claude subscription. Optional settings (see `.env.example`):
+
+| Setting | Default | Purpose |
+| --- | --- | --- |
+| `GENERATION_MODEL_STANDARD` | `claude-sonnet-5-5` | Model for standard lessons |
+| `GENERATION_MODEL_HIGH` | `claude-opus-5-5` | Model for the Pro "high quality" option, counted as two lessons |
+| `GENERATION_EFFORT` | `medium` | How much the model thinks: `low` to `max` |
+| `GENERATION_WEB_RESEARCH` | on | Set to `false` to stop offering web research |
+| `GENERATION_HOURLY_LIMIT` | 5 | Live lessons per visitor per hour |
+| `GENERATION_DAILY_CAP` | 50 | Live lessons per day across everyone; rebuilt from the database after a restart |
+
+**Web research** (Pro) runs Claude's web search before writing and keeps only the pages it cites. Each search costs about $0.01, with at most 5 per lesson. If it finds fewer than two usable sources, the lesson is still written as a draft without sources, and the editor says so, so the searches are not wasted.
+
+**Generation log.** Each model call prints its tokens and estimated cost (`[generation] usage`) in the server console and is stored for the log at `/admin/generations`, linked from the account page. The log lists every request with its settings, model, outcome, tokens, cache use, web searches, estimated cost and time, and breaks each request down call by call: research, outline, content, quiz and any repairs. Lesson sections are written together in one call, so costs are shown per stage rather than per section. Estimates use list prices, including cache reads and writes; the Claude Console has the billed amounts. `ADMIN_EMAILS` (comma-separated) chooses who can see the log: while developing with it unset, any signed-in user can, and in production with it unset, nobody can.
 
 ### Languages
 
 The interface is available in English and Bulgarian. The **EN / БГ** toggle in the header saves the choice in a `locale` cookie; without one, the browser's language decides. Server-rendered pages, API error messages, sign-in emails and Stripe Checkout all follow the same choice.
 
-Each lesson has its own `language`, detected from the topic: a topic written mostly in Cyrillic produces a Bulgarian lesson, anything else an English one. The model is told to write every learner-facing word in that language, translating English sources if needed. The parts learners see (the lesson stage, the player controls, the quiz and its results, the editor preview) follow the lesson's language, while the adult's header and editor follow the interface language, so a Bulgarian lesson can be presented from an English interface and the other way round. The curated samples are English.
+Each lesson has its own `language`, detected from the topic: a topic written mostly in Cyrillic produces a Bulgarian lesson, anything else an English one. The model is told to write every learner-facing word in that language, translating English sources if needed. The parts learners see (the lesson stage, the player controls, the quiz and its results, the editor preview) follow the lesson's language, while the adult's header and editor follow the interface language, so a Bulgarian lesson can be presented from an English interface and the other way round. The curated samples are English, and the Bulgarian interface text still needs a review by a native speaker.
+
+### Scripts
 
 | Script | Purpose |
 | --- | --- |
-| `npm test` | Unit tests (Vitest): lesson schema, scoring, activity checking, storage, generation pipeline and route |
+| `npm run dev` | Development server, with the development mailbox |
+| `npm test` | Unit tests (Vitest): lesson schema, scoring, activity checking, storage, generation pipeline and route, billing, email, sign-in and the generation log |
 | `npm run e2e` | Playwright journey tests on desktop and tablet viewports (builds the app first; always in sample mode) |
 | `npm run typecheck` | TypeScript (generates Next.js route types first) |
 | `npm run lint` | ESLint |
+| `npm run db:generate` | Create a migration after changing `src/lib/server/db/schema.ts` |
+| `npm run db:migrate` | Apply migrations to the Postgres database in `DATABASE_URL` |
+
+The end-to-end tests build the app into `.next`. If a dev server running at the same time starts reloading pages, see Troubleshooting above.
+
+## Deploying a demo
+
+`render.yaml` is a [Render Blueprint](https://render.com/docs/blueprint-spec) for a web service and a Postgres database. Database migrations run each time the service starts. Before deploying:
+
+1. **Claude key:** in the Claude Console, create a workspace just for the demo, with a **monthly spend limit**, and a key in it. The spend limit is the hard cap; the app's own limits (`GENERATION_HOURLY_LIMIT`, `GENERATION_DAILY_CAP`, set low in the Blueprint) are a backstop. The daily count is rebuilt from the database after a restart, but the hourly limit lives in memory and resets on restart.
+2. **Email:** create a [Resend](https://resend.com) account, verify a domain you own, and create an API key. Sign-in links are sent from `EMAIL_FROM` on that domain.
+3. **Deploy:** in Render, choose New → Blueprint and point it at this repository. When asked, fill in `BETTER_AUTH_URL` (the service's public URL, such as `https://lesson-builder.onrender.com`), `ANTHROPIC_API_KEY`, `RESEND_API_KEY`, `EMAIL_FROM` and `ADMIN_EMAILS` (your email, for the generation log). Render generates `BETTER_AUTH_SECRET` and connects `DATABASE_URL`.
+4. **Check:** sign in with your email, generate one lesson, and confirm it appears in the generation log with its cost.
+
+Notes:
+
+- **Billing:** Stripe stays off unless its variables are set, so everyone is on the Free plan (3 AI lessons a month each). To demo Pro, add Stripe **test-mode** keys and a webhook endpoint (`/api/billing/webhook`) as described under Billing.
+- **Free plans:** free web services sleep when idle and take a while to wake. Free Render Postgres databases are time-limited, so check Render's current terms, or use a paid plan or another Postgres provider through `DATABASE_URL`.
+- **Privacy:** topics that people type are stored with their account. Say so on the demo, and don't use it with real pupils' data.
 
 ## Continuous integration
 
@@ -90,6 +136,8 @@ Each lesson has its own `language`, detected from the topic: a topic written mos
 - **`src/app/api/lessons/generate/route.ts`** — validates and rate-limits the request, then streams progress as newline-delimited JSON. **`/create`** shows only the stages the server reports and keeps the form filled in on failure.
 - **`src/lib/storage/store.ts`** — one `LessonStore` interface with two implementations: IndexedDB for guests and the account API for signed-in users. `StoreProvider` picks one from the session; the editor, player and library don't know which.
 - **`src/lib/server/`** — server-only code: Drizzle schema and connection (`db/`), Better Auth setup (`auth.ts`), per-user lesson storage (`lessons.ts`, every query filtered by owner) and request helpers (`http.ts`: session check, same-origin check for writes, body size limits). API routes live under `src/app/api/`.
+- **`src/lib/server/generationLog.ts`, `src/app/admin/generations/`** — the generation log: one `generation_usage` row per request and one `generation_call` row per model call, written by the generate route. The pages are for operators only (`src/lib/server/admin.ts`). `src/lib/generation/server/cost.ts` holds the price table used for the estimates.
+- **`src/lib/server/email.ts`** — email transports: the local mailbox file for development and tests, and Resend for deployments.
 - **`src/lib/server/billing/`** — Stripe client and configuration, webhook handling (each event applied once, late or out-of-order events ignored), entitlements and the atomic monthly quota. Deleting an account cancels its subscription first.
 - **`src/lib/i18n/`** — interface languages. `dictionaries/en.ts` is the source of truth and its type (`Dictionary`) makes `bg.ts` complete; a missing or extra key fails the typecheck. Server code uses `getT()` (pages) or `localeFromRequest()` (API routes); client components use `useT()`. `LocaleScope` switches a subtree to the lesson's language. `detect.ts` picks a lesson's language from its topic.
 - **`src/app/dev/mailbox/page.dev.tsx`** — the development mailbox. The `.dev.tsx` page extension is only registered outside production builds (`next.config.ts`), so the route does not exist in production.
