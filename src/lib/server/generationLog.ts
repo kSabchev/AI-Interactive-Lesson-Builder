@@ -1,5 +1,5 @@
 import "server-only";
-import { desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, gte, sql } from "drizzle-orm";
 import type { UsageReport } from "@/lib/generation/server/claude";
 import type { Database } from "./db";
 import { generationCall, generationUsage, user } from "./db/schema";
@@ -79,6 +79,15 @@ export async function listGenerations(db: Database, limit = 100): Promise<Genera
     .orderBy(desc(generationUsage.createdAt), desc(generationUsage.id))
     .limit(limit);
   return rows.map((r) => ({ ...r.request, email: r.email }));
+}
+
+/** Live (paid) generation requests logged since `since`, for the daily spending cap. */
+export async function countLiveGenerationsSince(db: Database, since: Date): Promise<number> {
+  const [row] = await db
+    .select({ n: sql<number>`count(*)::int` })
+    .from(generationUsage)
+    .where(and(eq(generationUsage.mode, "live"), gte(generationUsage.createdAt, since)));
+  return row.n;
 }
 
 /** Totals across every logged request, for the figures above the list. */

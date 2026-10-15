@@ -240,6 +240,16 @@ describe("POST /api/lessons/generate", () => {
       await other.text();
     });
 
+    it("remembers today's generations after a restart", async () => {
+      vi.stubEnv("GENERATION_DAILY_CAP", "1");
+      send.mockRejectedValue(new GenerationError("busy", "busy"));
+      await (await post(valid)).text();
+      resetLimitsForTests(); // what a restart does to the in-memory counts
+      await signInAs("free");
+      const response = await post(valid, { "x-forwarded-for": "198.51.100.3" });
+      expect(response.status).toBe(429);
+    });
+
     it("enforces the daily cap across visitors", async () => {
       vi.stubEnv("GENERATION_DAILY_CAP", "1");
       send.mockRejectedValue(new GenerationError("busy", "busy"));

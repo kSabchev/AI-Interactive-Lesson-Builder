@@ -1,0 +1,53 @@
+# Render Blueprint for a demo deployment: one web service and a Postgres database.
+# Create it from the Render dashboard (New > Blueprint) and fill in the values marked `sync: false` when
+# asked. See "Deploying a demo" in the README for the accounts and limits to set up first.
+services:
+  - type: web
+    name: lesson-builder
+    runtime: node
+    plan: free
+    buildCommand: npm ci && npm run build
+    # Migrations run on every start; they are skipped when there is nothing new to apply.
+    startCommand: npm run db:migrate && npm start
+    healthCheckPath: /
+    envVars:
+      - key: NODE_VERSION
+        value: "24"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: lesson-builder-db
+          property: connectionString
+      - key: BETTER_AUTH_SECRET
+        generateValue: true
+      # The public URL of this service, e.g. https://lesson-builder.onrender.com (no trailing slash).
+      - key: BETTER_AUTH_URL
+        sync: false
+
+      # Sign-in emails through Resend, from an address on a domain verified in Resend.
+      - key: EMAIL_TRANSPORT
+        value: resend
+      - key: RESEND_API_KEY
+        sync: false
+      - key: EMAIL_FROM
+        sync: false
+
+      # Live generation with a key from a demo-only Claude Console workspace that has a spend limit.
+      - key: GENERATION_MODE
+        value: live
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      # Low limits for a public demo: lessons per visitor per hour, and per day across everyone.
+      - key: GENERATION_HOURLY_LIMIT
+        value: "3"
+      - key: GENERATION_DAILY_CAP
+        value: "15"
+
+      # Who can see the generation log at /admin/generations (comma-separated emails).
+      - key: ADMIN_EMAILS
+        sync: false
+
+databases:
+  - name: lesson-builder-db
+    plan: free
+    databaseName: lesson_builder
+    user: lesson_builder

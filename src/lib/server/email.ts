@@ -14,13 +14,36 @@ function mailboxFile(): string {
   return process.env.MAILBOX_FILE || path.join(process.cwd(), ".data", "mailbox.jsonl");
 }
 
+/** Resend's API, which takes a JSON body and a bearer key. */
+const RESEND_URL = "https://api.resend.com/emails";
+
+async function sendWithResend(email: Email): Promise<void> {
+  const apiKey = process.env.RESEND_API_KEY;
+  const from = process.env.EMAIL_FROM;
+  if (!apiKey || !from) throw new Error("EMAIL_TRANSPORT=resend needs RESEND_API_KEY and EMAIL_FROM.");
+  const response = await fetch(RESEND_URL, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ from, to: email.to, subject: email.subject, text: email.text }),
+    signal: AbortSignal.timeout(10_000),
+  });
+  if (!response.ok) {
+    // The body explains the problem (unverified domain, bad key); it never contains the key itself.
+    throw new Error(`Resend refused the email (${response.status}): ${(await response.text()).slice(0, 300)}`);
+  }
+}
+
 /**
- * Where emails go. A real provider arrives with launch readiness; until then:
+ * Where emails go:
+ * - `EMAIL_TRANSPORT=resend` sends through Resend (`RESEND_API_KEY`, and `EMAIL_FROM` on a verified domain,
+ *   e.g. `Lesson Builder <sign-in@example.com>`).
  * - `EMAIL_TRANSPORT=file` (the default outside production) appends each email to a local mailbox file
  *   (`MAILBOX_FILE`, default `.data/mailbox.jsonl`) and prints it, so sign-in works in development and tests.
  * - In production with no transport configured, sending fails loudly rather than pretending to deliver.
  */
 export async function sendEmail(email: Email): Promise<void> {
+  if (transport() === "resend") return sendWithResend(email);
+
   if (transport() === "file") {
     const file = mailboxFile();
     await mkdir(path.dirname(file), { recursive: true });

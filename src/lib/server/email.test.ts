@@ -28,6 +28,40 @@ describe("sendEmail", () => {
   });
 });
 
+describe("Resend transport", () => {
+  beforeEach(() => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("EMAIL_TRANSPORT", "resend");
+    vi.stubEnv("RESEND_API_KEY", "re_test_key");
+    vi.stubEnv("EMAIL_FROM", "Lesson Builder <sign-in@example.com>");
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("posts the email to Resend with the API key", async () => {
+    const fetchMock = vi.fn(async () => Response.json({ id: "email-1" }));
+    vi.stubGlobal("fetch", fetchMock);
+    await sendEmail(email);
+
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe("https://api.resend.com/emails");
+    expect(new Headers(init.headers).get("authorization")).toBe("Bearer re_test_key");
+    expect(JSON.parse(init.body as string)).toEqual({
+      from: "Lesson Builder <sign-in@example.com>",
+      to: "parent@example.com",
+      subject: "Your sign-in link",
+      text: "Link",
+    });
+  });
+
+  it("fails loudly when Resend refuses, or when it isn't configured", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response("domain is not verified", { status: 403 })));
+    await expect(sendEmail(email)).rejects.toThrow("Resend refused the email (403): domain is not verified");
+
+    vi.stubEnv("EMAIL_FROM", "");
+    await expect(sendEmail(email)).rejects.toThrow("needs RESEND_API_KEY and EMAIL_FROM");
+  });
+});
+
 describe("development mailbox", () => {
   it("lists the newest emails first", async () => {
     vi.stubEnv("NODE_ENV", "development");

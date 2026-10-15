@@ -8,11 +8,17 @@ import { generateLesson } from "@/lib/generation/pipeline";
 import { sampleLesson } from "@/lib/generation/sample";
 import { createClaudeClient, type UsageReport } from "@/lib/generation/server/claude";
 import { generationConfig } from "@/lib/generation/server/config";
-import { checkDailyCap, checkVisitorLimit, recordGeneration } from "@/lib/generation/server/limits";
+import {
+  checkDailyCap,
+  checkVisitorLimit,
+  dailyCountNeedsSeed,
+  recordGeneration,
+  seedDailyCount,
+} from "@/lib/generation/server/limits";
 import { getSessionUser } from "@/lib/server/auth";
 import { getEntitlements, releaseGenerations, reserveGenerations } from "@/lib/server/billing/account";
 import { getDb } from "@/lib/server/db";
-import { type GenerationRecord, saveGenerationLog } from "@/lib/server/generationLog";
+import { countLiveGenerationsSince, type GenerationRecord, saveGenerationLog } from "@/lib/server/generationLog";
 import { detectLanguage } from "@/lib/i18n/detect";
 
 /** Three model calls with possible repairs can take a few minutes. */
@@ -118,6 +124,11 @@ export async function POST(request: Request) {
       return errorResponse(403, "upgrade_required", errors.library_full(planName, plan.savedLessons));
     }
 
+    if (dailyCountNeedsSeed()) {
+      const now = new Date();
+      const midnight = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+      seedDailyCount(await countLiveGenerationsSince(db, midnight), now);
+    }
     const limit = checkVisitorLimit(visitor, config.hourlyLimitPerVisitor, HOUR_MS);
     const cap = limit.ok ? checkDailyCap(config.dailyCap) : limit;
     if (!cap.ok) {
