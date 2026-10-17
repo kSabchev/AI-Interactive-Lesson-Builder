@@ -12,6 +12,7 @@ export async function POST(request: Request) {
   const auth = await requireUser(request);
   if ("error" in auth) return auth.error;
   const t = requestT(request);
+  if (auth.user.isDemo) return jsonError(403, t.server.demoCannotSubscribe, "demo_account");
   const config = billingConfig();
   if (!config.enabled) return jsonError(503, t.server.billingDisabled, "billing_disabled");
 

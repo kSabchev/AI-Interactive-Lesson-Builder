@@ -5,6 +5,7 @@ import { AppHeader } from "@/components/account/AppHeader";
 import { SignInForm } from "@/components/account/SignInForm";
 import { getT } from "@/lib/i18n/server";
 import { isGoogleSignInEnabled } from "@/lib/server/auth";
+import { demoSignInConfig } from "@/lib/server/demo";
 import { isDevMailboxEnabled } from "@/lib/server/email";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -14,7 +15,14 @@ export async function generateMetadata(): Promise<Metadata> {
 
 async function Form() {
   await connection();
-  return <SignInForm googleEnabled={isGoogleSignInEnabled()} devMailbox={isDevMailboxEnabled()} />;
+  const demo = demoSignInConfig();
+  return (
+    <SignInForm
+      googleEnabled={isGoogleSignInEnabled()}
+      devMailbox={isDevMailboxEnabled()}
+      demo={demo.enabled ? { needsCode: demo.codes.length > 0 } : undefined}
+    />
+  );
 }
 
 export default async function SignInPage() {

@@ -1,5 +1,5 @@
 import "server-only";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, notInArray } from "drizzle-orm";
 import { type Lesson, lessonSchema } from "@/lib/lesson/schema";
 import type { QuizAttempt } from "@/lib/quiz/attempt";
 import type { Database } from "./db";
@@ -136,4 +136,19 @@ function toAttempt(row: typeof quizAttempt.$inferSelect): QuizAttempt {
     total: row.total,
     completedAt: row.completedAt.toISOString(),
   };
+}
+
+/**
+ * Moves a demo account's lessons and quiz results to the account its owner then signed in with. Where both
+ * accounts have a result for the same lesson, the real account's result is kept.
+ */
+export async function moveAccountData(db: Database, fromUserId: string, toUserId: string): Promise<void> {
+  await db.transaction(async (tx) => {
+    await tx.update(lessonTable).set({ userId: toUserId }).where(eq(lessonTable.userId, fromUserId));
+    const kept = tx.select({ id: quizAttempt.lessonId }).from(quizAttempt).where(eq(quizAttempt.userId, toUserId));
+    await tx
+      .update(quizAttempt)
+      .set({ userId: toUserId })
+      .where(and(eq(quizAttempt.userId, fromUserId), notInArray(quizAttempt.lessonId, kept)));
+  });
 }

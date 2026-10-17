@@ -66,19 +66,19 @@ export async function saveGenerationLog(db: Database, record: GenerationRecord):
   });
 }
 
-/** A logged request with the email of the account that made it (null for guests and deleted accounts). */
-export type GenerationSummary = typeof generationUsage.$inferSelect & { email: string | null };
+/** A logged request with the account that made it: its email (null for guests and deleted accounts), and whether it's a demo account. */
+export type GenerationSummary = typeof generationUsage.$inferSelect & { email: string | null; isDemo: boolean };
 export type GenerationCallRow = typeof generationCall.$inferSelect;
 
 /** The most recent requests, newest first. */
 export async function listGenerations(db: Database, limit = 100): Promise<GenerationSummary[]> {
   const rows = await db
-    .select({ request: generationUsage, email: user.email })
+    .select({ request: generationUsage, email: user.email, isDemo: user.isAnonymous })
     .from(generationUsage)
     .leftJoin(user, eq(user.id, generationUsage.userId))
     .orderBy(desc(generationUsage.createdAt), desc(generationUsage.id))
     .limit(limit);
-  return rows.map((r) => ({ ...r.request, email: r.email }));
+  return rows.map((r) => ({ ...r.request, email: r.email, isDemo: Boolean(r.isDemo) }));
 }
 
 /** Live (paid) generation requests logged since `since`, for the daily spending cap. */
@@ -111,12 +111,12 @@ export async function getGeneration(
   id: number,
 ): Promise<{ request: GenerationSummary; calls: GenerationCallRow[] } | null> {
   const [row] = await db
-    .select({ request: generationUsage, email: user.email })
+    .select({ request: generationUsage, email: user.email, isDemo: user.isAnonymous })
     .from(generationUsage)
     .leftJoin(user, eq(user.id, generationUsage.userId))
     .where(eq(generationUsage.id, id));
   if (!row) return null;
-  const request = { ...row.request, email: row.email };
+  const request = { ...row.request, email: row.email, isDemo: Boolean(row.isDemo) };
   const calls = await db.select().from(generationCall).where(eq(generationCall.usageId, id)).orderBy(generationCall.seq);
   return { request, calls };
 }

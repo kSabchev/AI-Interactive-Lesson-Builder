@@ -70,7 +70,7 @@ async function GenerationList() {
                   >
                     {r.lessonTitle ?? r.topic ?? `#${r.id}`}
                   </Link>
-                  <span className="block text-muted">{r.email ?? log.guest}</span>
+                  <span className="block text-muted">{r.isDemo ? log.demo : (r.email ?? log.guest)}</span>
                 </td>
                 <td className="px-3 py-2 text-muted">
                   {r.mode === "sample" ? (

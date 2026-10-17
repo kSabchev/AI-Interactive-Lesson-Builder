@@ -1,12 +1,31 @@
 import "server-only";
 import { betterAuth } from "better-auth";
+import { APIError, createAuthMiddleware } from "better-auth/api";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { anonymous } from "better-auth/plugins/anonymous";
 import { magicLink } from "better-auth/plugins/magic-link";
 import { cancelSubscriptionForDeletedUser } from "./billing/account";
 import { getStripe } from "./billing/stripe";
 import { cookieLocale, getDictionary, resolveLocale } from "@/lib/i18n";
 import { getDb, schema } from "./db";
+import { DEMO_CODE_HEADER, DEMO_EMAIL_DOMAIN, demoSignInConfig, isDemoCodeValid } from "./demo";
 import { sendEmail } from "./email";
+import { moveAccountData } from "./lessons";
+
+const DEMO_SIGN_IN_PATH = "/sign-in/anonymous";
+
+/**
+ * Demo accounts are only handed out when demo sign-in is on, and then only with a valid access code if any
+ * are configured. Checked on the server for every request to the endpoint, whatever the form shows.
+ */
+const guardDemoSignIn = createAuthMiddleware(async (ctx) => {
+  if (ctx.path !== DEMO_SIGN_IN_PATH) return;
+  const demo = demoSignInConfig();
+  if (!demo.enabled) throw new APIError("NOT_FOUND", { message: "Demo sign-in is off." });
+  if (demo.codes.length > 0 && !isDemoCodeValid(ctx.headers?.get(DEMO_CODE_HEADER), demo.codes)) {
+    throw new APIError("FORBIDDEN", { message: "That access code isn't valid.", code: "INVALID_ACCESS_CODE" });
+  }
+});
 
 function googleProvider() {
   const clientId = process.env.GOOGLE_CLIENT_ID;
@@ -29,7 +48,12 @@ async function createAuth() {
     }),
     socialProviders: googleProvider(),
     // Only the end-to-end test server turns this off: every test signs in from localhost.
-    rateLimit: process.env.DISABLE_AUTH_RATE_LIMIT === "true" ? { enabled: false } : undefined,
+    // Demo sign-in gets a tighter limit, so access codes can't be guessed by trying many quickly.
+    rateLimit:
+      process.env.DISABLE_AUTH_RATE_LIMIT === "true"
+        ? { enabled: false }
+        : { customRules: { [DEMO_SIGN_IN_PATH]: { window: 60, max: 5 } } },
+    hooks: { before: guardDemoSignIn },
     user: {
       // Deleting the user cascades to their lessons, attempts and sessions (see the schema).
       deleteUser: {
@@ -40,6 +64,14 @@ async function createAuth() {
       },
     },
     plugins: [
+      anonymous({
+        emailDomainName: DEMO_EMAIL_DOMAIN,
+        generateName: () => "Demo account",
+        // Signing in with email or Google from a demo account keeps the lessons made in it.
+        onLinkAccount: async ({ anonymousUser, newUser }) => {
+          await moveAccountData(db, anonymousUser.user.id, newUser.user.id);
+        },
+      }),
       magicLink({
         expiresIn: 15 * 60,
         sendMagicLink: async ({ email, url }, ctx) => {
@@ -67,12 +99,14 @@ export function getAuth(): Promise<Auth> {
   return globalForAuth.lessonBuilderAuth;
 }
 
-export type SessionUser = { id: string; email: string; name: string };
+/** `isDemo` marks demo accounts, which have a placeholder email and can't subscribe or see operator pages. */
+export type SessionUser = { id: string; email: string; name: string; isDemo: boolean };
 
 /** The signed-in user for a request, or null for guests. */
 export async function getSessionUser(headers: Headers): Promise<SessionUser | null> {
   const auth = await getAuth();
   const session = await auth.api.getSession({ headers });
   if (!session) return null;
-  return { id: session.user.id, email: session.user.email, name: session.user.name };
+  const { id, email, name, isAnonymous } = session.user;
+  return { id, email, name, isDemo: Boolean(isAnonymous) };
 }
