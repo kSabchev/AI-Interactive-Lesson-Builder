@@ -15,6 +15,8 @@ export const user = pgTable("user", {
   email: text("email").notNull().unique(),
   emailVerified: boolean("email_verified").notNull().default(false),
   image: text("image"),
+  /** Set by Better Auth's anonymous plugin for demo accounts, which have a placeholder email. */
+  isAnonymous: boolean("is_anonymous").default(false),
   ...timestamps,
 });
 

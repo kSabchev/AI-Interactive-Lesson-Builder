@@ -16,7 +16,7 @@ export async function generateMetadata(): Promise<Metadata> {
 /** A link to the operator pages, shown only to site operators. */
 async function OperatorLinks() {
   const [user, t] = await Promise.all([headers().then(getSessionUser), getT()]);
-  if (!user || !isOperator(user.email)) return null;
+  if (!user || !isOperator(user)) return null;
   return (
     <p className="mt-8">
       <Link href="/admin/generations" className="font-bold text-brand-700 underline underline-offset-2">

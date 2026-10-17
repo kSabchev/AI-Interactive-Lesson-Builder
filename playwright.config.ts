@@ -41,6 +41,8 @@ export default defineConfig({
       DISABLE_AUTH_RATE_LIMIT: "true",
       // One operator per project, so parallel projects don't read each other's sign-in links.
       ADMIN_EMAILS: "operator-desktop@example.com,operator-tablet@example.com",
+      DEMO_SIGN_IN: "true",
+      DEMO_ACCESS_CODES: "e2e-demo-code",
       // Billing switched on with test values. Tests never reach Stripe's API; they deliver signed webhooks.
       STRIPE_SECRET_KEY: "sk_test_e2e_dummy",
       STRIPE_WEBHOOK_SECRET: STRIPE_WEBHOOK_SECRET,

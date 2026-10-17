@@ -19,6 +19,6 @@ export async function OperatorGate({ children }: { children: (user: SessionUser)
       </p>
     );
   }
-  if (!isOperator(user.email)) return <p className="text-muted">{t.generationLog.forbidden}</p>;
+  if (!isOperator(user)) return <p className="text-muted">{t.generationLog.forbidden}</p>;
   return children(user);
 }

@@ -48,6 +48,15 @@ Sign-in emails go wherever `EMAIL_TRANSPORT` says: `file` (the default while dev
 
 Guests can use everything without an account; their lessons stay in the browser. Signing in saves lessons to the account and offers to move any browser lessons across.
 
+**Demo sign-in.** With `DEMO_SIGN_IN=true`, the sign-in page offers **Try the demo**, which creates a throwaway account with no email (Better Auth's anonymous accounts). With `DEMO_ACCESS_CODES` set, a comma-separated list, visitors need one of the codes; give each person or group their own, so one can be withdrawn by removing it. Codes are checked on the server, ignore case, and are limited to 5 tries a minute. A demo account:
+
+- is on the Free plan and counts against the same hourly and daily limits;
+- lives in one browser, and is lost when its owner signs out or clears the browser's data;
+- can't subscribe, and never counts as an operator, whatever `ADMIN_EMAILS` says;
+- keeps its lessons and quiz results if its owner later signs in with email or Google: they move to that account.
+
+The development mailbox is never used for this: on a public site it would let anyone sign in as anyone.
+
 ### Billing (Stripe)
 
 Billing is off until `STRIPE_SECRET_KEY` and a Pro price are set; until then everyone is on Free. Plans and limits live in `src/lib/billing/plans.ts`. To try it locally with Stripe test mode:
@@ -108,8 +117,10 @@ The end-to-end tests build the app into `.next`. If a dev server running at the 
 
 1. **Claude key:** in the Claude Console, create a workspace just for the demo, with a **monthly spend limit**, and a key in it. The spend limit is the hard cap; the app's own limits (`GENERATION_HOURLY_LIMIT`, `GENERATION_DAILY_CAP`, set low in the Blueprint) are a backstop. The daily count is rebuilt from the database after a restart, but the hourly limit lives in memory and resets on restart.
 2. **Email:** create a [Resend](https://resend.com) account, verify a domain you own, and create an API key. Sign-in links are sent from `EMAIL_FROM` on that domain.
-3. **Deploy:** in Render, choose New → Blueprint and point it at this repository. When asked, fill in `BETTER_AUTH_URL` (the service's public URL, such as `https://lesson-builder.onrender.com`), `ANTHROPIC_API_KEY`, `RESEND_API_KEY`, `EMAIL_FROM` and `ADMIN_EMAILS` (your email, for the generation log). Render generates `BETTER_AUTH_SECRET` and connects `DATABASE_URL`.
+3. **Deploy:** in Render, choose New → Blueprint and point it at this repository. When asked, fill in `BETTER_AUTH_URL` (the service's public URL, such as `https://lesson-builder.onrender.com`), `ANTHROPIC_API_KEY`, `RESEND_API_KEY`, `EMAIL_FROM`, `ADMIN_EMAILS` (your email, for the generation log), and for **Try the demo** `DEMO_SIGN_IN=true` with `DEMO_ACCESS_CODES` (set the codes first: with none, anyone can start a demo). Render generates `BETTER_AUTH_SECRET` and connects `DATABASE_URL`. Render asks for these values only when the Blueprint is first created; variables added to `render.yaml` later need entering under the service's **Environment**.
 4. **Check:** sign in with your email, generate one lesson, and confirm it appears in the generation log with its cost.
+
+Without a verified email domain, people can still sign in with **Google** (`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, redirect URI `https://<your-url>/api/auth/callback/google`) or **Try the demo** with an access code.
 
 Notes:
 
@@ -137,6 +148,7 @@ Notes:
 - **`src/lib/storage/store.ts`** — one `LessonStore` interface with two implementations: IndexedDB for guests and the account API for signed-in users. `StoreProvider` picks one from the session; the editor, player and library don't know which.
 - **`src/lib/server/`** — server-only code: Drizzle schema and connection (`db/`), Better Auth setup (`auth.ts`), per-user lesson storage (`lessons.ts`, every query filtered by owner) and request helpers (`http.ts`: session check, same-origin check for writes, body size limits). API routes live under `src/app/api/`.
 - **`src/lib/server/generationLog.ts`, `src/app/admin/generations/`** — the generation log: one `generation_usage` row per request and one `generation_call` row per model call, written by the generate route. The pages are for operators only (`src/lib/server/admin.ts`). `src/lib/generation/server/cost.ts` holds the price table used for the estimates.
+- **`src/lib/server/demo.ts`** — demo sign-in settings and access-code checks; the check itself runs as a Better Auth hook in `auth.ts`, which also moves a demo account's lessons when its owner signs in properly.
 - **`src/lib/server/email.ts`** — email transports: the local mailbox file for development and tests, and Resend for deployments.
 - **`src/lib/server/billing/`** — Stripe client and configuration, webhook handling (each event applied once, late or out-of-order events ignored), entitlements and the atomic monthly quota. Deleting an account cancels its subscription first.
 - **`src/lib/i18n/`** — interface languages. `dictionaries/en.ts` is the source of truth and its type (`Dictionary`) makes `bg.ts` complete; a missing or extra key fails the typecheck. Server code uses `getT()` (pages) or `localeFromRequest()` (API routes); client components use `useT()`. `LocaleScope` switches a subtree to the lesson's language. `detect.ts` picks a lesson's language from its topic.

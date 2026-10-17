@@ -4,7 +4,8 @@ import { createContext, useContext, useSyncExternalStore } from "react";
 import { authClient } from "@/lib/auth/client";
 import { accountStore, browserStore, type LessonStore } from "./store";
 
-export type AccountUser = { id: string; email: string; name: string };
+/** `isDemo` marks a demo account, which has a placeholder email and lives in one browser. */
+export type AccountUser = { id: string; email: string; name: string; isDemo: boolean };
 
 export type StoreState =
   | { status: "loading" }
@@ -32,7 +33,16 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const value: StoreState = !hydrated || isPending
     ? { status: "loading" }
     : data
-      ? { status: "ready", store: accountStore, user: { id: data.user.id, email: data.user.email, name: data.user.name } }
+      ? {
+          status: "ready",
+          store: accountStore,
+          user: {
+            id: data.user.id,
+            email: data.user.email,
+            name: data.user.name,
+            isDemo: Boolean(data.user.isAnonymous),
+          },
+        }
       : { status: "ready", store: browserStore, user: null };
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
 }

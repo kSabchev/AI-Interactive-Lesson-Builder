@@ -51,14 +51,27 @@ export function AccountPanel() {
 
   return (
     <div className="space-y-8">
-      <section className="rounded-3xl bg-surface p-6 shadow-sm ring-1 ring-line">
-        <h2 className="text-xl font-extrabold">{t.account.signedIn}</h2>
-        <p className="mt-1 text-lg">{state.user.email}</p>
-        <p className="mt-2 text-muted">{t.account.savedToAccount}</p>
-        <Button variant="secondary" className="mt-4" onClick={() => void signOut()} disabled={busy}>
-          {t.account.signOut}
-        </Button>
-      </section>
+      {state.user.isDemo ? (
+        <section className="rounded-3xl bg-sun-100 p-6 shadow-sm ring-1 ring-line">
+          <h2 className="text-xl font-extrabold">{t.account.demoAccount}</h2>
+          <p className="mt-2">{t.account.demoBody}</p>
+          <div className="mt-4 flex flex-wrap gap-3">
+            <ButtonLink href="/sign-in?next=/account">{t.account.keepLessons}</ButtonLink>
+            <Button variant="secondary" onClick={() => void signOut()} disabled={busy}>
+              {t.account.signOut}
+            </Button>
+          </div>
+        </section>
+      ) : (
+        <section className="rounded-3xl bg-surface p-6 shadow-sm ring-1 ring-line">
+          <h2 className="text-xl font-extrabold">{t.account.signedIn}</h2>
+          <p className="mt-1 text-lg">{state.user.email}</p>
+          <p className="mt-2 text-muted">{t.account.savedToAccount}</p>
+          <Button variant="secondary" className="mt-4" onClick={() => void signOut()} disabled={busy}>
+            {t.account.signOut}
+          </Button>
+        </section>
+      )}
 
       <PlanSummary />
 

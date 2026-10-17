@@ -45,7 +45,7 @@ Margin check: 30 Sonnet lessons at ~$0.15 cost ~$4.50, which fits $9 after payme
 Order agreed after reviewing the project: prove the core before adding more around it.
 
 1. **Prove generation on real topics.** 10–15 live lessons across English and Bulgarian, web research and reference text. Read each one for accuracy, age fit and quiz alignment, and use the generation log for cost and repair rates. Fix what this finds. Before merging pipeline changes, run a small manual live check (never in CI).
-2. **Demo deployment.** Resend for sign-in email, the Render Blueprint, a demo-only Claude key with a Console spend limit, low daily cap, `ADMIN_EMAILS`. ← code done; deploying needs accounts.
+2. **Demo deployment.** Resend for sign-in email, the Render Blueprint, a demo-only Claude key with a Console spend limit, low daily cap, `ADMIN_EMAILS`. Deployed to Render; demo sign-in with access codes added so invited people can try it without email.
 3. **Real users.** 3–5 parents or teachers, and a native speaker for the Bulgarian text.
 4. **Tune with data.** Per-stage model and effort (e.g. Haiku 5.5 for outline and quiz), regenerating a single section, prompt caching only if the log shows frequent repairs.
 5. **Launch readiness (milestone 9).** Rate limits in shared storage, security headers, `@axe-core/playwright` checks, a verified Stripe test checkout, error tracking, legal and privacy pages.

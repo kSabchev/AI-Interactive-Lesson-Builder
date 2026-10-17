@@ -46,6 +46,15 @@ services:
       - key: ADMIN_EMAILS
         sync: false
 
+      # "Try the demo" on the sign-in page: a throwaway account with no email, for people you invite.
+      # Set DEMO_SIGN_IN to "true" and DEMO_ACCESS_CODES to comma-separated codes, one per person or group.
+      # Both are entered by hand, so the demo can't switch on before its codes exist: with no codes, anyone
+      # could start one.
+      - key: DEMO_SIGN_IN
+        sync: false
+      - key: DEMO_ACCESS_CODES
+        sync: false
+
 databases:
   - name: lesson-builder-db
     plan: free

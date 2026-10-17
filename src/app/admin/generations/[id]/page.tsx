@@ -36,7 +36,7 @@ async function GenerationDetail({ id, viewer }: { id: string; viewer: SessionUse
         {r.lessonTitle ?? r.topic ?? `#${r.id}`}
       </h1>
       <p className="mb-1 text-muted">
-        {f.when(r.createdAt)} · {r.email ?? log.guest} ·{" "}
+        {f.when(r.createdAt)} · {r.isDemo ? log.demo : (r.email ?? log.guest)} ·{" "}
         {r.status === "succeeded" ? log.succeeded : <span className="text-miss-700">{log.failed(r.status)}</span>}
       </p>
       {r.topic && r.topic !== r.lessonTitle && (
