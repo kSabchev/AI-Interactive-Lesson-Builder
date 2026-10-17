@@ -25,6 +25,11 @@ test.describe("with a Bulgarian browser", () => {
     await page.goto("/create");
     await expect(page.getByRole("heading", { name: "Създайте урок" })).toBeVisible();
 
+    // Suggested topics are in the interface language, so they produce lessons in that language.
+    await page.getByRole("button", { name: "Зареди пример" }).click();
+    await expect(page.getByRole("textbox", { name: "Тема" })).toHaveValue("Как действат магнитите");
+    await expect(page.getByText("Урокът ще бъде написан на български.")).toBeVisible();
+
     await page.getByRole("textbox", { name: "Тема" }).fill("Кръговратът на водата");
     await expect(page.getByText("Урокът ще бъде написан на български.")).toBeVisible();
     await page.getByRole("textbox", { name: "Тема" }).fill("The water cycle");

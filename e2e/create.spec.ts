@@ -24,6 +24,28 @@ test("sample mode creates an honestly labelled copy and opens it for review", as
   await expect(page.getByRole("region", { name: "Your lessons" }).getByText("Sample copy")).toBeVisible();
 });
 
+test("Load example cycles through topics that suit the chosen age and length, keeping both", async ({ page }) => {
+  await openCreate(page);
+  const topic = page.getByLabel("Topic");
+  const example = page.getByRole("button", { name: "Load example" });
+
+  await example.click();
+  await expect(topic).toHaveValue("How magnets work");
+  await example.click();
+  await expect(topic).toHaveValue("Why do we have day and night?");
+
+  await page.getByLabel("Learner age").selectOption("11-12");
+  await page.getByLabel("Lesson length").selectOption("15");
+  await example.click();
+  await expect(topic).toHaveValue("Photosynthesis and why life on Earth depends on it");
+  await expect(page.getByLabel("Learner age")).toHaveValue("11-12");
+  await expect(page.getByLabel("Lesson length")).toHaveValue("15");
+
+  // Six suggestions per group, so six more presses come back round to the same one.
+  for (let i = 0; i < 6; i++) await example.click();
+  await expect(topic).toHaveValue("Photosynthesis and why life on Earth depends on it");
+});
+
 test("the form explains invalid input without sending a request", async ({ page }) => {
   let requests = 0;
   await page.route("**/api/lessons/generate", (route) => {
