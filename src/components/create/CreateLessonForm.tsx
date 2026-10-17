@@ -9,6 +9,7 @@ import { HIGH_QUALITY_COST } from "@/lib/billing/plans";
 import { useBilling } from "@/lib/billing/useBilling";
 import { cn } from "@/lib/cn";
 import { requestGeneration } from "@/lib/generation/client";
+import { nextExampleTopic } from "@/lib/generation/examples";
 import { type GenerationErrorCode, type GenerationEvent, type GenerationMode, type Stage } from "@/lib/generation/events";
 import {
   EXAMPLE_INPUT,
@@ -57,6 +58,8 @@ export function CreateLessonForm({ mode, webResearch = false }: { mode: Generati
   const [values, setValues] = useState<GenerationFormValues>(EMPTY);
   const hasReference = Boolean(values.referenceText?.trim());
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<keyof GenerationFormValues, string>>>({});
+  /** Announces a loaded example to screen readers, since the topic field changes without focus moving. */
+  const [exampleNotice, setExampleNotice] = useState("");
   const [run, setRun] = useState<Run>({ status: "idle" });
   const abortRef = useRef<AbortController | null>(null);
   const statusRef = useRef<HTMLDivElement>(null);
@@ -266,7 +269,12 @@ export function CreateLessonForm({ mode, webResearch = false }: { mode: Generati
                 variant="secondary"
                 size="lg"
                 onClick={() => {
-                  setValues({ ...EXAMPLE_INPUT, topic: t.create.exampleTopic });
+                  // Suggestions follow the chosen age and length; each press moves to the next one.
+                  const age = values.ageGroup ?? EXAMPLE_INPUT.ageGroup;
+                  const minutes = String(values.durationMinutes ?? EXAMPLE_INPUT.durationMinutes) as "10" | "15";
+                  const topic = nextExampleTopic(t.create.exampleTopics[age][minutes], values.topic ?? "");
+                  set("topic", topic);
+                  setExampleNotice(t.create.exampleLoaded(topic));
                   setFieldErrors({});
                 }}
               >
@@ -275,6 +283,9 @@ export function CreateLessonForm({ mode, webResearch = false }: { mode: Generati
             </>
           )}
         </div>
+        <p aria-live="polite" className="sr-only">
+          {exampleNotice}
+        </p>
       </form>
 
       {/* First on narrow screens so the mode notice and progress are seen before the long form. */}

@@ -435,7 +435,50 @@ export const en = {
     generate: "Generate lesson",
     tryAgain: "Try again",
     loadExample: "Load example",
-    exampleTopic: "How magnets work",
+    /**
+     * Topics "Load example" cycles through, by age group and lesson length: narrower questions for 10 minutes,
+     * broader topics for 15, and more abstract ideas for older learners. Topics in this language produce
+     * lessons in this language.
+     */
+    exampleTopics: {
+      "8-10": {
+        "10": [
+          "How magnets work",
+          "Why do we have day and night?",
+          "Where does rain come from?",
+          "Why do leaves need sunlight?",
+          "How do shadows change during the day?",
+          "Why do some things float and others sink?",
+        ],
+        "15": [
+          "The water cycle",
+          "The planets of our solar system",
+          "How plants make their own food",
+          "What is sound, and how do we hear it?",
+          "The life cycle of a butterfly",
+          "How our skeleton holds us up",
+        ],
+      },
+      "11-12": {
+        "10": [
+          "What is friction?",
+          "Why does the Moon have phases?",
+          "What causes lightning?",
+          "What is a food chain?",
+          "Why is the sky blue?",
+          "Conductors and insulators",
+        ],
+        "15": [
+          "Photosynthesis and why life on Earth depends on it",
+          "Forces and motion: Newton's first law",
+          "Gravity and the orbits of the planets",
+          "Weather and climate: what's the difference?",
+          "Electric circuits: series and parallel",
+          "Cells: the building blocks of living things",
+        ],
+      },
+    },
+    exampleLoaded: (topic: string) => `Example topic loaded: ${topic}`,
     signInTitle: "Sign in to create AI lessons",
     signInBody: (n: number) => `Free accounts get ${n} AI lessons a month. Sample lessons work without one.`,
     remaining: (left: number, total: number) => `${left} of ${total} AI lessons left`,
