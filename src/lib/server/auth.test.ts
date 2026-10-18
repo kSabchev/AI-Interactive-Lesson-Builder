@@ -4,6 +4,7 @@ import { waterCycleLesson } from "@/content/samples/water-cycle";
 import { getAuth } from "./auth";
 import { DEMO_CODE_HEADER } from "./demo";
 import { readDevMailbox } from "./email";
+import { listErrors } from "./errors";
 import { getDb } from "./db";
 import { listLessons, saveLesson } from "./lessons";
 
@@ -110,5 +111,39 @@ describe("demo sign-in", () => {
     expect(realUserId).not.toBe(demoUserId);
     expect((await listLessons(db, realUserId)).map((l) => l.id)).toContain("lesson-made-in-demo");
     expect(await listLessons(db, demoUserId)).toEqual([]);
+  });
+});
+
+describe("email sign-in", () => {
+  beforeEach(() => {
+    vi.stubEnv("BETTER_AUTH_SECRET", "test-secret-for-email-sign-in-0123456789");
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    vi.spyOn(console, "error").mockImplementation(() => {});
+  });
+
+  it("is refused on the server when EMAIL_SIGN_IN is false", async () => {
+    vi.stubEnv("EMAIL_SIGN_IN", "false");
+    const auth = await getAuth();
+    await expect(
+      auth.api.signInMagicLink({ body: { email: "parent@example.com", callbackURL: "/" }, headers: new Headers() }),
+    ).rejects.toMatchObject({ statusCode: 404 });
+  });
+
+  it("reports a failure to send the link to the error log", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("EMAIL_TRANSPORT", "");
+    const auth = await getAuth();
+    const db = await getDb();
+    const response = await auth.handler(
+      new Request("http://localhost:3000/api/auth/sign-in/magic-link", {
+        method: "POST",
+        headers: { "content-type": "application/json", origin: "http://localhost:3000" },
+        body: JSON.stringify({ email: "parent@example.com", callbackURL: "/" }),
+      }),
+    );
+    expect(response.status).toBeGreaterThanOrEqual(500);
+    const [latest] = await listErrors(db, 1);
+    expect(latest).toMatchObject({ source: "auth" });
+    expect(latest.message).toContain("Email delivery isn't configured");
   });
 });

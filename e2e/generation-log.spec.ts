@@ -22,6 +22,10 @@ test("operators can see each generation request and its model calls", async ({ p
 
   await expect(page.getByText("This request made no model calls.")).toBeVisible();
   await expect(page.getByRole("link", { name: "Open the lesson" })).toBeVisible();
+
+  await page.goto("/account");
+  await page.getByRole("link", { name: "Error log" }).click();
+  await expect(page.getByRole("heading", { name: "Error log" })).toBeVisible();
 });
 
 test("the generation log is only for operators", async ({ page }) => {

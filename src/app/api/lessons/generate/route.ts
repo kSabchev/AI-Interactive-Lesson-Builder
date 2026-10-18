@@ -18,6 +18,7 @@ import {
 import { getSessionUser } from "@/lib/server/auth";
 import { getEntitlements, releaseGenerations, reserveGenerations } from "@/lib/server/billing/account";
 import { getDb } from "@/lib/server/db";
+import { reportError } from "@/lib/server/errors";
 import { countLiveGenerationsSince, type GenerationRecord, saveGenerationLog } from "@/lib/server/generationLog";
 import { detectLanguage } from "@/lib/i18n/detect";
 
@@ -53,7 +54,7 @@ async function recordUsage(record: GenerationRecord) {
   try {
     await saveGenerationLog(await getDb(), record);
   } catch (error) {
-    console.error("[generation] couldn't record usage:", error);
+    await reportError({ source: "generation", error, path: "/api/lessons/generate (usage log)" });
   }
 }
 
@@ -195,11 +196,13 @@ export async function POST(request: Request) {
         }
       } catch (error) {
         const known = error instanceof GenerationError ? error : new GenerationError("unavailable", "unexpected");
-        if (!(error instanceof GenerationError)) console.error("[generation] unexpected failure:", error);
+        if (!(error instanceof GenerationError)) {
+          await reportError({ source: "generation", error, path: "/api/lessons/generate", method: "POST" });
+        }
         outcome = known.code;
         if (reserved && REFUNDABLE.includes(known.code)) {
           await releaseGenerations(await getDb(), reserved.userId, cost, reserved.period).catch((e) =>
-            console.error("[generation] couldn't refund quota:", e),
+            reportError({ source: "generation", error: e, path: "/api/lessons/generate (quota refund)" }),
           );
         }
         emit({

@@ -1,6 +1,6 @@
 import { rm } from "node:fs/promises";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { isDevMailboxEnabled, readDevMailbox, sendEmail } from "./email";
+import { isDevMailboxEnabled, isEmailSignInEnabled, readDevMailbox, sendEmail } from "./email";
 
 const FILE = ".data/email-test-mailbox.jsonl";
 const email = { to: "parent@example.com", subject: "Your sign-in link", text: "Link", url: "http://localhost/x" };
@@ -76,5 +76,12 @@ describe("development mailbox", () => {
     await sendEmail(email);
     expect(isDevMailboxEnabled()).toBe(false);
     expect(await readDevMailbox()).toEqual([]);
+  });
+});
+
+describe("isEmailSignInEnabled", () => {
+  it("is on unless EMAIL_SIGN_IN is false", () => {
+    expect(isEmailSignInEnabled({} as NodeJS.ProcessEnv)).toBe(true);
+    expect(isEmailSignInEnabled({ EMAIL_SIGN_IN: "false" } as unknown as NodeJS.ProcessEnv)).toBe(false);
   });
 });

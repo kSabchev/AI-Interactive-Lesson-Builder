@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { AppHeader } from "@/components/account/AppHeader";
+import { SiteFooter } from "@/components/layout/SiteFooter";
 import { PricingPlans } from "@/components/billing/PricingPlans";
 import { getT } from "@/lib/i18n/server";
 
@@ -21,6 +22,7 @@ export default async function PricingPage() {
           <PricingPlans />
         </Suspense>
       </main>
+      <SiteFooter />
     </>
   );
 }

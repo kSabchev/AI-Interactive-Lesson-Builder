@@ -2,11 +2,12 @@ import type { Metadata } from "next";
 import { connection } from "next/server";
 import { Suspense } from "react";
 import { AppHeader } from "@/components/account/AppHeader";
+import { SiteFooter } from "@/components/layout/SiteFooter";
 import { SignInForm } from "@/components/account/SignInForm";
 import { getT } from "@/lib/i18n/server";
 import { isGoogleSignInEnabled } from "@/lib/server/auth";
 import { demoSignInConfig } from "@/lib/server/demo";
-import { isDevMailboxEnabled } from "@/lib/server/email";
+import { isDevMailboxEnabled, isEmailSignInEnabled } from "@/lib/server/email";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getT();
@@ -18,6 +19,7 @@ async function Form() {
   const demo = demoSignInConfig();
   return (
     <SignInForm
+      emailEnabled={isEmailSignInEnabled()}
       googleEnabled={isGoogleSignInEnabled()}
       devMailbox={isDevMailboxEnabled()}
       demo={demo.enabled ? { needsCode: demo.codes.length > 0 } : undefined}
@@ -37,6 +39,7 @@ export default async function SignInPage() {
           <Form />
         </Suspense>
       </main>
+      <SiteFooter />
     </>
   );
 }

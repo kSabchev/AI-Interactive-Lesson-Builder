@@ -28,6 +28,8 @@ export default defineConfig({
     timeout: 180_000,
     // Tests must never call the paid API, even if .env.local enables live generation.
     env: {
+      // Its own build folder, so running the tests can't disturb a dev server running at the same time.
+      NEXT_DIST_DIR: ".next-e2e",
       GENERATION_MODE: "sample",
       ANTHROPIC_API_KEY: "",
       // A throwaway database and a file mailbox the tests read sign-in links from. DATABASE_URL is blanked so

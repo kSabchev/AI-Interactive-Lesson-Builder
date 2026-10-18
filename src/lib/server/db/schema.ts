@@ -213,3 +213,23 @@ export const generationQuota = pgTable(
   },
   (t) => [primaryKey({ columns: [t.userId, t.period] })],
 );
+
+// --- Operations ---
+
+/** Server errors, for the operator error log. Kept for 30 days; see `src/lib/server/errors.ts`. */
+export const appError = pgTable(
+  "app_error",
+  {
+    id: serial("id").primaryKey(),
+    /** Where it was caught: "request" (Next.js), "auth" (Better Auth) or "generation". */
+    source: text("source").notNull(),
+    message: text("message").notNull(),
+    stack: text("stack"),
+    /** The request path and method, and Next.js's digest for errors thrown while rendering. */
+    path: text("path"),
+    method: text("method"),
+    digest: text("digest"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("app_error_created_idx").on(t.createdAt)],
+);

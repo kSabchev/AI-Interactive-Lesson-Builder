@@ -1,4 +1,5 @@
 import { AppHeader } from "@/components/account/AppHeader";
+import { SiteFooter } from "@/components/layout/SiteFooter";
 import { LibraryLessons } from "@/components/lesson/LibraryLessons";
 import { ButtonLink } from "@/components/ui/Button";
 import { getT } from "@/lib/i18n/server";
@@ -20,6 +21,7 @@ export default async function Home() {
 
         <LibraryLessons />
       </main>
+      <SiteFooter />
     </>
   );
 }

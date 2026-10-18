@@ -14,6 +14,14 @@ function mailboxFile(): string {
   return process.env.MAILBOX_FILE || path.join(process.cwd(), ".data", "mailbox.jsonl");
 }
 
+/**
+ * Whether people can sign in with an emailed link. `EMAIL_SIGN_IN=false` hides the form and refuses the
+ * endpoint, for a deployment whose email sender isn't set up yet (Google or demo sign-in still work).
+ */
+export function isEmailSignInEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
+  return env.EMAIL_SIGN_IN !== "false";
+}
+
 /** Resend's API, which takes a JSON body and a bearer key. */
 const RESEND_URL = "https://api.resend.com/emails";
 
