@@ -3,6 +3,7 @@ import Link from "next/link";
 import { connection } from "next/server";
 import { Suspense } from "react";
 import { AppHeader } from "@/components/account/AppHeader";
+import { SiteFooter } from "@/components/layout/SiteFooter";
 import { CreateLessonForm } from "@/components/create/CreateLessonForm";
 import { generationConfig } from "@/lib/generation/server/config";
 import { getT } from "@/lib/i18n/server";
@@ -34,6 +35,7 @@ export default async function CreatePage() {
           <FormWithMode />
         </Suspense>
       </main>
+      <SiteFooter />
     </>
   );
 }

@@ -55,6 +55,17 @@ services:
       - key: DEMO_ACCESS_CODES
         sync: false
 
+      # Set EMAIL_SIGN_IN to "false" until the email domain is verified in Resend: the email form is hidden
+      # and the endpoint refused, so people use Google or the demo instead.
+      - key: EMAIL_SIGN_IN
+        sync: false
+      # Shown on /privacy for questions about data (optional).
+      - key: CONTACT_EMAIL
+        sync: false
+      # A Slack or Discord incoming-webhook URL for error alerts (optional; errors are logged either way).
+      - key: ERROR_ALERT_WEBHOOK_URL
+        sync: false
+
 databases:
   - name: lesson-builder-db
     plan: free

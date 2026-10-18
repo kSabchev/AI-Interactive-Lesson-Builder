@@ -36,7 +36,11 @@ function DemoSignIn({ needsCode, next }: { needsCode: boolean; next: string }) {
     });
     if (error) {
       const message =
-        error.status === 403 ? t.signIn.invalidCode : error.status === 429 ? t.signIn.tooManyTries : t.signIn.demoFailed;
+        error.status === 403
+          ? t.signIn.invalidCode
+          : error.status === 429
+            ? t.signIn.tooManyTries
+            : t.signIn.demoFailed;
       setState({ status: "error", message });
       return;
     }
@@ -76,10 +80,13 @@ function DemoSignIn({ needsCode, next }: { needsCode: boolean; next: string }) {
 }
 
 export function SignInForm({
+  emailEnabled = true,
   googleEnabled,
   devMailbox = false,
   demo,
 }: {
+  /** False when email sign-in is switched off (`EMAIL_SIGN_IN=false`), e.g. before an email domain is set up. */
+  emailEnabled?: boolean;
   googleEnabled: boolean;
   devMailbox?: boolean;
   /** Present when demo sign-in is on. */
@@ -147,21 +154,28 @@ export function SignInForm({
           {t.signIn.linkExpired}
         </p>
       )}
-      <form onSubmit={sendLink} noValidate className="space-y-4">
-        <TextField
-          label={t.signIn.email}
-          hint={t.signIn.emailHint}
-          value={email}
-          error={state.status === "error" ? state.message : undefined}
-          onChange={setEmail}
-        />
-        <Button type="submit" size="lg" disabled={state.status === "sending"}>
-          {state.status === "sending" ? t.signIn.sending : t.signIn.sendLink}
-        </Button>
-      </form>
+      {!emailEnabled && !googleEnabled && !demo && (
+        <p role="status" className="rounded-2xl bg-sun-100 p-4 font-semibold">
+          {t.signIn.noMethods}
+        </p>
+      )}
+      {emailEnabled && (
+        <form onSubmit={sendLink} noValidate className="space-y-4">
+          <TextField
+            label={t.signIn.email}
+            hint={t.signIn.emailHint}
+            value={email}
+            error={state.status === "error" ? state.message : undefined}
+            onChange={setEmail}
+          />
+          <Button type="submit" size="lg" disabled={state.status === "sending"}>
+            {state.status === "sending" ? t.signIn.sending : t.signIn.sendLink}
+          </Button>
+        </form>
+      )}
       {googleEnabled && (
         <>
-          <p className="text-center text-sm font-bold text-muted">{t.signIn.or}</p>
+          {emailEnabled && <p className="text-center text-sm font-bold text-muted">{t.signIn.or}</p>}
           <Button
             variant="secondary"
             size="lg"

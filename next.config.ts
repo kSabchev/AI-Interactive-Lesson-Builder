@@ -9,6 +9,9 @@ const pageExtensions =
 
 const nextConfig: NextConfig = {
   pageExtensions,
+  // The end-to-end tests build into their own folder (NEXT_DIST_DIR=.next-e2e), so a test run never
+  // overwrites the files a running `npm run dev` is using.
+  distDir: process.env.NEXT_DIST_DIR || ".next",
   cacheComponents: true,
   // Database drivers load native/WASM files at runtime, so they run from node_modules instead of the bundle.
   serverExternalPackages: ["@electric-sql/pglite", "pg"],

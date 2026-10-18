@@ -111,7 +111,12 @@ export default async function GenerationLogPage() {
       <AppHeader />
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-12 md:px-8">
         <h1 className="mb-2 text-4xl font-extrabold">{t.generationLog.title}</h1>
-        <p className="mb-8 max-w-3xl text-muted">{t.generationLog.intro}</p>
+        <p className="mb-2 max-w-3xl text-muted">{t.generationLog.intro}</p>
+        <p className="mb-8">
+          <Link href="/admin/errors" className="font-bold text-brand-700 underline underline-offset-2">
+            {t.errorLog.link}
+          </Link>
+        </p>
         <Suspense fallback={<p className="text-muted">{t.common.loading}</p>}>
           <OperatorGate>{() => <GenerationList />}</OperatorGate>
         </Suspense>

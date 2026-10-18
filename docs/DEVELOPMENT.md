@@ -46,6 +46,7 @@ Order agreed after reviewing the project: prove the core before adding more arou
 
 1. **Prove generation on real topics.** 10–15 live lessons across English and Bulgarian, web research and reference text. Read each one for accuracy, age fit and quiz alignment, and use the generation log for cost and repair rates. Fix what this finds. Before merging pipeline changes, run a small manual live check (never in CI).
 2. **Demo deployment.** Resend for sign-in email, the Render Blueprint, a demo-only Claude key with a Console spend limit, low daily cap, `ADMIN_EMAILS`. Deployed to Render; demo sign-in with access codes added so invited people can try it without email.
+2b. **Hygiene before inviting anyone.** Done: privacy notice (`/privacy`), `EMAIL_SIGN_IN=false` until a domain is verified, the test build in its own folder, built-in error log with optional webhook alerts. The free Render database expires about 30 days after it was created (around mid-November 2026, check Render); upgrade or move it before then (README, "The database on Render").
 3. **Real users.** 3–5 parents or teachers, and a native speaker for the Bulgarian text.
 4. **Tune with data.** Per-stage model and effort (e.g. Haiku 5.5 for outline and quiz), regenerating a single section, prompt caching only if the log shows frequent repairs.
 5. **Launch readiness (milestone 9).** Rate limits in shared storage, security headers, `@axe-core/playwright` checks, a verified Stripe test checkout, error tracking, legal and privacy pages.

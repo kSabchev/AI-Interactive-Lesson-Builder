@@ -9,16 +9,22 @@ import { getStripe } from "./billing/stripe";
 import { cookieLocale, getDictionary, resolveLocale } from "@/lib/i18n";
 import { getDb, schema } from "./db";
 import { DEMO_CODE_HEADER, DEMO_EMAIL_DOMAIN, demoSignInConfig, isDemoCodeValid } from "./demo";
-import { sendEmail } from "./email";
+import { isEmailSignInEnabled, sendEmail } from "./email";
+import { reportError } from "./errors";
 import { moveAccountData } from "./lessons";
 
 const DEMO_SIGN_IN_PATH = "/sign-in/anonymous";
+const MAGIC_LINK_PATH = "/sign-in/magic-link";
 
 /**
- * Demo accounts are only handed out when demo sign-in is on, and then only with a valid access code if any
- * are configured. Checked on the server for every request to the endpoint, whatever the form shows.
+ * Sign-in methods that can be switched off are refused on the server, whatever the form shows: email links
+ * when `EMAIL_SIGN_IN=false`, and demo accounts unless demo sign-in is on, then only with a valid access code
+ * if any are configured.
  */
-const guardDemoSignIn = createAuthMiddleware(async (ctx) => {
+const guardSignIn = createAuthMiddleware(async (ctx) => {
+  if (ctx.path === MAGIC_LINK_PATH && !isEmailSignInEnabled()) {
+    throw new APIError("NOT_FOUND", { message: "Email sign-in is off." });
+  }
   if (ctx.path !== DEMO_SIGN_IN_PATH) return;
   const demo = demoSignInConfig();
   if (!demo.enabled) throw new APIError("NOT_FOUND", { message: "Demo sign-in is off." });
@@ -53,7 +59,15 @@ async function createAuth() {
       process.env.DISABLE_AUTH_RATE_LIMIT === "true"
         ? { enabled: false }
         : { customRules: { [DEMO_SIGN_IN_PATH]: { window: 60, max: 5 } } },
-    hooks: { before: guardDemoSignIn },
+    hooks: { before: guardSignIn },
+    // Unexpected failures (a database or email provider error) go to the error log. Refusals such as a wrong
+    // access code are 4xx responses, not errors.
+    onAPIError: {
+      onError: async (error) => {
+        if (error instanceof APIError && error.statusCode < 500) return;
+        await reportError({ source: "auth", error });
+      },
+    },
     user: {
       // Deleting the user cascades to their lessons, attempts and sessions (see the schema).
       deleteUser: {

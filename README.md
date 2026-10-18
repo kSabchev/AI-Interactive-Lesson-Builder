@@ -36,7 +36,7 @@ npm run dev          # http://localhost:3000
 
 ### Troubleshooting the dev server
 
-- **The page reloads over and over:** the dev server's build cache is out of step, which can happen after switching branches or running production builds in the same folder. Stop the server, delete `.next/dev`, and run `npm run dev` again.
+- **The page reloads over and over:** the dev server's build cache is out of step, for example after switching branches. Stop the server, delete `.next/dev`, and run `npm run dev` again. (The end-to-end tests build into their own `.next-e2e` folder, so they no longer cause this.)
 - **"Another next dev server is already running":** an earlier dev server is still running in the background, for example one started from another terminal or tool. Stop the `node` processes running `next` for this folder (Task Manager on Windows), then start again.
 - **`/dev/mailbox` shows "not found":** the app is running in production mode (`npm start`), or `EMAIL_TRANSPORT` is set to something other than `file`.
 
@@ -44,7 +44,7 @@ npm run dev          # http://localhost:3000
 
 Nothing to set up locally: without `DATABASE_URL` the app uses an embedded Postgres (PGlite) in `.data/` and migrates it on first use. Sign-in links are written to `.data/mailbox.jsonl` and printed in the server console instead of being emailed. For production, set `DATABASE_URL`, `BETTER_AUTH_SECRET` and `BETTER_AUTH_URL`, and run `npm run db:migrate`; see `.env.example`. After changing `src/lib/server/db/schema.ts`, run `npm run db:generate` to create a migration.
 
-Sign-in emails go wherever `EMAIL_TRANSPORT` says: `file` (the default while developing) writes them to the local mailbox, and `resend` sends them through [Resend](https://resend.com) with `RESEND_API_KEY` and an `EMAIL_FROM` address on a domain verified there. In production with no transport set, sending fails with an error rather than pretending to deliver.
+`EMAIL_SIGN_IN=false` hides email sign-in and refuses its endpoint, for a deployment whose email domain isn't verified yet; Google and demo sign-in still work. Sign-in emails go wherever `EMAIL_TRANSPORT` says: `file` (the default while developing) writes them to the local mailbox, and `resend` sends them through [Resend](https://resend.com) with `RESEND_API_KEY` and an `EMAIL_FROM` address on a domain verified there. In production with no transport set, sending fails with an error rather than pretending to deliver.
 
 Guests can use everything without an account; their lessons stay in the browser. Signing in saves lessons to the account and offers to move any browser lessons across.
 
@@ -109,7 +109,12 @@ Each lesson has its own `language`, detected from the topic: a topic written mos
 | `npm run db:generate` | Create a migration after changing `src/lib/server/db/schema.ts` |
 | `npm run db:migrate` | Apply migrations to the Postgres database in `DATABASE_URL` |
 
-The end-to-end tests build the app into `.next`. If a dev server running at the same time starts reloading pages, see Troubleshooting above.
+The end-to-end tests build the app into `.next-e2e` (`NEXT_DIST_DIR`), separate from the `.next` folder a running dev server uses.
+
+### Privacy notice and error log
+
+- **`/privacy`**, linked from the footer, says what the app stores, which services receive data (Anthropic, Render, Resend, Google, Stripe), which cookies it sets and how long data is kept. `CONTACT_EMAIL` adds an address for questions. Keep it in step with the code when what is stored or shared changes. It's a plain-language notice for the demo, not a legal policy for a public launch.
+- **`/admin/errors`** (operators only, linked from the account page and the generation log) lists server errors from the last 30 days: errors Next.js catches in pages and API routes, unexpected sign-in failures (such as an email provider refusing to send) and generation failures. Each is also printed to the server log. Set `ERROR_ALERT_WEBHOOK_URL` to a Slack or Discord incoming webhook to get a message for each one, at most 10 an hour.
 
 ## Deploying a demo
 
@@ -120,13 +125,28 @@ The end-to-end tests build the app into `.next`. If a dev server running at the 
 3. **Deploy:** in Render, choose New → Blueprint and point it at this repository. When asked, fill in `BETTER_AUTH_URL` (the service's public URL, such as `https://lesson-builder.onrender.com`), `ANTHROPIC_API_KEY`, `RESEND_API_KEY`, `EMAIL_FROM`, `ADMIN_EMAILS` (your email, for the generation log), and for **Try the demo** `DEMO_SIGN_IN=true` with `DEMO_ACCESS_CODES` (set the codes first: with none, anyone can start a demo). Render generates `BETTER_AUTH_SECRET` and connects `DATABASE_URL`. Render asks for these values only when the Blueprint is first created; variables added to `render.yaml` later need entering under the service's **Environment**.
 4. **Check:** sign in with your email, generate one lesson, and confirm it appears in the generation log with its cost.
 
-Without a verified email domain, people can still sign in with **Google** (`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, redirect URI `https://<your-url>/api/auth/callback/google`) or **Try the demo** with an access code.
+Until the email domain is verified, set `EMAIL_SIGN_IN=false` so the sign-in page doesn't offer a form that fails. People can still sign in with **Google** (`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, redirect URI `https://<your-url>/api/auth/callback/google`) or **Try the demo** with an access code.
 
 Notes:
 
 - **Billing:** Stripe stays off unless its variables are set, so everyone is on the Free plan (3 AI lessons a month each). To demo Pro, add Stripe **test-mode** keys and a webhook endpoint (`/api/billing/webhook`) as described under Billing.
 - **Free plans:** free web services sleep when idle and take a while to wake. Free Render Postgres databases are time-limited, so check Render's current terms, or use a paid plan or another Postgres provider through `DATABASE_URL`.
 - **Privacy:** topics that people type are stored with their account. Say so on the demo, and don't use it with real pupils' data.
+
+### The database on Render
+
+Free Render Postgres databases **expire 30 days after they're created**, and are deleted after a further 14-day grace period, with every account, lesson and log entry. The database's page in Render shows the date. Before then, choose one:
+
+1. **Upgrade it to a paid Render plan.** Nothing else changes. The simplest choice if the demo should keep its accounts.
+2. **Move to a provider whose free tier doesn't expire**, such as Neon: back up, restore into the new database, then point `DATABASE_URL` at it (in `render.yaml`, replace the `fromDatabase` entry with `sync: false` and set the new URL).
+3. **Let it go.** Create a new database and point `DATABASE_URL` at it; the app creates its tables on the next start. Everything stored so far is lost.
+
+To back up or move the data you need the PostgreSQL client tools (`pg_dump`, `pg_restore`) and the **External Database URL** from the database's page in Render:
+
+```bash
+pg_dump --format=custom --no-owner "<external database URL>" --file lesson-builder.dump
+pg_restore --no-owner --dbname "<new database URL>" lesson-builder.dump
+```
 
 ## Continuous integration
 
@@ -149,6 +169,7 @@ Notes:
 - **`src/lib/server/`** — server-only code: Drizzle schema and connection (`db/`), Better Auth setup (`auth.ts`), per-user lesson storage (`lessons.ts`, every query filtered by owner) and request helpers (`http.ts`: session check, same-origin check for writes, body size limits). API routes live under `src/app/api/`.
 - **`src/lib/server/generationLog.ts`, `src/app/admin/generations/`** — the generation log: one `generation_usage` row per request and one `generation_call` row per model call, written by the generate route. The pages are for operators only (`src/lib/server/admin.ts`). `src/lib/generation/server/cost.ts` holds the price table used for the estimates.
 - **`src/lib/server/demo.ts`** — demo sign-in settings and access-code checks; the check itself runs as a Better Auth hook in `auth.ts`, which also moves a demo account's lessons when its owner signs in properly.
+- **`src/lib/server/errors.ts`, `src/instrumentation.ts`** — error reporting: Next.js's `onRequestError` hook, Better Auth's `onAPIError` and the generation route all call `reportError`, which logs, saves to `app_error` (pruned after 30 days) and optionally sends a webhook alert. `/admin/errors` shows them.
 - **`src/lib/server/email.ts`** — email transports: the local mailbox file for development and tests, and Resend for deployments.
 - **`src/lib/server/billing/`** — Stripe client and configuration, webhook handling (each event applied once, late or out-of-order events ignored), entitlements and the atomic monthly quota. Deleting an account cancels its subscription first.
 - **`src/lib/i18n/`** — interface languages. `dictionaries/en.ts` is the source of truth and its type (`Dictionary`) makes `bg.ts` complete; a missing or extra key fails the typecheck. Server code uses `getT()` (pages) or `localeFromRequest()` (API routes); client components use `useT()`. `LocaleScope` switches a subtree to the lesson's language. `detect.ts` picks a lesson's language from its topic.

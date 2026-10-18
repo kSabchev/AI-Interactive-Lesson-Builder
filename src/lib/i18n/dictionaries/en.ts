@@ -584,6 +584,7 @@ export const en = {
     demoFailed: "Couldn't start the demo. Please try again.",
     demoKeepNote: "A demo account lives in this browser. To keep its lessons, sign in with email or Google later.",
     usingDemo: "You're using a demo account. Sign in below and its lessons move to your account.",
+    noMethods: "Sign-in isn't available right now. Please try again later.",
   },
   account: {
     title: "Account",
@@ -717,6 +718,82 @@ export const en = {
       "Sections are written together in one call, so tokens are shown per stage. A repair is a second call that fixes problems found in the first.",
     cacheNote:
       "Input is split three ways: new input, cache reads (charged at a tenth of the input price) and cache writes (charged at 1.25 times).",
+  },
+  footer: {
+    privacy: "Privacy",
+    nav: "Site",
+  },
+  privacy: {
+    title: "Privacy",
+    updated: "Last updated 18 October 2026",
+    intro:
+      "Lesson Builder is a demo of an app that turns science topics into interactive lessons. This notice explains what it stores, who helps run it, and how to delete your data.",
+    sections: [
+      {
+        title: "Who accounts are for",
+        paragraphs: [
+          "Accounts are for adults: parents and teachers. Learners follow the lesson on a shared screen and never sign in, so we don't collect information about them. Please don't type pupils' names or other personal details into topics or reference text.",
+        ],
+        items: [],
+      },
+      {
+        title: "What we store",
+        paragraphs: [],
+        items: [
+          "Your account: your email address and name, and your profile picture if you sign in with Google. Demo accounts have no email address.",
+          "Your saved lessons, and the latest quiz result for each one.",
+          "A record of each lesson you generate: the topic, the settings, whether it worked and what it cost, so we can apply plan limits and understand our costs.",
+          "If you subscribe: your plan and your Stripe customer and subscription numbers. Card details go to Stripe and never reach us.",
+          "Error reports: technical details of problems on our server, such as the page address, so we can fix them.",
+        ],
+      },
+      {
+        title: "Who helps run the service",
+        paragraphs: [],
+        items: [
+          "Anthropic (Claude) writes the lessons. It receives your topic, settings and any reference text you paste. With web research, Claude also searches the web for your topic.",
+          "Render hosts the app and its database.",
+          "Resend sends sign-in emails.",
+          "Google, if you choose to sign in with Google.",
+          "Stripe, if you subscribe.",
+        ],
+      },
+      {
+        title: "Cookies",
+        paragraphs: [
+          "We use only the cookies the app needs: one keeps you signed in and one remembers the interface language. There are no analytics or advertising cookies.",
+        ],
+        items: [],
+      },
+      {
+        title: "How long we keep it",
+        paragraphs: [
+          "Your account, lessons and quiz results are kept until you delete your account. Deleting it removes them straight away and cancels any subscription. Records of generated lessons are kept for cost reporting, but no longer linked to you. Error reports are deleted after 30 days. Demo accounts and their lessons may be removed when the demo ends.",
+        ],
+        items: [],
+      },
+      {
+        title: "Your choices",
+        paragraphs: ["You can delete your account and everything in it at any time on the Account page."],
+        items: [],
+      },
+    ],
+    contact: (email: string) => `Questions about your data: ${email}.`,
+    contactFallback: "Questions about your data: ask the person who invited you to the demo.",
+    demoNote: "This is a demo, so the service and this notice may change.",
+  },
+  errorLog: {
+    title: "Error log",
+    intro: (days: number) =>
+      `Server errors from the last ${days} days, newest first. Set ERROR_ALERT_WEBHOOK_URL to get a Slack or Discord message when one happens.`,
+    empty: "No errors recorded.",
+    when: "When",
+    source: "Source",
+    where: "Where",
+    message: "Message",
+    details: "Details",
+    sources: { request: "Page or API", auth: "Sign-in", generation: "Generation" } as Record<string, string>,
+    link: "Error log",
   },
   devMailbox: {
     title: "Development mailbox",
