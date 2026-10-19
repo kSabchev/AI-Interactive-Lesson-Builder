@@ -15,6 +15,7 @@ describe("generationInputSchema", () => {
       referenceText: undefined,
       quality: "standard",
       research: false,
+      experiment: false,
     });
   });
 
@@ -30,7 +31,7 @@ describe("generationInputSchema", () => {
 });
 
 describe("sampleLesson", () => {
-  const input = { ageGroup: "8-10", durationMinutes: 10, quality: "standard", research: false } as const;
+  const input = { ageGroup: "8-10", durationMinutes: 10, quality: "standard", research: false, experiment: false } as const;
 
   it("picks the closest curated lesson and says so", () => {
     const { lesson, notice } = sampleLesson({ ...input, topic: "Why do leaves need sunlight?" }, "lesson-x", "2026-10-11T00:00:00.000Z", en);
@@ -46,7 +47,7 @@ describe("sampleLesson", () => {
 });
 
 describe("sampleLesson with Bulgarian topics", () => {
-  const input = { ageGroup: "8-10", durationMinutes: 10, quality: "standard", research: false } as const;
+  const input = { ageGroup: "8-10", durationMinutes: 10, quality: "standard", research: false, experiment: false } as const;
 
   it("matches Bulgarian keywords and explains in Bulgarian that samples are in English", () => {
     const { lesson, notice } = sampleLesson({ ...input, topic: "Защо листата имат нужда от светлина?" }, "lesson-z", "2026-10-11T00:00:00.000Z", bg);

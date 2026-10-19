@@ -104,6 +104,61 @@ export const sortingSectionSchema = z.object({
     .max(8),
 });
 
+/** Learners put the steps of a process in order. `steps` is stored in the correct order; the player shuffles it. */
+export const sequenceSectionSchema = z.object({
+  ...sectionBase,
+  type: z.literal("sequence"),
+  instructions: text,
+  steps: z
+    .array(
+      z.object({
+        id,
+        text: shortText,
+        /** Why the step comes where it does; shown when it's put in the wrong place. */
+        explanation: text,
+      }),
+    )
+    .min(3)
+    .max(6),
+});
+
+/** Learners match each item on the left with its partner on the right. The player shuffles the right side. */
+export const matchingSectionSchema = z.object({
+  ...sectionBase,
+  type: z.literal("matching"),
+  instructions: text,
+  pairs: z
+    .array(
+      z.object({
+        id,
+        left: shortText,
+        right: shortText,
+        /** Why these two belong together; shown when the learner matches the left item wrongly. */
+        explanation: text,
+      }),
+    )
+    .min(3)
+    .max(5),
+});
+
+/**
+ * An experiment the adult leads with safe household materials: learners predict, watch, then hear why it
+ * happened. Only added when the adult asks for one, since it needs materials prepared beforehand.
+ */
+export const experimentSectionSchema = z.object({
+  ...sectionBase,
+  type: z.literal("experiment"),
+  /** What learners predict before trying it, e.g. "What will happen to the raisins?" */
+  question: shortText,
+  materials: z.array(shortText).min(2).max(8),
+  steps: z.array(text).min(2).max(6),
+  /** What to look for while it happens. */
+  observe: text,
+  /** Why it happens, revealed after the experiment. */
+  explanation: text,
+  safety: text,
+});
+
 export const recapSectionSchema = z.object({
   ...sectionBase,
   type: z.literal("recap"),
@@ -116,6 +171,9 @@ export const lessonSectionSchema = z.discriminatedUnion("type", [
   predictionSectionSchema,
   diagramLabelingSectionSchema,
   sortingSectionSchema,
+  sequenceSectionSchema,
+  matchingSectionSchema,
+  experimentSectionSchema,
   recapSectionSchema,
 ]);
 
@@ -190,6 +248,30 @@ export const lessonSchema = z
         findDuplicates(section.labels.map((l) => l.targetId)).forEach((dup) =>
           issue(["sections", i, "labels"], `Two labels point at target "${dup}"`),
         );
+      }
+
+      if (section.type === "sequence") {
+        findDuplicates(section.steps.map((step) => step.id)).forEach((dup) =>
+          issue(["sections", i, "steps"], `Duplicate step id "${dup}"`),
+        );
+        // Two identical steps would make the order ambiguous.
+        findDuplicates(section.steps.map((step) => step.text.trim().toLowerCase())).forEach(() =>
+          issue(["sections", i, "steps"], "Two steps have the same text"),
+        );
+      }
+
+      if (section.type === "matching") {
+        findDuplicates(section.pairs.map((pair) => pair.id)).forEach((dup) =>
+          issue(["sections", i, "pairs"], `Duplicate pair id "${dup}"`),
+        );
+        // Each side must be unambiguous, or two answers would both look right.
+        const normal = (value: string) => value.trim().toLowerCase();
+        if (findDuplicates(section.pairs.map((pair) => normal(pair.left))).length > 0) {
+          issue(["sections", i, "pairs"], "Two pairs have the same left side");
+        }
+        if (findDuplicates(section.pairs.map((pair) => normal(pair.right))).length > 0) {
+          issue(["sections", i, "pairs"], "Two pairs have the same right side");
+        }
       }
 
       if (section.type === "sorting") {

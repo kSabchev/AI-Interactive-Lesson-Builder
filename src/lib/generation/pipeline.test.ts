@@ -11,22 +11,29 @@ const input: GenerationInput = {
   durationMinutes: 10,
   quality: "standard",
   research: false,
+  experiment: false,
 };
 
 const planned = (title: string, objectives: ("1" | "2" | "3")[]) => ({ title, focus: `About ${title}`, objectives });
 
-function outline(diagramId: Outline["diagramId"] = "none"): Outline {
+function outline(
+  diagramId: Outline["diagramId"] = "none",
+  activityType: Outline["activityType"] = "prediction",
+  practiceType: Outline["practiceType"] = "sorting",
+): Outline {
   return {
     title: "The Invisible Pull: Magnets",
     objectives: ["Describe what magnets attract.", "Explain north and south poles.", "Identify everyday uses of magnets."],
     diagramId,
+    activityType,
+    practiceType,
     sections: {
       hook: planned("A fridge mystery", []),
       prediction: planned("Make a guess", ["1"]),
       explain1: planned("What magnets pull", ["1", "2"]),
       activity: planned("Try it out", ["2"]),
       explain2: planned("Magnets around us", ["3"]),
-      sorting: planned("Sticks or not?", ["1"]),
+      practice: planned("Sticks or not?", ["1"]),
       recap: planned("Three big ideas", ["1", "2", "3"]),
     },
   };
@@ -48,23 +55,35 @@ const explanation = {
   facilitatorNote: "Show a fridge magnet if you have one.",
 };
 
-function content(activity: Content["activity"] = prediction): Content {
+const sorting = {
+  instructions: "Sort each object.",
+  categories: ["Attracted", "Not attracted"],
+  items: [
+    { text: "Paperclip", categoryIndex: 0, explanation: "Steel is attracted." },
+    { text: "Wooden spoon", categoryIndex: 1, explanation: "Wood is not magnetic." },
+    { text: "Iron nail", categoryIndex: 0, explanation: "Iron is attracted." },
+  ],
+  facilitatorNote: "Test real objects if possible.",
+};
+
+const matchingPairs = {
+  instructions: "Match each magnet word with what it means.",
+  pairs: [
+    { left: "North pole", right: "One end of a magnet", explanation: "Every magnet has a north end." },
+    { left: "Attract", right: "Pull towards", explanation: "Opposite poles pull together." },
+    { left: "Repel", right: "Push away", explanation: "Like poles push apart." },
+  ],
+  facilitatorNote: "Say each pair aloud.",
+};
+
+function content(activity: Content["activity"] = prediction, practice: Content["practice"] = sorting): Content {
   return {
     hook: { question: "Why do some things stick to the fridge?", body: "Some notes stay up all by themselves.", visualId: "none", facilitatorNote: "Let them guess." },
     prediction,
     explain1: explanation,
-    activity,
+    activity: structuredClone(activity),
     explain2: explanation,
-    sorting: {
-      instructions: "Sort each object.",
-      categories: ["Attracted", "Not attracted"],
-      items: [
-        { text: "Paperclip", categoryIndex: 0, explanation: "Steel is attracted." },
-        { text: "Wooden spoon", categoryIndex: 1, explanation: "Wood is not magnetic." },
-        { text: "Iron nail", categoryIndex: 0, explanation: "Iron is attracted." },
-      ],
-      facilitatorNote: "Test real objects if possible.",
-    },
+    practice: structuredClone(practice),
     recap: { keyPoints: ["Magnets attract iron and steel.", "Like poles push apart.", "Magnets are useful."], facilitatorNote: "Ask for a favourite fact." },
   } as Content;
 }
@@ -83,7 +102,7 @@ function quiz(): Quiz {
       q("1", "sec-explain-1", 0),
       q("2", "sec-explain-1", 1),
       q("3", "sec-explain-2", 2),
-      q("1", "sec-sorting", 3),
+      q("1", "sec-practice", 3),
       q("2", "sec-activity", 0),
     ],
   };
@@ -170,6 +189,151 @@ describe("generateLesson", () => {
     });
     const diagram = lesson.sections[3];
     expect(diagram).toMatchObject({ type: "diagram-labeling", diagramId: "water-cycle" });
+  });
+
+  it("puts steps in order when the outline picks a sequence and no diagram fits", async () => {
+    const activity = {
+      instructions: "Put the steps in order.",
+      steps: [
+        { text: "Rub a needle on a magnet", explanation: "First the needle has to become a magnet." },
+        { text: "Float the needle on a leaf in water", explanation: "Floating lets it turn freely." },
+        { text: "Watch it point north", explanation: "It lines up with Earth's magnetism last." },
+      ],
+      facilitatorNote: "Do it for real if you can.",
+    };
+    const { lesson, calls } = await run({
+      outline: [{ json: outline("none", "sequence") }],
+      content: [{ json: content(activity as Content["activity"]) }],
+      quiz: [{ json: quiz() }],
+    });
+    expect(lesson.sections[3]).toMatchObject({
+      type: "sequence",
+      steps: [{ id: "step-1", text: "Rub a needle on a magnet" }, { id: "step-2" }, { id: "step-3" }],
+    });
+    const contentPrompt = JSON.stringify(calls.find((c) => c.stage === "content"));
+    expect(contentPrompt).toContain("put 3-6 steps of a process");
+  });
+
+  it("uses match pairs for the activity, the practice, or both slots, but never twice in one lesson", async () => {
+    const activityMatching = await run({
+      outline: [{ json: outline("none", "matching", "sorting") }],
+      content: [{ json: content(matchingPairs as Content["activity"]) }],
+      quiz: [{ json: quiz() }],
+    });
+    expect(activityMatching.lesson.sections.map((s) => s.type)).toEqual([
+      "hook", "prediction", "explanation", "matching", "explanation", "sorting", "recap",
+    ]);
+    expect(activityMatching.lesson.sections[3]).toMatchObject({ pairs: [{ id: "activity-pair-1", left: "North pole" }, {}, {}] });
+
+    const practiceMatching = await run({
+      outline: [{ json: outline("none", "sequence", "matching") }],
+      content: [
+        {
+          json: content(
+            {
+              instructions: "Put the steps in order.",
+              steps: [
+                { text: "Rub a needle on a magnet", explanation: "First." },
+                { text: "Float it on water", explanation: "Second." },
+                { text: "Watch it point north", explanation: "Last." },
+              ],
+              facilitatorNote: "Try it.",
+            } as Content["activity"],
+            matchingPairs as Content["practice"],
+          ),
+        },
+      ],
+      quiz: [{ json: quiz() }],
+    });
+    expect(practiceMatching.lesson.sections.map((s) => s.type)).toEqual([
+      "hook", "prediction", "explanation", "sequence", "explanation", "matching", "recap",
+    ]);
+    expect(JSON.stringify(practiceMatching.calls.find((c) => c.stage === "content"))).toContain(
+      "The practice section asks learners to match 3-5 pairs",
+    );
+
+    // Both slots asked for matching: the practice slot falls back to sorting, and the prompt asks for sorting.
+    const both = await run({
+      outline: [{ json: outline("none", "matching", "matching") }],
+      content: [{ json: content(matchingPairs as Content["activity"], sorting as Content["practice"]) }],
+      quiz: [{ json: quiz() }],
+    });
+    expect(both.lesson.sections[3].type).toBe("matching");
+    expect(both.lesson.sections[5].type).toBe("sorting");
+    expect(JSON.stringify(both.calls.find((c) => c.stage === "content"))).toContain("sort 4-8 examples into 2-3 groups");
+  });
+
+  it("makes the activity a safe experiment when the adult asks for one, even if a diagram fits", async () => {
+    const experiment = {
+      question: "Will the paperclip float on the water?",
+      materials: ["A bowl of water", "A paperclip", "A small piece of tissue paper"],
+      steps: ["Lay the tissue on the water.", "Put the paperclip on the tissue.", "Wait for the tissue to sink."],
+      observe: "The paperclip stays on top of the water.",
+      explanation: "The water's surface acts like a thin skin that holds the paperclip up.",
+      safety: "Wipe up spills so nobody slips.",
+      facilitatorNote: "Let learners guess before you start.",
+    };
+    const { lesson, calls } = await run(
+      {
+        outline: [{ json: outline("water-cycle", "sequence") }],
+        content: [{ json: content(experiment as Content["activity"]) }],
+        quiz: [{ json: quiz() }],
+      },
+      { experiment: true },
+    );
+    expect(lesson.sections[3]).toMatchObject({
+      type: "experiment",
+      question: "Will the paperclip float on the water?",
+      materials: ["A bowl of water", "A paperclip", "A small piece of tissue paper"],
+      safety: "Wipe up spills so nobody slips.",
+    });
+    const outlinePrompt = JSON.stringify(calls.find((c) => c.stage === "outline"));
+    expect(outlinePrompt).toContain("The adult asked for a hands-on experiment");
+    const contentPrompt = JSON.stringify(calls.find((c) => c.stage === "content"));
+    expect(contentPrompt).toContain("Never use fire, candles or matches");
+    expect(contentPrompt).toContain("use different examples from the activity section");
+  });
+
+  it("sends an experiment that uses something unsafe back for repair", async () => {
+    const unsafe = {
+      question: "What happens to the wax?",
+      materials: ["A candle", "Matches"],
+      steps: ["Light the candle.", "Watch the wax."],
+      observe: "The wax melts.",
+      explanation: "Heat melts wax.",
+      safety: "Be careful.",
+      facilitatorNote: "Adults only.",
+    };
+    const safe = { ...unsafe, question: "What happens to the ice?", materials: ["An ice cube", "A plate"], steps: ["Put the ice on the plate.", "Wait ten minutes."], observe: "It melts.", explanation: "The room is warmer than ice." };
+    const { lesson, events } = await run(
+      {
+        outline: [{ json: outline() }],
+        content: [{ json: content(unsafe as Content["activity"]) }, { json: content(safe as Content["activity"]) }],
+        quiz: [{ json: quiz() }],
+      },
+      { experiment: true },
+    );
+    expect(events).toContainEqual(
+      expect.objectContaining({ type: "retry", stage: "content", reason: expect.stringContaining("unsafe for children (candle, matches)") }),
+    );
+    expect(lesson.sections[3]).toMatchObject({ type: "experiment", materials: ["An ice cube", "A plate"] });
+  });
+
+  it("prefers labelling a diagram over a sequence when a diagram fits", async () => {
+    const activity = {
+      instructions: "Label the water cycle.",
+      labels: [
+        { text: "Evaporation", targetId: "evaporation", explanation: "Water rises as vapour." },
+        { text: "Condensation", targetId: "condensation", explanation: "Vapour forms clouds." },
+      ],
+      facilitatorNote: "Let them try first.",
+    };
+    const { lesson } = await run({
+      outline: [{ json: outline("water-cycle", "sequence") }],
+      content: [{ json: content(activity as Content["activity"]) }],
+      quiz: [{ json: quiz() }],
+    });
+    expect(lesson.sections[3]).toMatchObject({ type: "diagram-labeling" });
   });
 
   it("cites reference excerpts and lists only the excerpts the lesson uses", async () => {
@@ -270,7 +434,7 @@ describe("generateLesson", () => {
 
   it("catches cross-reference problems the JSON schema can't express", async () => {
     const broken = content();
-    broken.sorting.items[0].categoryIndex = 2; // only two categories exist
+    (broken.practice as typeof sorting).items[0].categoryIndex = 2; // only two categories exist
     const { events } = await run({ ...happy(), content: [{ json: broken }, { json: content() }] });
     const retry = events.find((e) => e.type === "retry");
     expect(retry).toMatchObject({ stage: "content", reason: expect.stringContaining('Unknown category "cat-3"') });

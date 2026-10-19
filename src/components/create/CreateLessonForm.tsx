@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { SelectField, TextArea, TextField } from "@/components/editor/fields";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { HIGH_QUALITY_COST } from "@/lib/billing/plans";
@@ -64,7 +64,26 @@ export function CreateLessonForm({ mode, webResearch = false }: { mode: Generati
   const abortRef = useRef<AbortController | null>(null);
   const statusRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => () => abortRef.current?.abort(), []);
+  /** Set once a generated lesson is saved, so the form starts fresh the next time the page is shown. */
+  const succeededRef = useRef(false);
+
+  // Next.js keeps recently visited pages alive but hidden (React's <Activity>), with their state, and runs this
+  // cleanup when the page is hidden. Leaving mid-generation cancels it; after a lesson was made, the form
+  // resets so coming back to Create doesn't show the previous run. A half-filled form is kept as a draft.
+  useLayoutEffect(
+    () => () => {
+      abortRef.current?.abort();
+      setRun((current) => (current.status === "running" ? { status: "idle" } : current));
+      if (succeededRef.current) {
+        succeededRef.current = false;
+        setValues(EMPTY);
+        setFieldErrors({});
+        setExampleNotice("");
+        setRun({ status: "idle" });
+      }
+    },
+    [],
+  );
 
   const running = run.status === "running";
   const set = <K extends keyof GenerationFormValues>(key: K, value: GenerationFormValues[K]) =>
@@ -78,6 +97,7 @@ export function CreateLessonForm({ mode, webResearch = false }: { mode: Generati
       referenceText: canUseReference ? values.referenceText : "",
       quality: canUseHighQuality ? values.quality : "standard",
       research: canResearch && !hasReference && Boolean(values.research),
+      experiment: live && Boolean(values.experiment),
     });
     if (!parsed.success) {
       const errors: typeof fieldErrors = {};
@@ -116,6 +136,7 @@ export function CreateLessonForm({ mode, webResearch = false }: { mode: Generati
         try {
           if (storeState.status !== "ready") throw new Error("store not ready");
           await storeState.store.saveLesson(event.lesson);
+          succeededRef.current = true;
           router.push(`/lessons/${event.lesson.id}/edit?generated=${researchFallback ? "no-sources" : "1"}`);
         } catch (error) {
           setRun({
@@ -233,6 +254,25 @@ export function CreateLessonForm({ mode, webResearch = false }: { mode: Generati
                     ) : (
                       t.create.researchHint
                     )}
+                  </span>
+                </span>
+              </label>
+            </div>
+          )}
+          {live && (
+            <div className="rounded-2xl border-2 border-line p-4">
+              <label className="flex items-start gap-3">
+                <input
+                  type="checkbox"
+                  className="mt-1 size-5 accent-brand-600"
+                  checked={Boolean(values.experiment)}
+                  onChange={(e) => set("experiment", e.target.checked)}
+                  aria-describedby="experiment-hint"
+                />
+                <span>
+                  <span className="font-bold">{t.create.experiment}</span>
+                  <span id="experiment-hint" className="block text-sm text-muted">
+                    {t.create.experimentHint}
                   </span>
                 </span>
               </label>

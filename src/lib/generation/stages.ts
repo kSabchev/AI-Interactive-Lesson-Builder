@@ -16,8 +16,13 @@ const long = z.string().trim().min(1).max(TEXT_MAX);
 const objectiveRef = z.enum(["1", "2", "3"]);
 const NONE = "none";
 
-/** The "Explore a concept" template. Slot 4 is a diagram when one fits, otherwise a second prediction. */
-export const SLOTS = ["hook", "prediction", "explain1", "activity", "explain2", "sorting", "recap"] as const;
+/**
+ * The "Explore a concept" template. Two slots hold activities, chosen to suit the topic (see `chosenPlan`):
+ * - `activity` ("do it", after the first explanation): a hands-on experiment when the adult asks for one;
+ *   otherwise label a diagram, put steps in order, match pairs, or a second prediction;
+ * - `practice` ("apply it", after the second): sort examples into groups, or match pairs.
+ */
+export const SLOTS = ["hook", "prediction", "explain1", "activity", "explain2", "practice", "recap"] as const;
 export type Slot = (typeof SLOTS)[number];
 
 const SLOT_SECTION_IDS: Record<Slot, string> = {
@@ -26,7 +31,7 @@ const SLOT_SECTION_IDS: Record<Slot, string> = {
   explain1: "sec-explain-1",
   activity: "sec-activity",
   explain2: "sec-explain-2",
-  sorting: "sec-sorting",
+  practice: "sec-practice",
   recap: "sec-recap",
 };
 
@@ -42,13 +47,23 @@ export const outlineSchema = z.object({
   diagramId: z
     .enum([NONE, ...DIAGRAM_IDS])
     .describe(`An approved diagram that directly matches the topic, or "${NONE}"`),
+  activityType: z
+    .enum(["sequence", "matching", "prediction"])
+    .describe(
+      'The "do it" activity when no diagram is chosen: "sequence" if the topic is a process or has stages in a clear order; otherwise "matching" if it names 3-5 things that each have one distinct partner (a part and its job, a term and its meaning); otherwise "prediction"',
+    ),
+  practiceType: z
+    .enum(["sorting", "matching"])
+    .describe(
+      'The "apply it" activity: "sorting" if examples fall naturally into 2-3 groups; otherwise "matching" (one-to-one pairs). Never the same as activityType',
+    ),
   sections: z.object({
     hook: plannedSection,
     prediction: plannedSection,
     explain1: plannedSection,
-    activity: plannedSection.describe("Diagram labeling if a diagram was chosen, otherwise a second prediction question"),
+    activity: plannedSection.describe('The "do it" activity: the diagram if one was chosen, otherwise activityType'),
     explain2: plannedSection,
-    sorting: plannedSection,
+    practice: plannedSection.describe('The "apply it" activity (practiceType)'),
     recap: plannedSection,
   }),
 });
@@ -56,6 +71,35 @@ export type Outline = z.infer<typeof outlineSchema>;
 
 export function chosenDiagram(outline: Outline): DiagramId | undefined {
   return outline.diagramId === NONE ? undefined : (outline.diagramId as DiagramId);
+}
+
+/** What the "do it" slot does. */
+export type ActivityPlan =
+  | { kind: "experiment" }
+  | { kind: "diagram"; diagramId: DiagramId }
+  | { kind: "sequence" }
+  | { kind: "matching" }
+  | { kind: "prediction" };
+
+/** The two activities a lesson has: "do it" after the first explanation, and "apply it" after the second. */
+export type LessonPlan = { activity: ActivityPlan; practice: "sorting" | "matching" };
+
+/**
+ * Decides the lesson's activities. An experiment the adult asked for takes the "do it" slot; otherwise a
+ * matching diagram wins it, since labelling it is the richest activity, then the outline's choice. A lesson
+ * never has the same activity twice: if both slots would be "match pairs", the "apply it" slot sorts into
+ * groups instead. Decided here in code, so it costs no repair.
+ */
+export function chosenPlan(outline: Outline, input: Pick<GenerationInput, "experiment">): LessonPlan {
+  const diagramId = chosenDiagram(outline);
+  const activity: ActivityPlan = input.experiment
+    ? { kind: "experiment" }
+    : diagramId
+      ? { kind: "diagram", diagramId }
+      : { kind: outline.activityType };
+  const practice =
+    outline.practiceType === "matching" && activity.kind === "matching" ? "sorting" : outline.practiceType;
+  return { activity, practice };
 }
 
 const visual = z
@@ -68,6 +112,63 @@ const predictionContent = z.object({
   options: z.array(short).min(2).max(4),
   answerIndex: z.number().int().min(0).max(3).nullable().describe("Index of the option the reveal confirms, or null"),
   reveal: long.describe("What really happens, explained simply"),
+  facilitatorNote: note,
+});
+
+const sequenceContent = z.object({
+  instructions: long,
+  steps: z
+    .array(
+      z.object({
+        text: short.describe("One step, short enough to read at a glance"),
+        explanation: long.describe("Why this step comes here; shown if the learner puts it in the wrong place"),
+      }),
+    )
+    .min(3)
+    .max(6)
+    .describe("The steps in their correct order. Each must be clearly different from the others"),
+  facilitatorNote: note,
+});
+
+const experimentContent = z.object({
+  question: short.describe('What learners predict before trying it, e.g. "What will happen to the raisins?"'),
+  materials: z.array(short).min(2).max(8).describe("Safe, everyday household items"),
+  steps: z.array(long).min(2).max(6).describe("What the adult does, in order"),
+  observe: long.describe("What to look for while it happens"),
+  explanation: long.describe("Why it happens, in words the age group understands"),
+  safety: long.describe("A short safety note for the adult"),
+  facilitatorNote: note,
+});
+
+const matchingContent = z.object({
+  instructions: long,
+  pairs: z
+    .array(
+      z.object({
+        left: short.describe("A thing, part or term"),
+        right: short.describe("Its one partner: what it does, means or causes"),
+        explanation: long.describe("Why the two belong together; shown if the learner matches it wrongly"),
+      }),
+    )
+    .min(3)
+    .max(5)
+    .describe("Each left side has exactly one sensible partner; no two left or right sides alike"),
+  facilitatorNote: note,
+});
+
+const sortingContent = z.object({
+  instructions: long,
+  categories: z.array(short).min(2).max(3),
+  items: z
+    .array(
+      z.object({
+        text: short,
+        categoryIndex: z.number().int().min(0).max(2).describe("Index into categories"),
+        explanation: long.describe("Why it belongs in its category"),
+      }),
+    )
+    .min(3)
+    .max(8),
   facilitatorNote: note,
 });
 
@@ -90,26 +191,34 @@ function citations(excerptIds: string[]) {
 /** The evidence a generation works from, and the content origin it implies. */
 export type Evidence = { kind: "reference" | "web"; excerpts: Excerpt[] };
 
-export function contentSchema(diagramId: DiagramId | undefined, excerptIds: string[] = []) {
+export function contentSchema(plan: LessonPlan, excerptIds: string[] = []) {
   const explanation = excerptIds.length
     ? explanationContent.extend({ sourceIds: citations(excerptIds) })
     : explanationContent;
-  const activity = diagramId
-    ? z.object({
-        instructions: long,
-        labels: z
-          .array(
-            z.object({
-              text: short.describe("The label the learner places"),
-              targetId: z.enum(DIAGRAMS[diagramId].targets.map((t) => t.id) as [string, ...string[]]),
-              explanation: long.describe("Feedback shown when placed correctly"),
-            }),
-          )
-          .min(2)
-          .max(DIAGRAMS[diagramId].targets.length),
-        facilitatorNote: note,
-      })
-    : predictionContent;
+  const diagramId = plan.activity.kind === "diagram" ? plan.activity.diagramId : undefined;
+  const activity =
+    plan.activity.kind === "experiment"
+      ? experimentContent
+      : diagramId
+        ? z.object({
+            instructions: long,
+            labels: z
+              .array(
+                z.object({
+                  text: short.describe("The label the learner places"),
+                  targetId: z.enum(DIAGRAMS[diagramId].targets.map((t) => t.id) as [string, ...string[]]),
+                  explanation: long.describe("Feedback shown when placed correctly"),
+                }),
+              )
+              .min(2)
+              .max(DIAGRAMS[diagramId].targets.length),
+            facilitatorNote: note,
+          })
+        : plan.activity.kind === "sequence"
+          ? sequenceContent
+          : plan.activity.kind === "matching"
+            ? matchingContent
+            : predictionContent;
 
   return z.object({
     hook: z.object({ question: short, body: long, visualId: visual, facilitatorNote: note }),
@@ -117,21 +226,7 @@ export function contentSchema(diagramId: DiagramId | undefined, excerptIds: stri
     explain1: explanation,
     activity,
     explain2: explanation,
-    sorting: z.object({
-      instructions: long,
-      categories: z.array(short).min(2).max(3),
-      items: z
-        .array(
-          z.object({
-            text: short,
-            categoryIndex: z.number().int().min(0).max(2).describe("Index into categories"),
-            explanation: long.describe("Why it belongs in its category"),
-          }),
-        )
-        .min(3)
-        .max(8),
-      facilitatorNote: note,
-    }),
+    practice: plan.practice === "matching" ? matchingContent : sortingContent,
     recap: z.object({ keyPoints: z.array(long).length(3), facilitatorNote: note }),
   });
 }
@@ -147,9 +242,7 @@ export function quizSchema(sectionIds: string[], excerptIds: string[] = []) {
     sectionId: z.enum(sectionIds as [string, ...string[]]).describe("The section that teaches the answer"),
   });
   return z.object({
-    questions: z
-      .array(excerptIds.length ? question.extend({ sourceIds: citations(excerptIds) }) : question)
-      .length(5),
+    questions: z.array(excerptIds.length ? question.extend({ sourceIds: citations(excerptIds) }) : question).length(5),
   });
 }
 export type Quiz = z.infer<ReturnType<typeof quizSchema>>;
@@ -186,6 +279,31 @@ function sectionsFrom(outline: Outline, content: Content): LessonInput["sections
     };
   };
 
+  const matching = (slot: Slot, c: z.infer<typeof matchingContent>) => ({
+    ...meta(slot),
+    type: "matching" as const,
+    instructions: c.instructions,
+    // Pair ids carry the slot, so a lesson's two activities can never share ids.
+    pairs: c.pairs.map((pair, i) => ({ id: `${slot}-pair-${i + 1}`, ...pair })),
+  });
+
+  const sorting = (c: z.infer<typeof sortingContent>) => {
+    const categoryIds = c.categories.map((_, i) => `cat-${i + 1}`);
+    return {
+      ...meta("practice"),
+      type: "sorting" as const,
+      instructions: c.instructions,
+      categories: c.categories.map((label, i) => ({ id: categoryIds[i], label })),
+      items: c.items.map((item, i) => ({
+        id: `item-${i + 1}`,
+        text: item.text,
+        // An out-of-range index becomes an unknown category, which the lesson check reports for repair.
+        categoryId: categoryIds[item.categoryIndex] ?? `cat-${item.categoryIndex + 1}`,
+        explanation: item.explanation,
+      })),
+    };
+  };
+
   const explanation = (slot: Slot, c: z.infer<typeof explanationContent>) => ({
     ...meta(slot),
     type: "explanation" as const,
@@ -205,9 +323,29 @@ function sectionsFrom(outline: Outline, content: Content): LessonInput["sections
           instructions: content.activity.instructions,
           labels: content.activity.labels.map((label, i) => ({ id: `lbl-${i + 1}`, ...label })),
         }
-      : prediction("activity", content.activity as z.infer<typeof predictionContent>);
+      : "materials" in content.activity
+        ? {
+            ...meta("activity"),
+            type: "experiment" as const,
+            question: content.activity.question,
+            materials: content.activity.materials,
+            steps: content.activity.steps,
+            observe: content.activity.observe,
+            explanation: content.activity.explanation,
+            safety: content.activity.safety,
+          }
+        : "steps" in content.activity
+          ? {
+              ...meta("activity"),
+              type: "sequence" as const,
+              instructions: content.activity.instructions,
+              steps: content.activity.steps.map((step, i) => ({ id: `step-${i + 1}`, ...step })),
+            }
+          : "pairs" in content.activity
+            ? matching("activity", content.activity)
+            : prediction("activity", content.activity as z.infer<typeof predictionContent>);
 
-  const categoryIds = content.sorting.categories.map((_, i) => `cat-${i + 1}`);
+  const practice = "pairs" in content.practice ? matching("practice", content.practice) : sorting(content.practice);
 
   return [
     {
@@ -221,19 +359,7 @@ function sectionsFrom(outline: Outline, content: Content): LessonInput["sections
     explanation("explain1", content.explain1),
     activity,
     explanation("explain2", content.explain2),
-    {
-      ...meta("sorting"),
-      type: "sorting",
-      instructions: content.sorting.instructions,
-      categories: content.sorting.categories.map((label, i) => ({ id: categoryIds[i], label })),
-      items: content.sorting.items.map((item, i) => ({
-        id: `item-${i + 1}`,
-        text: item.text,
-        // An out-of-range index becomes an unknown category, which the lesson check reports for repair.
-        categoryId: categoryIds[item.categoryIndex] ?? `cat-${item.categoryIndex + 1}`,
-        explanation: item.explanation,
-      })),
-    },
+    practice,
     { ...meta("recap"), type: "recap", keyPoints: content.recap.keyPoints },
   ];
 }
@@ -284,7 +410,8 @@ export function assembleLesson({
     durationMinutes: input.durationMinutes,
     templateId: "explore-concept",
     language: detectLanguage(input.topic),
-    contentOrigin: evidence?.kind === "reference" ? "reference" : evidence?.kind === "web" ? "web-research" : "ai-draft",
+    contentOrigin:
+      evidence?.kind === "reference" ? "reference" : evidence?.kind === "web" ? "web-research" : "ai-draft",
     createdAt: now,
     updatedAt: now,
     objectives: outline.objectives.map((description, i) => ({ id: objectiveId(String(i + 1)), description })),
