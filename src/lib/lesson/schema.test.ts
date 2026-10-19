@@ -78,6 +78,54 @@ describe("lessonSchema", () => {
     expect(issuesFor(lesson)).toContain('Unknown category "cat-missing"');
   });
 
+  it("accepts a put-in-order section, and rejects one with repeated or too few steps", () => {
+    const withSequence = (steps: { id: string; text: string; explanation: string }[]) => {
+      const lesson = clone();
+      lesson.sections[3] = {
+        id: lesson.sections[3].id,
+        type: "sequence",
+        title: "Order the water cycle",
+        instructions: "Put the steps in order.",
+        steps,
+      };
+      return lesson;
+    };
+    const step = (id: string, text: string) => ({ id, text, explanation: "Because." });
+
+    expect(issuesFor(withSequence([step("s1", "Sun heats water"), step("s2", "Vapour rises"), step("s3", "Clouds form")]))).toEqual([]);
+    expect(issuesFor(withSequence([step("s1", "Sun heats water"), step("s2", "sun heats water "), step("s3", "Clouds form")]))).toContain(
+      "Two steps have the same text",
+    );
+    expect(issuesFor(withSequence([step("s1", "Sun heats water"), step("s1", "Vapour rises"), step("s3", "Clouds form")]))).toContain(
+      'Duplicate step id "s1"',
+    );
+    expect(issuesFor(withSequence([step("s1", "Sun heats water"), step("s2", "Vapour rises")])).length).toBeGreaterThan(0);
+  });
+
+  it("accepts a match-pairs section, and rejects one with an ambiguous side", () => {
+    const withMatching = (pairs: { id: string; left: string; right: string; explanation: string }[]) => {
+      const lesson = clone();
+      const index = lesson.sections.findIndex((s) => s.type === "sorting");
+      lesson.sections[index] = {
+        id: lesson.sections[index].id,
+        type: "matching",
+        title: "Match the stages",
+        instructions: "Match each stage with what happens.",
+        pairs,
+      };
+      return lesson;
+    };
+    const pair = (id: string, left: string, right: string) => ({ id, left, right, explanation: "Because." });
+
+    expect(issuesFor(withMatching([pair("p1", "Evaporation", "Water rises"), pair("p2", "Condensation", "Clouds form"), pair("p3", "Precipitation", "Rain falls")]))).toEqual([]);
+    expect(issuesFor(withMatching([pair("p1", "Evaporation", "Water rises"), pair("p2", "Condensation", "water rises"), pair("p3", "Precipitation", "Rain falls")]))).toContain(
+      "Two pairs have the same right side",
+    );
+    expect(issuesFor(withMatching([pair("p1", "Evaporation", "Water rises"), pair("p2", "evaporation ", "Clouds form"), pair("p3", "Precipitation", "Rain falls")]))).toContain(
+      "Two pairs have the same left side",
+    );
+  });
+
   it("rejects source URLs that are not valid URLs", () => {
     const lesson = clone();
     lesson.sources![0].url = "not a url";

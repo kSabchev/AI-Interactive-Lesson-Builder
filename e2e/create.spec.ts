@@ -46,6 +46,35 @@ test("Load example cycles through topics that suit the chosen age and length, ke
   await expect(topic).toHaveValue("Photosynthesis and why life on Earth depends on it");
 });
 
+test("coming back to Create after a lesson was made shows a fresh form, not the previous run", async ({ page }) => {
+  let requests = 0;
+  page.on("request", (r) => {
+    if (r.url().includes("/api/lessons/generate")) requests++;
+  });
+  await openCreate(page);
+  await page.getByRole("textbox", { name: "Topic" }).fill("Why do plants need light?");
+  await page.getByRole("button", { name: "Generate lesson" }).click();
+  await expect(page).toHaveURL(/\/edit\?generated=1/);
+
+  // Back to Create without reloading, as a person would: the editor's Library link, then "Create a lesson".
+  await page.getByRole("link", { name: "Library" }).click();
+  await page.getByRole("link", { name: "Create a lesson" }).click();
+  await expect(page.getByRole("heading", { name: "Create a lesson" })).toBeVisible();
+  await expect(page.getByRole("textbox", { name: "Topic" })).toHaveValue("");
+  await expect(page.getByRole("button", { name: "Generate lesson" })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Cancel" })).toHaveCount(0);
+  expect(requests).toBe(1);
+});
+
+test("a half-filled form is still there after looking at another page", async ({ page }) => {
+  await openCreate(page);
+  await page.getByRole("textbox", { name: "Topic" }).fill("Volcanoes");
+  await page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "Pricing" }).click();
+  await expect(page).toHaveURL("/pricing");
+  await page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "Create" }).click();
+  await expect(page.getByRole("textbox", { name: "Topic" })).toHaveValue("Volcanoes");
+});
+
 test("the form explains invalid input without sending a request", async ({ page }) => {
   let requests = 0;
   await page.route("**/api/lessons/generate", (route) => {

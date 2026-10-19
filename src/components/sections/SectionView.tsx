@@ -2,14 +2,20 @@
 
 import type { LessonSection } from "@/lib/lesson/schema";
 import { DiagramLabelingSection, initialLabelingState, type LabelingState } from "./DiagramLabelingSection";
+import { ExperimentSection, type ExperimentState, initialExperimentState } from "./ExperimentSection";
 import { ExplanationSection } from "./ExplanationSection";
 import { HookSection } from "./HookSection";
+import { initialMatchingState, MatchingSection, type MatchingState } from "./MatchingSection";
 import { initialPredictionState, PredictionSection, type PredictionState } from "./PredictionSection";
 import { RecapSection } from "./RecapSection";
+import { initialSequenceState, SequenceSection, type SequenceState } from "./SequenceSection";
 import { initialSortingState, SortingSection, type SortingState } from "./SortingSection";
 
 /** Per-section activity progress, kept by the player so it survives moving between sections. */
-export type ActivityStates = Record<string, PredictionState | LabelingState | SortingState>;
+export type ActivityStates = Record<
+  string,
+  PredictionState | LabelingState | SortingState | SequenceState | MatchingState | ExperimentState
+>;
 
 export function SectionView({
   section,
@@ -50,6 +56,30 @@ export function SectionView({
         <SortingSection
           section={section}
           state={(activityStates[section.id] as SortingState) ?? initialSortingState}
+          onChange={update}
+        />
+      );
+    case "sequence":
+      return (
+        <SequenceSection
+          section={section}
+          state={(activityStates[section.id] as SequenceState) ?? initialSequenceState}
+          onChange={update}
+        />
+      );
+    case "matching":
+      return (
+        <MatchingSection
+          section={section}
+          state={(activityStates[section.id] as MatchingState) ?? initialMatchingState}
+          onChange={update}
+        />
+      );
+    case "experiment":
+      return (
+        <ExperimentSection
+          section={section}
+          state={(activityStates[section.id] as ExperimentState) ?? initialExperimentState}
           onChange={update}
         />
       );

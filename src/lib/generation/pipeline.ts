@@ -1,6 +1,7 @@
 import type { z } from "zod";
 import { en } from "@/lib/i18n/dictionaries/en";
 import { describeIssues } from "@/lib/lesson/issues";
+import { unsafeExperimentTerms } from "@/lib/lesson/safety";
 import { type Lesson, lessonSchema } from "@/lib/lesson/schema";
 import { GenerationError, type GenerationEvent, type Stage } from "./events";
 import { excerptsFromCitations, splitReference, type WebCitation } from "./evidence";
@@ -8,7 +9,7 @@ import type { GenerationInput } from "./input";
 import { contentPrompt, outlinePrompt, quizPrompt, repairPrompt, researchPrompt, SYSTEM_PROMPT } from "./prompts";
 import {
   assembleLesson,
-  chosenDiagram,
+  chosenPlan,
   type Content,
   contentSchema,
   type Evidence,
@@ -143,9 +144,13 @@ export async function generateLesson({
     emit,
     "content",
     contentPrompt(input, outline, evidence),
-    contentSchema(chosenDiagram(outline), excerptIds) as z.ZodType<Content>,
-    // Check section-level rules now (e.g. two labels on one diagram spot), using a placeholder quiz.
-    (c) => lessonProblems(assemble(c, PLACEHOLDER_QUIZ), (t) => t.startsWith("section:")),
+    contentSchema(chosenPlan(outline, input), excerptIds) as z.ZodType<Content>,
+    // Check section-level rules now (e.g. two labels on one diagram spot), using a placeholder quiz, and that
+    // an experiment uses nothing unsafe for children.
+    (c) => [
+      ...lessonProblems(assemble(c, PLACEHOLDER_QUIZ), (t) => t.startsWith("section:")),
+      ...experimentProblems(c.activity),
+    ],
   );
 
   const quiz: Quiz = await runStage(
@@ -186,6 +191,17 @@ async function gatherEvidence(input: GenerationInput, client: ModelClient, emit:
     return undefined;
   }
   return { kind: "web", excerpts };
+}
+
+/** Problems with a generated experiment's safety, phrased for the model to fix. */
+function experimentProblems(activity: Content["activity"]): string[] {
+  if (!("materials" in activity)) return [];
+  const terms = unsafeExperimentTerms(activity);
+  return terms.length
+    ? [
+        `activity: the experiment uses something unsafe for children (${terms.join(", ")}). Use only safe household materials: no fire or heat, sharp blades, strong chemicals or mains electricity.`,
+      ]
+    : [];
 }
 
 /** A structurally valid quiz covering every objective, used only to check content before the real quiz exists. */

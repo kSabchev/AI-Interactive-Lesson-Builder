@@ -25,6 +25,8 @@ export const generationInputSchema = z.object({
   quality: z.enum(["standard", "high"]).default("standard"),
   /** Search the web for sources before writing (ignored when reference text is supplied). */
   research: z.boolean().default(false),
+  /** Make the "do it" activity a hands-on experiment the adult leads (needs simple household materials). */
+  experiment: z.boolean().default(false),
 });
 
 export type GenerationInput = z.infer<typeof generationInputSchema>;
@@ -37,6 +39,7 @@ export const EXAMPLE_INPUT: GenerationFormValues = {
   referenceText: "",
   quality: "standard",
   research: false,
+  experiment: false,
 };
 
 /** A validation problem in the interface language (the schema's own messages are English). */

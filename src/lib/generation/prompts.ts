@@ -3,7 +3,7 @@ import { VISUALS } from "@/lib/assets/visuals";
 import { formatExcerpts } from "./evidence";
 import { detectLanguage } from "@/lib/i18n/detect";
 import type { GenerationInput } from "./input";
-import { chosenDiagram, type Content, type Evidence, type Outline, SECTION_IDS, SLOTS } from "./stages";
+import { chosenPlan, type Content, type Evidence, type Outline, SECTION_IDS, SLOTS } from "./stages";
 
 /** Stable across every stage and request, so it can be cached. */
 export const SYSTEM_PROMPT = `You write short, interactive science lessons that a parent or teacher presents on one shared screen to children aged 8-12.
@@ -56,6 +56,12 @@ function brief(input: GenerationInput, evidence?: Evidence): string {
 const CITING_RULES =
   "Cite evidence by excerpt id in `sourceIds`: list only excerpts that actually state the facts used. Never cite an excerpt for something it doesn't say.";
 
+const EXPERIMENT_RULES =
+  "Choose an experiment an adult can lead in a classroom or kitchen in a few minutes with safe, everyday household materials (water, paper, food colouring, vinegar and baking soda, balloons, magnets, torches). Never use fire, candles or matches, heat or boiling water, sharp blades, strong chemicals such as bleach, or mains electricity. Learners predict first (question), then watch (observe), then hear why it happens (explanation). Always include a short safety note for the adult.";
+
+const MATCHING_RULES =
+  "Each pair joins a thing, part or term (left) with its one partner: what it does, means or causes (right). Every left side must have exactly one sensible partner, and no two left or right sides may be alike; explain why each pair belongs together.";
+
 export function outlinePrompt(input: GenerationInput, evidence?: Evidence): string {
   const diagrams = Object.values(DIAGRAMS)
     .map((d) => `- ${d.id}: ${d.title}. ${d.description} Suits: ${d.topics.join(", ")}.`)
@@ -67,19 +73,24 @@ Plan a lesson using the fixed "Explore a concept" sequence:
 1. hook - a relatable question that sparks curiosity
 2. prediction - learners guess before being taught (not scored)
 3. explain1 - teaches the first core concepts
-4. activity - labels an approved diagram if one matches the topic, otherwise a second prediction that applies what was just taught
+4. activity ("do it") - labels an approved diagram if one matches the topic. Otherwise choose activityType by the shape of what explain1 teaches: "sequence" (put 3-6 steps in order) for a process or stages in a clear order, such as a life cycle or how rain forms; "matching" (3-5 one-to-one pairs) when it names several things that each have one distinct partner, such as a part and its job or a term and its meaning; otherwise "prediction" (a second guess that applies what was just taught)
 5. explain2 - applies the concepts with examples
-6. sorting - learners sort examples into 2-3 groups to check understanding
+6. practice ("apply it") - choose practiceType: "sorting" if examples fall naturally into 2-3 groups (several examples per group, such as magnetic or not); otherwise "matching". Never choose "matching" for both activityType and practiceType
 7. recap - three key ideas
 
-Write exactly three learning objectives that the lesson will teach and a quiz can check.
+Write exactly three learning objectives that the lesson will teach and a quiz can check.${
+    input.experiment
+      ? '\n\nThe adult asked for a hands-on experiment: section 4 "activity" is an experiment that shows what explain1 teaches (choose activityType anyway; it is not used). Pick a topic focus where a safe, simple experiment demonstrates the key idea.'
+      : ""
+  }
 
 Approved diagrams (choose one only if it directly shows this topic, otherwise "none"):
 ${diagrams}`;
 }
 
 export function contentPrompt(input: GenerationInput, outline: Outline, evidence?: Evidence): string {
-  const diagramId = chosenDiagram(outline);
+  const lessonPlan = chosenPlan(outline, input);
+  const activityPlan = lessonPlan.activity;
   const plan = SLOTS.map((slot) => {
     const s = outline.sections[slot];
     return `- ${slot}: "${s.title}" - ${s.focus} (objectives ${s.objectives.join(", ") || "none"})`;
@@ -89,13 +100,24 @@ export function contentPrompt(input: GenerationInput, outline: Outline, evidence
     .map(([id, description]) => `- ${id}: ${description}`)
     .join("\n");
 
-  const activity = diagramId
-    ? `The activity section labels the "${DIAGRAMS[diagramId].title}" diagram. Its spots are:\n${DIAGRAMS[
-        diagramId
-      ].targets
-        .map((t) => `- ${t.id}: ${t.name}`)
-        .join("\n")}\nWrite one label per spot you use, with feedback that explains it.`
-    : "The activity section is a second prediction question that applies what explain1 taught.";
+  const activity =
+    activityPlan.kind === "experiment"
+      ? `The activity section is a hands-on experiment that shows what explain1 teaches. ${EXPERIMENT_RULES}`
+      : activityPlan.kind === "diagram"
+        ? `The activity section labels the "${DIAGRAMS[activityPlan.diagramId].title}" diagram. Its spots are:\n${DIAGRAMS[
+            activityPlan.diagramId
+          ].targets
+            .map((t) => `- ${t.id}: ${t.name}`)
+            .join("\n")}\nWrite one label per spot you use, with feedback that explains it.`
+        : activityPlan.kind === "sequence"
+          ? "The activity section asks learners to put 3-6 steps of a process from explain1 in order. List the steps in their correct order (the lesson shuffles them). Each step must be short, clearly different from the others, and have only one sensible place in the order; explain why each comes where it does."
+          : activityPlan.kind === "matching"
+            ? `The activity section asks learners to match 3-5 pairs from explain1. ${MATCHING_RULES}`
+            : "The activity section is a second prediction question that applies what explain1 taught.";
+  const practice =
+    lessonPlan.practice === "matching"
+      ? `The practice section asks learners to match 3-5 pairs that apply what explain2 taught. ${MATCHING_RULES}`
+      : "The practice section asks learners to sort 4-8 examples into 2-3 groups, each example clearly belonging to exactly one group.";
 
   return `${brief(input, evidence)}
 
@@ -109,7 +131,9 @@ ${plan}
 
 ${activity}
 
-Write the content for every section. Prediction options should all be plausible to a child. Sorting needs 4-8 examples, each clearly belonging to exactly one group. Recap must have exactly three key points.${
+${practice}
+
+Write the content for every section. The practice section checks the idea in a new way: use different examples from the activity section and don't repeat its task (if the activity sorts or tests objects, the practice must not sort the same kind of objects into the same groups). Prediction options should all be plausible to a child. Recap must have exactly three key points.${
     evidence ? `\n\nEach explanation section must cite the excerpts it is based on. ${CITING_RULES}` : ""
   }
 
@@ -119,9 +143,9 @@ ${visuals}`;
 
 export function quizPrompt(input: GenerationInput, outline: Outline, content: Content, evidence?: Evidence): string {
   const objectives = outline.objectives.map((o, i) => `${i + 1}. ${o}`).join("\n");
-  const sections = SLOTS.map((slot, i) => `${SECTION_IDS[i]} ("${outline.sections[slot].title}"): ${JSON.stringify(content[slot])}`).join(
-    "\n\n",
-  );
+  const sections = SLOTS.map(
+    (slot, i) => `${SECTION_IDS[i]} ("${outline.sections[slot].title}"): ${JSON.stringify(content[slot])}`,
+  ).join("\n\n");
 
   return `${brief(input, evidence)}
 

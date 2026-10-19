@@ -23,7 +23,7 @@ The product is moving from a portfolio demo to a subscription SaaS for parents a
 | Reference-based and web-researched lessons | — | ✓ | ✓ |
 | Samples, editor, player, quiz | ✓ | ✓ | ✓ |
 
-Margin check: 30 Sonnet lessons at ~$0.15 cost ~$4.50, which fits $9 after payment fees. 30 Opus lessons at ~$0.40 would not, hence the Opus weighting.
+Margin check: measured in October 2026, a standard (Sonnet 5.5) lesson costs about $0.05–0.07 and takes 35–50 seconds (7 live lessons, no repairs), so 30 lessons cost about $2, well within $9 after payment fees. Opus lessons cost roughly twice as much per token, hence counting them as two. Web research adds about $0.01 per search.
 
 ## Milestones
 
@@ -50,11 +50,11 @@ Order agreed after reviewing the project: prove the core before adding more arou
 3. ✅ **Hygiene before inviting anyone.** Privacy notice, `EMAIL_SIGN_IN=false` until a domain is verified, the test build in its own folder, the error log. **Open:** the free Render database expires about 30 days after it was created (around mid-November 2026, check Render); upgrade or move it before then (README, "The database on Render").
 4. **Real users.** 3–5 parents or teachers with their own access codes, and a native speaker for the Bulgarian text. Runs alongside step 5; what they say can reorder it.
 5. **Richer lessons (milestone 10).** In this order:
-   1. "Put in order" and "Match pairs" activities.
+   1. ✅ "Put in order", "Match pairs" and "Try it yourself" (experiment, opt-in), with each lesson's two activities chosen by the shape of the topic (see section 10). Checked live on 7 topics.
    2. A first batch of diagrams for the most requested topics (generation log), then more pictures.
    3. Lengths that differ in shape: 10 / 15 / 25 minutes.
    4. The 12–14 age group, with school grades shown next to ages.
-   5. "Try it yourself" (experiment) and "Talk about it" (discussion) sections.
+   5. "Talk about it" (discussion) sections.
 6. **Tune with data.** Per-stage model and effort (e.g. Haiku 5.5 for outline and quiz), regenerating a single section, prompt caching only if the log shows frequent repairs.
 7. **Launch readiness (milestone 9).** Rate limits in shared storage, security headers, `@axe-core/playwright` checks, a verified Stripe test checkout, legal pages.
 8. **Later, if there is demand.** Share links with "save a copy", AI-drawn pictures for topics the library doesn't cover, a full-period (40–45 minute) length, then the Classroom tier and a moderated shared library.
@@ -126,6 +126,17 @@ Schools as organizations with seats, invitations and owner/teacher roles; shared
 - **Length barely changes the lesson.** 10 and 15 minutes produce the same seven sections and five questions; only the paragraph guidance differs.
 - **Age only changes vocabulary.** 8–10 and 11–12 differ by one prompt line.
 - **Few activity types, few visuals.** Predict and sort in every lesson; diagram labelling only for the three topics with a diagram (water cycle, solar system, photosynthesis). The eight illustrations were drawn for the same three topics, so most generated lessons have no pictures at all. Lessons feel repetitive to someone using the app weekly.
+
+**How a lesson's activities are chosen (done).** Each activity checks a different shape of knowledge: **put in order** a process (a chain of steps), **sort into groups** a classification (many examples, few groups), **match pairs** one-to-one facts (a part and its job, a term and its meaning). Every lesson has two activity slots:
+
+| Slot | Choice, first that fits |
+| --- | --- |
+| **Do it** (section 4, after the first explanation) | label a diagram → put in order → match pairs → prediction |
+| **Apply it** (section 6, after the second) | sort into groups → match pairs |
+
+A lesson never has match pairs twice: if both slots ask for it, "apply it" sorts instead (decided in code, `chosenPlan`). "Apply it" must use new examples, not repeat "do it". **Try it yourself** is opt-in (a checkbox on the create form, since it needs materials prepared): it takes the "do it" slot, and a code check sends back experiments that mention fire or heat, blades, strong chemicals or mains electricity.
+
+**Live check (October 2026, Sonnet 5.5, 7 lessons).** Butterfly life cycle: put in order + sort by stage. Parts of a plant: match pairs + sorting. Magnets: prediction + sorting. Float or sink (experiment): a clay-boat experiment + sorting new objects. How plants drink (experiment): celery in coloured water + sorting. Frog life cycle (Bulgarian): put in order + sorting. No repairs; $0.05–0.07 and 35–50 s per lesson. The first experiment run repeated the float/sink task in "apply it", which the new-examples rule fixed. The model rarely picks match pairs for "apply it", preferring sorting when groups exist, as the rule intends. Examples: the water cycle gets the diagram and sorting; the butterfly life cycle gets put in order and match pairs; parts of a plant gets match pairs and sorting.
 
 **1. New activity types.** Each needs a schema, a player renderer, an editor, a checker, prompt guidance, English and Bulgarian text and tests: about half a day to a day each.
 

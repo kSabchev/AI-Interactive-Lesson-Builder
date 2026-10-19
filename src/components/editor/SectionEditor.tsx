@@ -4,6 +4,7 @@ import { SourceList } from "@/components/lesson/SourceList";
 import { DIAGRAMS, isDiagramId } from "@/lib/assets/diagrams";
 import { VISUAL_IDS, type VisualId } from "@/lib/assets/visuals";
 import { useT } from "@/lib/i18n/client";
+import { moveStep } from "@/lib/activities/checking";
 import { newId, optionalText, removeAt, replaceAt } from "@/lib/lesson/edit";
 import { type Lesson, type LessonSection, SHORT_TEXT_MAX, type SectionOfType, TEXT_MAX } from "@/lib/lesson/schema";
 import { AddButton, EditorGroup, ListItemCard, SelectField, TextArea, TextField } from "./fields";
@@ -92,6 +93,12 @@ function TypeEditor({ section, onChange }: { section: LessonSection; onChange: (
       return <DiagramEditor section={section} onChange={onChange} />;
     case "sorting":
       return <SortingEditor section={section} onChange={onChange} />;
+    case "sequence":
+      return <SequenceEditor section={section} onChange={onChange} />;
+    case "matching":
+      return <MatchingEditor section={section} onChange={onChange} />;
+    case "experiment":
+      return <ExperimentEditor section={section} onChange={onChange} />;
     case "recap":
       return <RecapEditor section={section} onChange={onChange} />;
   }
@@ -382,6 +389,197 @@ function SortingEditor({ section, onChange }: EditorProps<"sorting">) {
         </AddButton>
       </EditorGroup>
     </>
+  );
+}
+
+function SequenceEditor({ section, onChange }: EditorProps<"sequence">) {
+  const s = useT().editor.section;
+  const steps = section.steps;
+  const move = (from: number, to: number) => {
+    const order = moveStep(
+      steps.map((step) => step.id),
+      from,
+      to,
+    );
+    onChange({ ...section, steps: order.map((id) => steps.find((step) => step.id === id)!) });
+  };
+  return (
+    <>
+      <EditorGroup title={s.sequence}>
+        <TextArea
+          label={s.instructions}
+          rows={2}
+          value={section.instructions}
+          maxLength={TEXT_MAX}
+          onChange={(instructions) => onChange({ ...section, instructions })}
+        />
+      </EditorGroup>
+
+      <EditorGroup title={s.steps} description={s.stepsDescription}>
+        {steps.map((step, i) => (
+          <ListItemCard
+            key={step.id}
+            title={s.step(i + 1)}
+            onRemove={steps.length > 3 ? () => onChange({ ...section, steps: removeAt(steps, i) }) : undefined}
+          >
+            <TextField
+              label={s.stepText}
+              value={step.text}
+              maxLength={SHORT_TEXT_MAX}
+              onChange={(text) => onChange({ ...section, steps: replaceAt(steps, i, { ...step, text }) })}
+            />
+            <TextArea
+              label={s.stepExplanation}
+              rows={2}
+              value={step.explanation}
+              maxLength={TEXT_MAX}
+              onChange={(explanation) => onChange({ ...section, steps: replaceAt(steps, i, { ...step, explanation }) })}
+            />
+            <div className="flex gap-2">
+              <button
+                type="button"
+                disabled={i === 0}
+                onClick={() => move(i, i - 1)}
+                aria-label={s.moveStepUp(i + 1)}
+                className="rounded-full px-3 py-1 text-sm font-bold text-brand-700 hover:bg-brand-50 disabled:opacity-40"
+              >
+                ↑
+              </button>
+              <button
+                type="button"
+                disabled={i === steps.length - 1}
+                onClick={() => move(i, i + 1)}
+                aria-label={s.moveStepDown(i + 1)}
+                className="rounded-full px-3 py-1 text-sm font-bold text-brand-700 hover:bg-brand-50 disabled:opacity-40"
+              >
+                ↓
+              </button>
+            </div>
+          </ListItemCard>
+        ))}
+        <AddButton
+          disabled={steps.length >= 6}
+          onClick={() => onChange({ ...section, steps: [...steps, { id: newId("step"), text: "", explanation: "" }] })}
+        >
+          {s.addStep}
+        </AddButton>
+      </EditorGroup>
+    </>
+  );
+}
+
+function MatchingEditor({ section, onChange }: EditorProps<"matching">) {
+  const s = useT().editor.section;
+  const pairs = section.pairs;
+  return (
+    <>
+      <EditorGroup title={s.matching}>
+        <TextArea
+          label={s.instructions}
+          rows={2}
+          value={section.instructions}
+          maxLength={TEXT_MAX}
+          onChange={(instructions) => onChange({ ...section, instructions })}
+        />
+      </EditorGroup>
+
+      <EditorGroup title={s.pairs} description={s.pairsDescription}>
+        {pairs.map((pair, i) => (
+          <ListItemCard
+            key={pair.id}
+            title={s.pair(i + 1)}
+            onRemove={pairs.length > 3 ? () => onChange({ ...section, pairs: removeAt(pairs, i) }) : undefined}
+          >
+            <div className="grid gap-3 sm:grid-cols-2">
+              <TextField
+                label={s.pairLeft}
+                value={pair.left}
+                maxLength={SHORT_TEXT_MAX}
+                onChange={(left) => onChange({ ...section, pairs: replaceAt(pairs, i, { ...pair, left }) })}
+              />
+              <TextField
+                label={s.pairRight}
+                value={pair.right}
+                maxLength={SHORT_TEXT_MAX}
+                onChange={(right) => onChange({ ...section, pairs: replaceAt(pairs, i, { ...pair, right }) })}
+              />
+            </div>
+            <TextArea
+              label={s.pairExplanation}
+              rows={2}
+              value={pair.explanation}
+              maxLength={TEXT_MAX}
+              onChange={(explanation) => onChange({ ...section, pairs: replaceAt(pairs, i, { ...pair, explanation }) })}
+            />
+          </ListItemCard>
+        ))}
+        <AddButton
+          disabled={pairs.length >= 5}
+          onClick={() =>
+            onChange({ ...section, pairs: [...pairs, { id: newId("pair"), left: "", right: "", explanation: "" }] })
+          }
+        >
+          {s.addPair}
+        </AddButton>
+      </EditorGroup>
+    </>
+  );
+}
+
+/**
+ * Lists edited as one line per item. Blank lines are dropped, except a last one, so pressing Enter can start
+ * a new item; an item left empty is reported when saving.
+ */
+const toLines = (items: string[]) => items.join("\n");
+const fromLines = (text: string) => {
+  const lines = text.split("\n").map((line) => line.trimStart());
+  return lines.filter((line, i) => line.trim() !== "" || i === lines.length - 1);
+};
+
+function ExperimentEditor({ section, onChange }: EditorProps<"experiment">) {
+  const s = useT().editor.section;
+  return (
+    <EditorGroup title={s.experiment} description={s.experimentDescription}>
+      <TextArea
+        label={s.safetyNote}
+        rows={2}
+        value={section.safety}
+        maxLength={TEXT_MAX}
+        onChange={(safety) => onChange({ ...section, safety })}
+      />
+      <TextArea
+        label={s.materials}
+        rows={4}
+        value={toLines(section.materials)}
+        onChange={(v) => onChange({ ...section, materials: fromLines(v) })}
+      />
+      <TextArea
+        label={s.experimentSteps}
+        rows={5}
+        value={toLines(section.steps)}
+        onChange={(v) => onChange({ ...section, steps: fromLines(v) })}
+      />
+      <TextField
+        label={s.experimentQuestion}
+        value={section.question}
+        maxLength={SHORT_TEXT_MAX}
+        onChange={(question) => onChange({ ...section, question })}
+      />
+      <TextArea
+        label={s.observe}
+        rows={2}
+        value={section.observe}
+        maxLength={TEXT_MAX}
+        onChange={(observe) => onChange({ ...section, observe })}
+      />
+      <TextArea
+        label={s.experimentExplanation}
+        rows={3}
+        value={section.explanation}
+        maxLength={TEXT_MAX}
+        onChange={(explanation) => onChange({ ...section, explanation })}
+      />
+    </EditorGroup>
   );
 }
 
