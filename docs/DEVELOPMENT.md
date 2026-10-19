@@ -32,25 +32,32 @@ Margin check: 30 Sonnet lessons at ~$0.15 cost ~$4.50, which fits $9 after payme
 | 1 | Lesson player | ✅ |
 | 2 | Quiz and results | ✅ |
 | 3 | Review editor and local persistence | ✅ |
-| 4 | AI generation | 🟡 steps 1–9 done; step 10 (live check) needs an API key |
+| 4 | AI generation | ✅ live lessons checked on the demo in October 2026; templates to improve in milestone 10 |
 | 5 | Accounts and cloud data | ✅ (email delivery provider pending, see milestone 9) |
 | 6 | Subscriptions and billing | ✅ Free and Pro; Classroom waits for milestone 8 |
 | 7 | Evidence support | ✅ reference excerpts and web research cited per section and question |
 | 7b | English and Bulgarian | ✅ interface toggle; lessons in the topic's language (Bulgarian text needs a native-speaker review) |
 | 8 | Classroom tier | ⏳ (build when there is demand) |
-| 9 | Launch readiness | 🚧 CI, generation log, Resend sign-in email and a Render demo Blueprint done |
+| 9 | Launch readiness | 🚧 CI, generation log, error log, privacy notice, Resend sign-in email and a Render demo done |
+| 10 | Richer lessons | ⏳ new activity types, lengths that differ in shape, a 12–14 age group, a diagram and picture library |
 
 ## Next steps (October 2026)
 
 Order agreed after reviewing the project: prove the core before adding more around it.
 
-1. **Prove generation on real topics.** 10–15 live lessons across English and Bulgarian, web research and reference text. Read each one for accuracy, age fit and quiz alignment, and use the generation log for cost and repair rates. Fix what this finds. Before merging pipeline changes, run a small manual live check (never in CI).
-2. **Demo deployment.** Resend for sign-in email, the Render Blueprint, a demo-only Claude key with a Console spend limit, low daily cap, `ADMIN_EMAILS`. Deployed to Render; demo sign-in with access codes added so invited people can try it without email.
-2b. **Hygiene before inviting anyone.** Done: privacy notice (`/privacy`), `EMAIL_SIGN_IN=false` until a domain is verified, the test build in its own folder, built-in error log with optional webhook alerts. The free Render database expires about 30 days after it was created (around mid-November 2026, check Render); upgrade or move it before then (README, "The database on Render").
-3. **Real users.** 3–5 parents or teachers, and a native speaker for the Bulgarian text.
-4. **Tune with data.** Per-stage model and effort (e.g. Haiku 5.5 for outline and quiz), regenerating a single section, prompt caching only if the log shows frequent repairs.
-5. **Launch readiness (milestone 9).** Rate limits in shared storage, security headers, `@axe-core/playwright` checks, a verified Stripe test checkout, error tracking, legal and privacy pages.
-6. **Later, if there is demand.** Share links with "save a copy", the 12–14 age group, then the Classroom tier and a moderated shared library.
+1. ✅ **Prove generation on real topics.** Lessons generated on the demo look good; the templates can be improved later (milestone 10). Before merging pipeline changes, run a small manual live check (never in CI).
+2. ✅ **Demo deployment.** Render, Resend, Google sign-in, a demo-only Claude key with a Console spend limit, a low daily cap, demo sign-in with access codes.
+3. ✅ **Hygiene before inviting anyone.** Privacy notice, `EMAIL_SIGN_IN=false` until a domain is verified, the test build in its own folder, the error log. **Open:** the free Render database expires about 30 days after it was created (around mid-November 2026, check Render); upgrade or move it before then (README, "The database on Render").
+4. **Real users.** 3–5 parents or teachers with their own access codes, and a native speaker for the Bulgarian text. Runs alongside step 5; what they say can reorder it.
+5. **Richer lessons (milestone 10).** In this order:
+   1. "Put in order" and "Match pairs" activities.
+   2. A first batch of diagrams for the most requested topics (generation log), then more pictures.
+   3. Lengths that differ in shape: 10 / 15 / 25 minutes.
+   4. The 12–14 age group, with school grades shown next to ages.
+   5. "Try it yourself" (experiment) and "Talk about it" (discussion) sections.
+6. **Tune with data.** Per-stage model and effort (e.g. Haiku 5.5 for outline and quiz), regenerating a single section, prompt caching only if the log shows frequent repairs.
+7. **Launch readiness (milestone 9).** Rate limits in shared storage, security headers, `@axe-core/playwright` checks, a verified Stripe test checkout, legal pages.
+8. **Later, if there is demand.** Share links with "save a copy", AI-drawn pictures for topics the library doesn't cover, a full-period (40–45 minute) length, then the Classroom tier and a moderated shared library.
 
 ### 4. AI generation
 
@@ -111,3 +118,43 @@ Schools as organizations with seats, invitations and owner/teacher roles; shared
 5. Security: rate limits on sign-in and generation in shared storage, CSRF protection, security headers, security review.
 6. Delivery: accessibility checks (`@axe-core/playwright`), keyboard and screen-reader pass, responsive check, CI (lint, typecheck, unit, end-to-end in sample mode), preview and production environments, migrations in CI.
 7. Marketing: landing page, pricing, FAQ; samples stay available without sign-up.
+
+### 10. Richer lessons
+
+**Where the template stands (October 2026).** Every generated lesson has the same seven sections — hook, predict, explain, activity (diagram labelling, or a second prediction), explain, sort, recap — with three objectives and a five-question quiz. The arc is sound (engage, guess, learn, do, apply, summarise, check) and the strict schema keeps lessons renderable and editable. Three weaknesses:
+
+- **Length barely changes the lesson.** 10 and 15 minutes produce the same seven sections and five questions; only the paragraph guidance differs.
+- **Age only changes vocabulary.** 8–10 and 11–12 differ by one prompt line.
+- **Few activity types, few visuals.** Predict and sort in every lesson; diagram labelling only for the three topics with a diagram (water cycle, solar system, photosynthesis). The eight illustrations were drawn for the same three topics, so most generated lessons have no pictures at all. Lessons feel repetitive to someone using the app weekly.
+
+**1. New activity types.** Each needs a schema, a player renderer, an editor, a checker, prompt guidance, English and Bulgarian text and tests: about half a day to a day each.
+
+| Activity | What learners do | Why |
+| --- | --- | --- |
+| Put in order | Arrange the steps of a process | Interactive, fits most science topics (life cycles, digestion, eruptions), needs no art |
+| Match pairs | Connect terms to meanings, or causes to effects | Interactive, quick to answer on a shared screen |
+| Try it yourself | Adult-led experiment: materials, steps, what to notice, safety note | Valued by teachers; the prompt needs firm safety rules (household materials, adult supervision) |
+| Talk about it | A class discussion question with prompts for the adult | Cheap; good for 11–12 and longer lessons |
+
+**2. Lengths that differ in shape.** The schema's exact counts become ranges, so every saved lesson stays valid.
+
+| Length | Sections | Quiz questions | Shape |
+| --- | --- | --- | --- |
+| 10 min | 5 | 3 | hook, predict, explain, one activity, recap |
+| 15 min | 7 | 5 | today's structure |
+| 25 min (new) | 9 | 6–7 | adds a second activity and an experiment or discussion section |
+
+A 25-minute lesson produces about 40–60% more output, so it costs more and takes longer; measure with the generation log and decide whether it counts as two generations. A full school period (40–45 minutes) can come later.
+
+**3. Age groups.** Add **12–14** (Bulgarian grades 5–7): same sections, with more precise terms, deeper "why" explanations, harder distractors and one or two more questions; new example topics; the site's "ages 8–12" wording updated. Show school grades next to ages, because teachers think in grades. **Not 5–7 yet:** early readers need read-aloud, picture-based activities and very little text, which is a different product.
+
+**4. Diagrams and pictures.**
+
+| Option | Cost per lesson | One-off cost | Accuracy | Notes |
+| --- | --- | --- | --- | --- |
+| **A. A larger hand-checked library** (chosen) | $0 | About 1–2 h per diagram, 15–30 min per picture | High: checked once | Consistent style, nothing new for the privacy notice; each diagram unlocks labelling for its topics |
+| B. Claude draws a simple SVG per lesson | About $0.03–0.06 per picture | 1–2 days | Medium: the adult reviews it in the editor | No new vendor; SVG must be strictly sanitised |
+| C. A separate image-generation service | Roughly $0.02–0.20 per image (check current prices) | 2–3 days, plus an account and image storage | Low for science: garbled labels, wrong details | Needs moderation and a privacy-notice update |
+| D. Public-domain photos (NASA, Wikimedia Commons) | Free | 1–2 days | Real photos | Attribution and licences vary; quality uneven |
+
+Plan: build library A first, about 20 diagrams and 30 pictures (roughly 4–6 days), in the order of the topics people request most (the generation log stores every topic). Candidates: parts of a plant, life cycles (butterfly, frog), states of matter, food chain, skeleton, heart, digestion, moon phases, layers of the Earth, volcano, simple circuit, magnets, light and shadow, how sound travels, weather. Add option B later only if many lessons still have no visual; skip C for now.
