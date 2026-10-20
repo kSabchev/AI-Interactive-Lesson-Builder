@@ -20,16 +20,18 @@ function outline(
   diagramId: Outline["diagramId"] = "none",
   activityType: Outline["activityType"] = "prediction",
   practiceType: Outline["practiceType"] = "sorting",
+  warmupType: Outline["warmupType"] = "prediction",
 ): Outline {
   return {
     title: "The Invisible Pull: Magnets",
     objectives: ["Describe what magnets attract.", "Explain north and south poles.", "Identify everyday uses of magnets."],
     diagramId,
+    warmupType,
     activityType,
     practiceType,
     sections: {
       hook: planned("A fridge mystery", []),
-      prediction: planned("Make a guess", ["1"]),
+      warmup: planned("Make a guess", ["1"]),
       explain1: planned("What magnets pull", ["1", "2"]),
       activity: planned("Try it out", ["2"]),
       explain2: planned("Magnets around us", ["3"]),
@@ -76,10 +78,14 @@ const matchingPairs = {
   facilitatorNote: "Say each pair aloud.",
 };
 
-function content(activity: Content["activity"] = prediction, practice: Content["practice"] = sorting): Content {
+function content(
+  activity: Content["activity"] = prediction,
+  practice: Content["practice"] = sorting,
+  warmup: Content["warmup"] = prediction,
+): Content {
   return {
     hook: { question: "Why do some things stick to the fridge?", body: "Some notes stay up all by themselves.", visualId: "none", facilitatorNote: "Let them guess." },
-    prediction,
+    warmup: structuredClone(warmup),
     explain1: explanation,
     activity: structuredClone(activity),
     explain2: explanation,
@@ -317,6 +323,44 @@ describe("generateLesson", () => {
       expect.objectContaining({ type: "retry", stage: "content", reason: expect.stringContaining("unsafe for children (candle, matches)") }),
     );
     expect(lesson.sections[3]).toMatchObject({ type: "experiment", materials: ["An ice cube", "A plate"] });
+  });
+
+  it("opens with myth or fact when the outline finds common misconceptions, and needs both myths and facts", async () => {
+    const myths = {
+      instructions: "Is it a myth or a fact?",
+      statements: [
+        { text: "All metals stick to magnets.", isFact: false, explanation: "Only some, like iron and steel." },
+        { text: "A magnet has two poles.", isFact: true, explanation: "Every magnet has a north and a south pole." },
+        { text: "Bigger magnets are always stronger.", isFact: false, explanation: "Strength depends on the material too." },
+      ],
+      facilitatorNote: "Let the class vote first.",
+    };
+    const { lesson, calls } = await run({
+      outline: [{ json: outline("none", "prediction", "sorting", "myth-or-fact") }],
+      content: [{ json: content(prediction as Content["activity"], sorting as Content["practice"], myths as Content["warmup"]) }],
+      quiz: [{ json: quiz() }],
+    });
+    expect(lesson.sections[1]).toMatchObject({
+      id: "sec-warmup",
+      type: "myth-or-fact",
+      statements: [{ id: "statement-1", isFact: false }, { id: "statement-2", isFact: true }, { id: "statement-3" }],
+    });
+    expect(JSON.stringify(calls.find((c) => c.stage === "content"))).toContain('\\"myth or fact?\\"');
+    expect(JSON.stringify(calls.find((c) => c.stage === "content"))).toContain("don't start the explanation by saying which it is");
+
+    // Only myths: sent back to be fixed, since learners could answer "myth" every time.
+    const onlyMyths = { ...myths, statements: myths.statements.map((st) => ({ ...st, isFact: false })) };
+    const { events } = await run({
+      outline: [{ json: outline("none", "prediction", "sorting", "myth-or-fact") }],
+      content: [
+        { json: content(prediction as Content["activity"], sorting as Content["practice"], onlyMyths as Content["warmup"]) },
+        { json: content(prediction as Content["activity"], sorting as Content["practice"], myths as Content["warmup"]) },
+      ],
+      quiz: [{ json: quiz() }],
+    });
+    expect(events).toContainEqual(
+      expect.objectContaining({ type: "retry", stage: "content", reason: expect.stringContaining("at least one myth and one fact") }),
+    );
   });
 
   it("prefers labelling a diagram over a sequence when a diagram fits", async () => {

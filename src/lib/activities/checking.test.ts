@@ -5,6 +5,7 @@ import {
   assignMatch,
   checkLabels,
   checkMatching,
+  checkMythOrFact,
   checkSequence,
   checkSorting,
   moveStep,
@@ -150,5 +151,30 @@ describe("shuffledRightSides", () => {
         expect(shuffledRightSides(section)).toEqual(order);
       }
     }
+  });
+});
+
+describe("checkMythOrFact", () => {
+  const section: SectionOfType<"myth-or-fact"> = {
+    id: "sec-warmup",
+    type: "myth-or-fact",
+    title: "Myth or fact?",
+    instructions: "Decide.",
+    objectiveIds: [],
+    sourceIds: [],
+    statements: [
+      { id: "s1", text: "Plants eat soil.", isFact: false, explanation: "They make food from light." },
+      { id: "s2", text: "Plants need light.", isFact: true, explanation: "Light powers photosynthesis." },
+      { id: "s3", text: "Roots drink water.", isFact: true, explanation: "Roots take up water." },
+    ],
+  };
+
+  it("scores answered statements and ignores unanswered ones", () => {
+    expect(checkMythOrFact(section, { s1: false, s2: false })).toEqual({
+      correctIds: ["s1"],
+      incorrectIds: ["s2"],
+      allCorrect: false,
+    });
+    expect(checkMythOrFact(section, { s1: false, s2: true, s3: true }).allCorrect).toBe(true);
   });
 });

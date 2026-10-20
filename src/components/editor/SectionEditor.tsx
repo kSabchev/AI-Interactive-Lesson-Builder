@@ -99,6 +99,8 @@ function TypeEditor({ section, onChange }: { section: LessonSection; onChange: (
       return <MatchingEditor section={section} onChange={onChange} />;
     case "experiment":
       return <ExperimentEditor section={section} onChange={onChange} />;
+    case "myth-or-fact":
+      return <MythOrFactEditor section={section} onChange={onChange} />;
     case "recap":
       return <RecapEditor section={section} onChange={onChange} />;
   }
@@ -580,6 +582,75 @@ function ExperimentEditor({ section, onChange }: EditorProps<"experiment">) {
         onChange={(explanation) => onChange({ ...section, explanation })}
       />
     </EditorGroup>
+  );
+}
+
+function MythOrFactEditor({ section, onChange }: EditorProps<"myth-or-fact">) {
+  const t = useT();
+  const s = t.editor.section;
+  const statements = section.statements;
+  return (
+    <>
+      <EditorGroup title={s.mythOrFact}>
+        <TextArea
+          label={s.instructions}
+          rows={2}
+          value={section.instructions}
+          maxLength={TEXT_MAX}
+          onChange={(instructions) => onChange({ ...section, instructions })}
+        />
+      </EditorGroup>
+
+      <EditorGroup title={t.issues.fields.statements} description={s.statementsDescription}>
+        {statements.map((statement, i) => (
+          <ListItemCard
+            key={statement.id}
+            title={s.statement(i + 1)}
+            onRemove={
+              statements.length > 3 ? () => onChange({ ...section, statements: removeAt(statements, i) }) : undefined
+            }
+          >
+            <TextField
+              label={s.statementText}
+              value={statement.text}
+              maxLength={SHORT_TEXT_MAX}
+              onChange={(text) => onChange({ ...section, statements: replaceAt(statements, i, { ...statement, text }) })}
+            />
+            <SelectField
+              label={s.isIt}
+              value={statement.isFact ? "fact" : "myth"}
+              options={[
+                { value: "fact", label: t.sections.mythOrFact.fact },
+                { value: "myth", label: t.sections.mythOrFact.myth },
+              ]}
+              onChange={(v) =>
+                onChange({ ...section, statements: replaceAt(statements, i, { ...statement, isFact: v === "fact" }) })
+              }
+            />
+            <TextArea
+              label={s.statementExplanation}
+              rows={2}
+              value={statement.explanation}
+              maxLength={TEXT_MAX}
+              onChange={(explanation) =>
+                onChange({ ...section, statements: replaceAt(statements, i, { ...statement, explanation }) })
+              }
+            />
+          </ListItemCard>
+        ))}
+        <AddButton
+          disabled={statements.length >= 6}
+          onClick={() =>
+            onChange({
+              ...section,
+              statements: [...statements, { id: newId("statement"), text: "", isFact: false, explanation: "" }],
+            })
+          }
+        >
+          {s.addStatement}
+        </AddButton>
+      </EditorGroup>
+    </>
   );
 }
 

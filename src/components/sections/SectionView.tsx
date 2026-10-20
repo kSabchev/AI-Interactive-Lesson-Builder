@@ -6,6 +6,7 @@ import { ExperimentSection, type ExperimentState, initialExperimentState } from 
 import { ExplanationSection } from "./ExplanationSection";
 import { HookSection } from "./HookSection";
 import { initialMatchingState, MatchingSection, type MatchingState } from "./MatchingSection";
+import { initialMythOrFactState, MythOrFactSection, type MythOrFactState } from "./MythOrFactSection";
 import { initialPredictionState, PredictionSection, type PredictionState } from "./PredictionSection";
 import { RecapSection } from "./RecapSection";
 import { initialSequenceState, SequenceSection, type SequenceState } from "./SequenceSection";
@@ -14,7 +15,7 @@ import { initialSortingState, SortingSection, type SortingState } from "./Sortin
 /** Per-section activity progress, kept by the player so it survives moving between sections. */
 export type ActivityStates = Record<
   string,
-  PredictionState | LabelingState | SortingState | SequenceState | MatchingState | ExperimentState
+  PredictionState | LabelingState | SortingState | SequenceState | MatchingState | ExperimentState | MythOrFactState
 >;
 
 export function SectionView({
@@ -72,6 +73,14 @@ export function SectionView({
         <MatchingSection
           section={section}
           state={(activityStates[section.id] as MatchingState) ?? initialMatchingState}
+          onChange={update}
+        />
+      );
+    case "myth-or-fact":
+      return (
+        <MythOrFactSection
+          section={section}
+          state={(activityStates[section.id] as MythOrFactState) ?? initialMythOrFactState}
           onChange={update}
         />
       );

@@ -71,7 +71,7 @@ export function outlinePrompt(input: GenerationInput, evidence?: Evidence): stri
 
 Plan a lesson using the fixed "Explore a concept" sequence:
 1. hook - a relatable question that sparks curiosity
-2. prediction - learners guess before being taught (not scored)
+2. warmup - before anything is taught. Choose warmupType: "myth-or-fact" when children commonly believe things about this topic that are wrong (learners decide whether 3-6 statements are facts or myths); otherwise "prediction" (learners guess an answer, not scored)
 3. explain1 - teaches the first core concepts
 4. activity ("do it") - labels an approved diagram if one matches the topic. Otherwise choose activityType by the shape of what explain1 teaches: "sequence" (put 3-6 steps in order) for a process or stages in a clear order, such as a life cycle or how rain forms; "matching" (3-5 one-to-one pairs) when it names several things that each have one distinct partner, such as a part and its job or a term and its meaning; otherwise "prediction" (a second guess that applies what was just taught)
 5. explain2 - applies the concepts with examples
@@ -114,6 +114,10 @@ export function contentPrompt(input: GenerationInput, outline: Outline, evidence
           : activityPlan.kind === "matching"
             ? `The activity section asks learners to match 3-5 pairs from explain1. ${MATCHING_RULES}`
             : "The activity section is a second prediction question that applies what explain1 taught.";
+  const warmup =
+    lessonPlan.warmup === "myth-or-fact"
+      ? "The warmup section is \"myth or fact?\": 3-6 short statements about the topic. Most are misconceptions children of this age really hold (myths); include at least one true statement (fact) so the answer isn't always the same. Each must be clearly true or false for this age group, worded so it doesn't give the answer away, with a one- or two-sentence explanation of why. The lesson already shows \"It's a myth!\" or \"It's a fact!\", so don't start the explanation by saying which it is. Use only statements the lesson goes on to teach."
+      : "The warmup section is a prediction question learners answer before they are taught.";
   const practice =
     lessonPlan.practice === "matching"
       ? `The practice section asks learners to match 3-5 pairs that apply what explain2 taught. ${MATCHING_RULES}`
@@ -128,6 +132,8 @@ ${objectives}
 
 Section plan:
 ${plan}
+
+${warmup}
 
 ${activity}
 
