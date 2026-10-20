@@ -87,6 +87,22 @@ API usage is billed to the Console account that owns the key, separately from an
 | `GENERATION_HOURLY_LIMIT` | 5 | Live lessons per visitor per hour |
 | `GENERATION_DAILY_CAP` | 50 | Live lessons per day across everyone; rebuilt from the database after a restart |
 
+#### Choosing models
+
+`GENERATION_MODEL_STANDARD` is used for every standard lesson; `GENERATION_MODEL_HIGH` for the Pro "high quality" option, which counts as two lessons. Any of these can go in either setting:
+
+| Model | Price per million tokens (input / output) | Cost per lesson | Speed | Notes |
+| --- | --- | --- | --- | --- |
+| `claude-sonnet-5-5` | $2 / $10 | **$0.06–0.08 (measured)** | 30–45 s | **Default for standard lessons.** Good writing, reliable JSON, web research and the refusal fallback both work |
+| `claude-opus-5-5` | $4 / $20 | ~$0.11–0.15 (estimated) | Slower | **Default for high quality.** Stronger reasoning and planning, about twice the cost of Sonnet |
+| `claude-haiku-5-5` | $0.10 / $0.50 | ~$0.005 (estimated) | Fastest | About 20× cheaper, but untested for these lessons. **Web research fails with it** (its search tool version isn't supported), and it has no server-side refusal fallback |
+| `claude-fable-5-1` | $10 / $50 | ~$0.30 (estimated) | Slowest | The most capable model; more than short lessons need |
+| `claude-sonnet-5`, `claude-opus-5`, `claude-haiku-4-5` | $2/$10, $5/$25, $1/$5 | | | Older; no reason to choose them |
+
+Where these numbers come from: a standard lesson is three calls (outline, content, quiz) of about 6,000 input and 4,400 output tokens in total, measured with Sonnet 5.5; the other costs apply each model's prices to the same token counts, so treat them as estimates until the generation log shows real ones. The generation log records the model and cost of every lesson, so a change can be checked against real lessons.
+
+`GENERATION_EFFORT` sets how much the model thinks before answering. Keep `medium`. In an October 2026 test on 5 topics, `low` for the outline and quiz saved only about 4% and no consistent time, and made small mistakes (vaguer objectives, a wrong letter in a Bulgarian lesson). Higher levels cost more without a measured benefit.
+
 **Web research** (Pro) runs Claude's web search before writing and keeps only the pages it cites. Each search costs about $0.01, with at most 5 per lesson. If it finds fewer than two usable sources, the lesson is still written as a draft without sources, and the editor says so, so the searches are not wasted.
 
 **Generation log.** Each model call prints its tokens and estimated cost (`[generation] usage`) in the server console and is stored for the log at `/admin/generations`, linked from the account page. The log lists every request with its settings, model, outcome, tokens, cache use, web searches, estimated cost and time, and breaks each request down call by call: research, outline, content, quiz and any repairs. Lesson sections are written together in one call, so costs are shown per stage rather than per section. Estimates use list prices, including cache reads and writes; the Claude Console has the billed amounts. `ADMIN_EMAILS` (comma-separated) chooses who can see the log: while developing with it unset, any signed-in user can, and in production with it unset, nobody can.
