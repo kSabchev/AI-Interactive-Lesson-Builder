@@ -8,7 +8,12 @@ export function Visual({ id, className }: { id: VisualId; className?: string }) 
   const t = useT();
   return (
     <figure className={className}>
-      <svg viewBox="0 0 240 180" role="img" aria-label={t.visuals[id]} className="h-full w-full overflow-hidden rounded-[2rem]">
+      <svg
+        viewBox="0 0 240 180"
+        role="img"
+        aria-label={t.visuals[id]}
+        className="h-full w-full overflow-hidden rounded-[2rem]"
+      >
         <rect width="240" height="180" rx="24" fill="#eef6ff" />
         {ART[id]}
       </svg>
@@ -105,7 +110,8 @@ const ART: Record<VisualId, React.ReactNode> = {
       ))}
       <rect x="0" y="155" width="240" height="25" fill="#5fa05c" />
     </>
-  ),  "sunrise-horizon": (
+  ),
+  "sunrise-horizon": (
     <>
       <rect width="240" height="180" fill="#ffe2b8" />
       {sun(120, 120)}

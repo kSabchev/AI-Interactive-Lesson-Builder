@@ -944,6 +944,61 @@ export const en = {
         glucose: "Arrow carrying food down the stem",
       } as Record<string, string>,
     },
+    "plant-parts": {
+      title: "Parts of a flowering plant",
+      targets: {
+        flower: "Pink petals around a yellow centre at the top",
+        leaf: "Flat green shape on the right of the stalk",
+        stem: "Green stalk below the leaves",
+        roots: "Pale threads spreading through the soil",
+      } as Record<string, string>,
+    },
+    "butterfly-life-cycle": {
+      title: "The life cycle of a butterfly",
+      targets: {
+        egg: "Tiny pale dots on a leaf at the top",
+        caterpillar: "Striped crawling creature on a twig on the right",
+        chrysalis: "Green case hanging from a twig at the bottom",
+        butterfly: "Insect with orange wings on the left",
+      } as Record<string, string>,
+    },
+    "states-of-matter": {
+      title: "Solids, liquids and gases",
+      targets: {
+        solid: "Ice cube on the left, with tightly packed particles below",
+        liquid: "Glass of water in the middle, with close but jumbled particles below",
+        gas: "Steam rising on the right, with spread-out particles below",
+        melting: "Warming arrow from the ice to the water",
+        evaporation: "Warming arrow from the water to the steam",
+      } as Record<string, string>,
+    },
+    "moon-phases": {
+      title: "Phases of the Moon",
+      targets: {
+        "new-moon": "Dark circle you can hardly see, on the far left",
+        "first-quarter": "Circle with its right half lit",
+        "full-moon": "Circle that is fully lit",
+        "last-quarter": "Circle with its left half lit, on the far right",
+      } as Record<string, string>,
+    },
+    "food-chain": {
+      title: "A food chain",
+      targets: {
+        sun: "Bright circle at the top left",
+        producer: "Grass and clover on the left",
+        herbivore: "Animal with long ears in the middle",
+        carnivore: "Orange animal with a bushy tail on the right",
+      } as Record<string, string>,
+    },
+    "simple-circuit": {
+      title: "A simple electric circuit",
+      targets: {
+        bulb: "Glass globe shining at the top",
+        cell: "Cylinder at the bottom with a + end and a − end",
+        switch: "Lever on the left that closes the gap",
+        wire: "Line on the right joining the parts",
+      } as Record<string, string>,
+    },
   },
   visuals: {
     "puddle-sun": "A puddle drying in the sunshine",
