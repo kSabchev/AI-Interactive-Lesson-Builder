@@ -25,7 +25,7 @@ describe("example topics", () => {
     it(`${name}: every age and length has several distinct, valid topics in that language`, () => {
       for (const age of AGE_GROUPS) {
         for (const minutes of DURATIONS) {
-          const list = t.create.exampleTopics[age][String(minutes) as "10" | "15"];
+          const list = t.create.exampleTopics[age][String(minutes) as "10" | "15" | "25"];
           expect(list.length).toBeGreaterThanOrEqual(5);
           expect(new Set(list).size).toBe(list.length);
           for (const topic of list) {

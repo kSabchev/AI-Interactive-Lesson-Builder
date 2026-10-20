@@ -101,6 +101,8 @@ function TypeEditor({ section, onChange }: { section: LessonSection; onChange: (
       return <ExperimentEditor section={section} onChange={onChange} />;
     case "myth-or-fact":
       return <MythOrFactEditor section={section} onChange={onChange} />;
+    case "discussion":
+      return <DiscussionEditor section={section} onChange={onChange} />;
     case "recap":
       return <RecapEditor section={section} onChange={onChange} />;
   }
@@ -651,6 +653,32 @@ function MythOrFactEditor({ section, onChange }: EditorProps<"myth-or-fact">) {
         </AddButton>
       </EditorGroup>
     </>
+  );
+}
+
+function DiscussionEditor({ section, onChange }: EditorProps<"discussion">) {
+  const s = useT().editor.section;
+  return (
+    <EditorGroup title={s.discussion} description={s.discussionDescription}>
+      <TextField
+        label={s.discussionQuestion}
+        value={section.question}
+        maxLength={SHORT_TEXT_MAX}
+        onChange={(question) => onChange({ ...section, question })}
+      />
+      <TextArea
+        label={s.discussionPrompts}
+        rows={4}
+        value={toLines(section.prompts)}
+        onChange={(v) => onChange({ ...section, prompts: fromLines(v) })}
+      />
+      <TextArea
+        label={s.listenFor}
+        rows={4}
+        value={toLines(section.listenFor)}
+        onChange={(v) => onChange({ ...section, listenFor: fromLines(v) })}
+      />
+    </EditorGroup>
   );
 }
 

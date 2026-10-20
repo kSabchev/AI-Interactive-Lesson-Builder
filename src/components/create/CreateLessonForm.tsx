@@ -200,12 +200,13 @@ export function CreateLessonForm({ mode, webResearch = false }: { mode: Generati
             />
             <SelectField
               label={t.create.lessonLength}
-              value={String(values.durationMinutes) as "10" | "15"}
+              value={String(values.durationMinutes) as "10" | "15" | "25"}
               options={[
                 { value: "10", label: t.common.minutesLong(10) },
                 { value: "15", label: t.common.minutesLong(15) },
+                { value: "25", label: t.common.minutesLong(25) },
               ]}
-              onChange={(v) => set("durationMinutes", Number(v) as 10 | 15)}
+              onChange={(v) => set("durationMinutes", Number(v) as 10 | 15 | 25)}
             />
           </div>
           {canUseReference ? (
@@ -311,7 +312,7 @@ export function CreateLessonForm({ mode, webResearch = false }: { mode: Generati
                 onClick={() => {
                   // Suggestions follow the chosen age and length; each press moves to the next one.
                   const age = values.ageGroup ?? EXAMPLE_INPUT.ageGroup;
-                  const minutes = String(values.durationMinutes ?? EXAMPLE_INPUT.durationMinutes) as "10" | "15";
+                  const minutes = String(values.durationMinutes ?? EXAMPLE_INPUT.durationMinutes) as "10" | "15" | "25";
                   const topic = nextExampleTopic(t.create.exampleTopics[age][minutes], values.topic ?? "");
                   set("topic", topic);
                   setExampleNotice(t.create.exampleLoaded(topic));

@@ -36,7 +36,7 @@ describe("lesson storage", () => {
 
   it("refuses to save an invalid lesson", async () => {
     const broken = lesson("bad", "2026-10-05T10:00:00.000Z");
-    broken.quiz = broken.quiz.slice(0, 4);
+    broken.quiz = broken.quiz.slice(0, 2); // fewer than the three a lesson needs
     await expect(saveLesson(broken)).rejects.toThrow();
     expect(await getSavedLesson("bad")).toBeUndefined();
   });

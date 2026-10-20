@@ -41,6 +41,13 @@ test("Load example cycles through topics that suit the chosen age and length, ke
   await expect(page.getByLabel("Learner age")).toHaveValue("11-12");
   await expect(page.getByLabel("Lesson length")).toHaveValue("15");
 
+  await page.getByLabel("Lesson length").selectOption("25");
+  await example.click();
+  await expect(topic).toHaveValue("Living things and their habitats");
+  await page.getByLabel("Lesson length").selectOption("15");
+  await example.click();
+  await expect(topic).toHaveValue("Photosynthesis and why life on Earth depends on it");
+
   // Six suggestions per group, so six more presses come back round to the same one.
   for (let i = 0; i < 6; i++) await example.click();
   await expect(topic).toHaveValue("Photosynthesis and why life on Earth depends on it");

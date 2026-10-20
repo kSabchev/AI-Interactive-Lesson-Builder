@@ -2,6 +2,7 @@
 
 import type { LessonSection } from "@/lib/lesson/schema";
 import { DiagramLabelingSection, initialLabelingState, type LabelingState } from "./DiagramLabelingSection";
+import { DiscussionSection, type DiscussionState, initialDiscussionState } from "./DiscussionSection";
 import { ExperimentSection, type ExperimentState, initialExperimentState } from "./ExperimentSection";
 import { ExplanationSection } from "./ExplanationSection";
 import { HookSection } from "./HookSection";
@@ -15,7 +16,14 @@ import { initialSortingState, SortingSection, type SortingState } from "./Sortin
 /** Per-section activity progress, kept by the player so it survives moving between sections. */
 export type ActivityStates = Record<
   string,
-  PredictionState | LabelingState | SortingState | SequenceState | MatchingState | ExperimentState | MythOrFactState
+  | PredictionState
+  | LabelingState
+  | SortingState
+  | SequenceState
+  | MatchingState
+  | ExperimentState
+  | MythOrFactState
+  | DiscussionState
 >;
 
 export function SectionView({
@@ -81,6 +89,14 @@ export function SectionView({
         <MythOrFactSection
           section={section}
           state={(activityStates[section.id] as MythOrFactState) ?? initialMythOrFactState}
+          onChange={update}
+        />
+      );
+    case "discussion":
+      return (
+        <DiscussionSection
+          section={section}
+          state={(activityStates[section.id] as DiscussionState) ?? initialDiscussionState}
           onChange={update}
         />
       );

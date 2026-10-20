@@ -20,11 +20,40 @@ describe("lessonSchema", () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it("requires exactly three objectives and five quiz questions", () => {
+  it("requires exactly three objectives", () => {
     const lesson = clone();
     lesson.objectives.pop();
-    lesson.quiz.pop();
     expect(lessonSchema.safeParse(lesson).success).toBe(false);
+  });
+
+  it("accepts 3 to 7 quiz questions (3 for 10 minutes, 5 for 15, 6 for 25), but no fewer or more", () => {
+    const withQuestions = (n: number) => {
+      const lesson = clone();
+      const q = lesson.quiz;
+      // Every objective keeps at least one question, which the schema also requires.
+      const objectives = lesson.objectives.map((o) => o.id);
+      lesson.quiz = Array.from({ length: n }, (_, i) => ({
+        ...q[i % q.length],
+        id: `q${i + 1}`,
+        objectiveId: objectives[i % objectives.length],
+      }));
+      return lessonSchema.safeParse(lesson).success;
+    };
+    expect([2, 3, 5, 6, 7, 8].map(withQuestions)).toEqual([false, true, true, true, true, false]);
+  });
+
+  it("accepts 25-minute lessons with a \"talk about it\" section", () => {
+    const lesson = clone();
+    lesson.durationMinutes = 25;
+    lesson.sections.splice(lesson.sections.length - 1, 0, {
+      id: "sec-discussion",
+      type: "discussion",
+      title: "Let's talk",
+      question: "Where does the water in your tap come from?",
+      prompts: ["Where did it fall as rain?", "How did it get to you?"],
+      listenFor: ["It fell as rain or snow.", "It was collected in rivers or reservoirs."],
+    });
+    expect(issuesFor(lesson)).toEqual([]);
   });
 
   it("rejects a correct answer that is not one of the options", () => {

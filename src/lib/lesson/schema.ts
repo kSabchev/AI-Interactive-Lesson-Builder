@@ -11,7 +11,9 @@ const shortText = z.string().trim().min(1).max(SHORT_TEXT_MAX);
 const text = z.string().trim().min(1).max(TEXT_MAX);
 
 export const AGE_GROUPS = ["8-10", "11-12"] as const;
-export const DURATIONS = [10, 15] as const;
+export const DURATIONS = [10, 15, 25] as const;
+export type Duration = (typeof DURATIONS)[number];
+const duration = z.union([z.literal(10), z.literal(15), z.literal(25)]);
 export const CONTENT_ORIGINS = ["reference", "web-research", "ai-draft", "curated"] as const;
 
 export const learningObjectiveSchema = z.object({
@@ -181,6 +183,17 @@ export const mythOrFactSectionSchema = z.object({
     .max(6),
 });
 
+/** "Talk about it": a question for the class to discuss, with prompts and ideas to listen for, for the adult. */
+export const discussionSectionSchema = z.object({
+  ...sectionBase,
+  type: z.literal("discussion"),
+  question: shortText,
+  /** Follow-up questions the adult can ask to keep the talk going. */
+  prompts: z.array(shortText).min(2).max(4),
+  /** Ideas a good answer might include, revealed when the adult wants them. */
+  listenFor: z.array(text).min(2).max(4),
+});
+
 export const recapSectionSchema = z.object({
   ...sectionBase,
   type: z.literal("recap"),
@@ -197,6 +210,7 @@ export const lessonSectionSchema = z.discriminatedUnion("type", [
   matchingSectionSchema,
   experimentSectionSchema,
   mythOrFactSectionSchema,
+  discussionSectionSchema,
   recapSectionSchema,
 ]);
 
@@ -217,7 +231,7 @@ export const lessonSchema = z
     title: shortText,
     topic: shortText,
     ageGroup: z.enum(AGE_GROUPS),
-    durationMinutes: z.union([z.literal(10), z.literal(15)]),
+    durationMinutes: duration,
     templateId: z.literal("explore-concept"),
     contentOrigin: z.enum(CONTENT_ORIGINS),
     /** Language of the lesson content (and of the learner-facing controls around it). */
@@ -225,7 +239,8 @@ export const lessonSchema = z
     objectives: z.array(learningObjectiveSchema).length(3),
     sources: z.array(sourceSchema).default([]),
     sections: z.array(lessonSectionSchema).min(3).max(10),
-    quiz: z.array(quizQuestionSchema).length(5),
+    /** 3 questions for a 10-minute lesson, 5 for 15 minutes, 6 for 25 minutes. */
+    quiz: z.array(quizQuestionSchema).min(3).max(7),
     createdAt: z.iso.datetime(),
     updatedAt: z.iso.datetime(),
   })
