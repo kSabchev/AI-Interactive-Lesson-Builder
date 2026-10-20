@@ -21,7 +21,10 @@ describe("nextExampleTopic", () => {
 });
 
 describe("example topics", () => {
-  for (const [name, t, language] of [["English", en, "en"], ["Bulgarian", bg, "bg"]] as const) {
+  for (const [name, t, language] of [
+    ["English", en, "en"],
+    ["Bulgarian", bg, "bg"],
+  ] as const) {
     it(`${name}: every age and length has several distinct, valid topics in that language`, () => {
       for (const age of AGE_GROUPS) {
         for (const minutes of DURATIONS) {
@@ -29,7 +32,9 @@ describe("example topics", () => {
           expect(list.length).toBeGreaterThanOrEqual(5);
           expect(new Set(list).size).toBe(list.length);
           for (const topic of list) {
-            expect(generationInputSchema.safeParse({ topic, ageGroup: age, durationMinutes: minutes }).success).toBe(true);
+            expect(generationInputSchema.safeParse({ topic, ageGroup: age, durationMinutes: minutes }).success).toBe(
+              true,
+            );
             expect(detectLanguage(topic)).toBe(language);
           }
         }

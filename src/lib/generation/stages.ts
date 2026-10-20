@@ -109,9 +109,9 @@ const outlineFields = {
       'The "do it" activity when no diagram is chosen: "sequence" if the topic is a process or has stages in a clear order; otherwise "matching" if it names 3-5 things that each have one distinct partner (a part and its job, a term and its meaning); otherwise "prediction"',
     ),
   practiceType: z
-    .enum(["sorting", "matching"])
+    .enum(["sorting", "matching", "data"])
     .describe(
-      'The "apply it" activity: "sorting" if examples fall naturally into 2-3 groups; otherwise "matching" (one-to-one pairs). Never the same as activityType',
+      'The "apply it" activity: "sorting" if examples fall naturally into 2-3 groups; "data" (ages 11 and up only) if the topic involves measurements or results that a simple chart could show; otherwise "matching" (one-to-one pairs). Never the same as activityType',
     ),
 };
 
@@ -141,7 +141,7 @@ export type ActivityPlan =
 export type LessonPlan = {
   warmup: "prediction" | "myth-or-fact";
   activity: ActivityPlan;
-  practice: "sorting" | "matching";
+  practice: "sorting" | "matching" | "data";
 };
 
 /**
@@ -150,15 +150,19 @@ export type LessonPlan = {
  * never has the same activity twice: if both slots would be "match pairs", the "apply it" slot sorts into
  * groups instead. Decided here in code, so it costs no repair.
  */
-export function chosenPlan(outline: Outline, input: Pick<GenerationInput, "experiment">): LessonPlan {
+export function chosenPlan(outline: Outline, input: Pick<GenerationInput, "experiment" | "ageGroup">): LessonPlan {
   const diagramId = chosenDiagram(outline);
   const activity: ActivityPlan = input.experiment
     ? { kind: "experiment" }
     : diagramId
       ? { kind: "diagram", diagramId }
       : { kind: outline.activityType };
+  // Never match pairs twice; reading charts is for ages 11 and up, so younger learners sort instead.
   const practice =
-    outline.practiceType === "matching" && activity.kind === "matching" ? "sorting" : outline.practiceType;
+    (outline.practiceType === "matching" && activity.kind === "matching") ||
+    (outline.practiceType === "data" && input.ageGroup === "8-10")
+      ? "sorting"
+      : outline.practiceType;
   return { warmup: outline.warmupType, activity, practice };
 }
 
@@ -241,6 +245,36 @@ const discussionContent = z.object({
   facilitatorNote: note,
 });
 
+export const dataContent = z.object({
+  instructions: long,
+  chart: z.enum(["bar", "line"]).describe('"line" for a change over time, otherwise "bar"'),
+  caption: short.describe('What the chart shows, e.g. "Height of a bean plant over 10 days"'),
+  xLabel: short,
+  yLabel: short.describe('Includes the unit, e.g. "Height (cm)"'),
+  rows: z
+    .array(z.object({ label: short, value: z.number() }))
+    .min(3)
+    .max(8)
+    .describe("Realistic example values that fit the science; distinct labels"),
+  questions: z
+    .array(
+      z.object({
+        prompt: long,
+        options: z.array(short).min(3).max(4),
+        correctIndex: z.number().int().min(0).max(3),
+        explanation: long.describe("Why, quoting the numbers"),
+        check: z
+          .enum(["highest", "lowest", "none"])
+          .describe(
+            '"highest" or "lowest" if the question asks which row has the highest or lowest value, so it can be checked',
+          ),
+      }),
+    )
+    .min(2)
+    .max(3),
+  facilitatorNote: note,
+});
+
 const sortingContent = z.object({
   instructions: long,
   categories: z.array(short).min(2).max(3),
@@ -311,7 +345,7 @@ export function contentSchema(plan: LessonPlan, excerptIds: string[] = [], durat
     explain1: explanation,
     activity,
     explain2: explanation,
-    practice: plan.practice === "matching" ? matchingContent : sortingContent,
+    practice: plan.practice === "matching" ? matchingContent : plan.practice === "data" ? dataContent : sortingContent,
     explain3: explanation,
     discussion: discussionContent,
     recap: z.object({ keyPoints: z.array(long).length(3), facilitatorNote: note }),
@@ -345,7 +379,7 @@ function fullContentSchema(plan: LessonPlan, excerptIds: string[]) {
       }),
     ]),
     explain2: explanation.optional(),
-    practice: z.union([matchingContent, sortingContent]).optional(),
+    practice: z.union([matchingContent, dataContent, sortingContent]).optional(),
     explain3: explanation.optional(),
     discussion: discussionContent.optional(),
     recap: z.object({ keyPoints: z.array(long).length(3), facilitatorNote: note }),
@@ -425,6 +459,28 @@ function sectionsFrom(outline: Outline, content: Content, duration: Duration): L
     };
   };
 
+  const data = (c: z.infer<typeof dataContent>) => ({
+    ...meta("practice"),
+    type: "data" as const,
+    instructions: c.instructions,
+    chart: c.chart,
+    caption: c.caption,
+    xLabel: c.xLabel,
+    yLabel: c.yLabel,
+    rows: c.rows,
+    questions: c.questions.map((q, i) => {
+      const options = q.options.map((text, j) => ({ id: OPTION_IDS[j], text }));
+      return {
+        id: `dq-${i + 1}`,
+        prompt: q.prompt,
+        options,
+        // An out-of-range index becomes an unknown option, which the lesson check reports for repair.
+        correctOptionId: options[q.correctIndex]?.id ?? `option-${q.correctIndex}`,
+        explanation: q.explanation,
+      };
+    }),
+  });
+
   const explanation = (slot: Slot, c: z.infer<typeof explanationContent>) => ({
     ...meta(slot),
     type: "explanation" as const,
@@ -488,7 +544,11 @@ function sectionsFrom(outline: Outline, content: Content, duration: Duration): L
     explain2: () => content.explain2 && explanation("explain2", content.explain2),
     practice: () =>
       content.practice &&
-      ("pairs" in content.practice ? matching("practice", content.practice) : sorting(content.practice)),
+      ("pairs" in content.practice
+        ? matching("practice", content.practice)
+        : "rows" in content.practice
+          ? data(content.practice)
+          : sorting(content.practice)),
     explain3: () => content.explain3 && explanation("explain3", content.explain3),
     discussion: () =>
       content.discussion && {

@@ -161,6 +161,7 @@ export async function generateLesson({
     (c) => [
       ...lessonProblems(assemble(c, PLACEHOLDER_QUIZ), (t) => t.startsWith("section:")),
       ...experimentProblems(c.activity),
+      ...dataProblems(c.practice),
     ],
   );
 
@@ -202,6 +203,30 @@ async function gatherEvidence(input: GenerationInput, client: ModelClient, emit:
     return undefined;
   }
   return { kind: "web", excerpts };
+}
+
+/**
+ * Problems with a generated chart's questions, phrased for the model to fix: a question marked as asking for
+ * the highest or lowest row must have that row as its answer, and the answer must be unique.
+ */
+function dataProblems(practice: Content["practice"]): string[] {
+  if (!practice || !("rows" in practice)) return [];
+  const problems: string[] = [];
+  practice.questions.forEach((q, i) => {
+    if (q.check === "none") return;
+    const values = practice.rows.map((r) => r.value);
+    const target = q.check === "highest" ? Math.max(...values) : Math.min(...values);
+    const winners = practice.rows.filter((r) => r.value === target).map((r) => r.label.trim().toLowerCase());
+    const answer = q.options[q.correctIndex]?.trim().toLowerCase();
+    if (winners.length > 1)
+      problems.push(`practice: question ${i + 1} asks for the ${q.check} value, but rows tie for it`);
+    else if (answer !== winners[0]) {
+      problems.push(
+        `practice: question ${i + 1} asks for the ${q.check} value, so its correct option must be "${practice.rows.find((r) => r.value === target)?.label}"`,
+      );
+    }
+  });
+  return problems;
 }
 
 /** Problems with a generated experiment's safety, phrased for the model to fix. */

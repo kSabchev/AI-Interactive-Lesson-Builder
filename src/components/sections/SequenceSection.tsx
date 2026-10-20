@@ -60,7 +60,10 @@ export function SequenceSection({
                 isRight ? "border-good-500 bg-good-50" : isWrong ? "border-miss-500 bg-miss-50" : "border-line",
               )}
             >
-              <span aria-hidden="true" className="grid size-9 shrink-0 place-items-center rounded-full bg-brand-100 font-extrabold text-brand-700">
+              <span
+                aria-hidden="true"
+                className="grid size-9 shrink-0 place-items-center rounded-full bg-brand-100 font-extrabold text-brand-700"
+              >
                 {position + 1}
               </span>
               <span className="min-w-0 flex-1 text-lg font-semibold">
