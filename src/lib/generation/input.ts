@@ -14,7 +14,7 @@ export const generationInputSchema = z.object({
     .min(3, "Enter a topic of at least 3 characters.")
     .max(TOPIC_MAX, `Keep the topic under ${TOPIC_MAX} characters.`),
   ageGroup: z.enum(AGE_GROUPS),
-  durationMinutes: z.union([z.literal(10), z.literal(15)]),
+  durationMinutes: z.union([z.literal(10), z.literal(15), z.literal(25)]),
   referenceText: z
     .string()
     .trim()

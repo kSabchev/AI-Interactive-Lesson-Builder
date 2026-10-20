@@ -5,10 +5,11 @@ import type { GenerationInput } from "./input";
 import { type ConversationTurn, generateLesson, type ModelClient, type ModelReply } from "./pipeline";
 import type { Content, Outline, Quiz } from "./stages";
 
+// The fixtures below describe a 15-minute lesson (seven sections, five questions).
 const input: GenerationInput = {
   topic: "How magnets work",
   ageGroup: "8-10",
-  durationMinutes: 10,
+  durationMinutes: 15,
   quality: "standard",
   research: false,
   experiment: false,
@@ -363,6 +364,43 @@ describe("generateLesson", () => {
     );
   });
 
+  it("gives a 10-minute lesson five sections and three questions", async () => {
+    const short = { questions: quiz().questions.slice(0, 3).map((q) => ({ ...q, sectionId: "sec-explain-1" })) };
+    const { lesson, calls } = await run(
+      { outline: [{ json: outline() }], content: [{ json: content() }], quiz: [{ json: short }] },
+      { durationMinutes: 10 },
+    );
+    expect(lesson.sections.map((s) => s.type)).toEqual(["hook", "prediction", "explanation", "prediction", "recap"]);
+    expect(lesson.quiz).toHaveLength(3);
+    expect(JSON.stringify(calls.find((c) => c.stage === "quiz"))).toContain("exactly 3 single-answer");
+  });
+
+  it("gives a 25-minute lesson a third explanation, \"talk about it\" and six questions", async () => {
+    const longOutline = {
+      ...outline(),
+      sections: { ...outline().sections, explain3: planned("Magnets at work", ["3"]), discussion: planned("Let's talk", ["3"]) },
+    };
+    const talk = {
+      question: "Where would life be harder without magnets?",
+      prompts: ["What at home uses a magnet?", "What would happen to the fridge door?"],
+      listenFor: ["Fridge doors stay shut because of magnets.", "Speakers and motors use magnets."],
+      facilitatorNote: "Let several learners answer.",
+    };
+    const longContent = { ...content(), explain3: explanation, discussion: talk };
+    const six = { questions: [...quiz().questions, { ...quiz().questions[0], sectionId: "sec-explain-3" }] };
+    const { lesson, calls } = await run(
+      { outline: [{ json: longOutline }], content: [{ json: longContent }], quiz: [{ json: six }] },
+      { durationMinutes: 25 },
+    );
+    expect(lesson.sections.map((s) => s.type)).toEqual([
+      "hook", "prediction", "explanation", "prediction", "explanation", "sorting", "explanation", "discussion", "recap",
+    ]);
+    expect(lesson.sections[7]).toMatchObject({ id: "sec-discussion", question: "Where would life be harder without magnets?" });
+    expect(lesson.quiz).toHaveLength(6);
+    expect(JSON.stringify(calls.find((c) => c.stage === "outline"))).toContain("discussion -");
+    expect(JSON.stringify(calls.find((c) => c.stage === "content"))).toContain("The discussion section asks a question");
+  });
+
   it("prefers labelling a diagram over a sequence when a diagram fits", async () => {
     const activity = {
       instructions: "Label the water cycle.",
@@ -387,7 +425,7 @@ describe("generateLesson", () => {
     const cites = (ids: string[]) => ({ sourceIds: ids });
     const cited = content();
     cited.explain1 = { ...cited.explain1, ...cites(["ref-1"]) };
-    cited.explain2 = { ...cited.explain2, ...cites(["ref-1"]) };
+    cited.explain2 = { ...cited.explain2!, ...cites(["ref-1"]) };
     const citedQuiz = { questions: quiz().questions.map((q) => ({ ...q, ...cites(["ref-1"]) })) };
 
     const { lesson, calls } = await run(

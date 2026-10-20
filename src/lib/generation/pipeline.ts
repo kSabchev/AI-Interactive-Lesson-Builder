@@ -17,7 +17,8 @@ import {
   outlineSchema,
   type Quiz,
   quizSchema,
-  SECTION_IDS,
+  QUIZ_LENGTH,
+  sectionIdsFor,
 } from "./stages";
 
 /** One conversation turn sent to the model. Assistant turns are replayed exactly as the model returned them. */
@@ -89,7 +90,10 @@ async function runStage<T>(
     }
 
     if (attempt >= ATTEMPTS_PER_STAGE) {
-      throw new GenerationError("invalid_output", "The AI couldn't produce a complete, valid lesson. Please try again.");
+      throw new GenerationError(
+        "invalid_output",
+        "The AI couldn't produce a complete, valid lesson. Please try again.",
+      );
     }
     emit({ type: "retry", stage, reason: problems[0] });
     turns.push({ role: "assistant", replay: reply.replay }, { role: "user", text: repairPrompt(problems) });
@@ -134,7 +138,14 @@ export async function generateLesson({
   const evidence = await gatherEvidence(input, client, emit);
   const excerptIds = evidence?.excerpts.map((e) => e.id) ?? [];
 
-  const outline: Outline = await runStage(client, emit, "outline", outlinePrompt(input, evidence), outlineSchema);
+  const duration = input.durationMinutes;
+  const outline = (await runStage(
+    client,
+    emit,
+    "outline",
+    outlinePrompt(input, evidence),
+    outlineSchema(duration) as unknown as z.ZodType<Outline>,
+  )) as Outline;
 
   const assemble = (c: Content, q: Quiz) =>
     assembleLesson({ id, now: now(), input, outline, content: c, quiz: q, evidence });
@@ -144,7 +155,7 @@ export async function generateLesson({
     emit,
     "content",
     contentPrompt(input, outline, evidence),
-    contentSchema(chosenPlan(outline, input), excerptIds) as z.ZodType<Content>,
+    contentSchema(chosenPlan(outline, input), excerptIds, duration) as z.ZodType<Content>,
     // Check section-level rules now (e.g. two labels on one diagram spot), using a placeholder quiz, and that
     // an experiment uses nothing unsafe for children.
     (c) => [
@@ -158,7 +169,7 @@ export async function generateLesson({
     emit,
     "quiz",
     quizPrompt(input, outline, content, evidence),
-    quizSchema(SECTION_IDS, excerptIds) as z.ZodType<Quiz>,
+    quizSchema(sectionIdsFor(duration), excerptIds, QUIZ_LENGTH[duration]) as z.ZodType<Quiz>,
     (q) => lessonProblems(assemble(content, q), () => true),
   );
 
@@ -212,6 +223,6 @@ const PLACEHOLDER_QUIZ: Quiz = {
     correctIndex: 0,
     explanation: "placeholder",
     objective,
-    sectionId: SECTION_IDS[0],
+    sectionId: "sec-hook",
   })),
 };

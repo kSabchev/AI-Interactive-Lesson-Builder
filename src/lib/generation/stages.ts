@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { DIAGRAM_IDS, DIAGRAMS, type DiagramId } from "@/lib/assets/diagrams";
 import { VISUAL_IDS } from "@/lib/assets/visuals";
-import { type LessonInput, SHORT_TEXT_MAX, TEXT_MAX } from "@/lib/lesson/schema";
+import { type Duration, type LessonInput, SHORT_TEXT_MAX, TEXT_MAX } from "@/lib/lesson/schema";
 import { detectLanguage } from "@/lib/i18n/detect";
 import type { Excerpt } from "./evidence";
 import type { GenerationInput } from "./input";
@@ -22,9 +22,37 @@ const NONE = "none";
  * - `activity` ("do it", after the first explanation): a hands-on experiment when the adult asks for one;
  *   otherwise label a diagram, put steps in order, match pairs, or a second prediction;
  * - `practice` ("apply it", after the second): sort examples into groups, or match pairs.
+ * The lesson's length decides which slots it has (`slotsFor`) and how many quiz questions (`QUIZ_LENGTH`).
  */
-export const SLOTS = ["hook", "warmup", "explain1", "activity", "explain2", "practice", "recap"] as const;
-export type Slot = (typeof SLOTS)[number];
+export const ALL_SLOTS = [
+  "hook",
+  "warmup",
+  "explain1",
+  "activity",
+  "explain2",
+  "practice",
+  "explain3",
+  "discussion",
+  "recap",
+] as const;
+export type Slot = (typeof ALL_SLOTS)[number];
+
+/**
+ * Sections per lesson length. 10 minutes: one explanation and one activity. 15 minutes: two of each.
+ * 25 minutes: adds a third explanation that takes the idea further, and "talk about it" before the recap.
+ */
+const SLOTS_BY_DURATION: Record<Duration, readonly Slot[]> = {
+  10: ["hook", "warmup", "explain1", "activity", "recap"],
+  15: ["hook", "warmup", "explain1", "activity", "explain2", "practice", "recap"],
+  25: ["hook", "warmup", "explain1", "activity", "explain2", "practice", "explain3", "discussion", "recap"],
+};
+
+/** Quiz questions per lesson length. Each of the three objectives always gets at least one. */
+export const QUIZ_LENGTH: Record<Duration, number> = { 10: 3, 15: 5, 25: 6 };
+
+export function slotsFor(duration: Duration): readonly Slot[] {
+  return SLOTS_BY_DURATION[duration];
+}
 
 const SLOT_SECTION_IDS: Record<Slot, string> = {
   hook: "sec-hook",
@@ -33,8 +61,14 @@ const SLOT_SECTION_IDS: Record<Slot, string> = {
   activity: "sec-activity",
   explain2: "sec-explain-2",
   practice: "sec-practice",
+  explain3: "sec-explain-3",
+  discussion: "sec-discussion",
   recap: "sec-recap",
 };
+
+export function sectionIdsFor(duration: Duration): string[] {
+  return slotsFor(duration).map((slot) => SLOT_SECTION_IDS[slot]);
+}
 
 const plannedSection = z.object({
   title: short.describe("Short, child-friendly section title"),
@@ -42,7 +76,23 @@ const plannedSection = z.object({
   objectives: z.array(objectiveRef).describe('Which learning objectives this section supports, by number ("1"-"3")'),
 });
 
-export const outlineSchema = z.object({
+const SLOT_PLANS: Record<Slot, z.ZodType<PlannedSection>> = {
+  hook: plannedSection,
+  warmup: plannedSection.describe("The warm-up (warmupType), before anything is taught"),
+  explain1: plannedSection,
+  activity: plannedSection.describe('The "do it" activity: the diagram if one was chosen, otherwise activityType'),
+  explain2: plannedSection,
+  practice: plannedSection.describe('The "apply it" activity (practiceType)'),
+  explain3: plannedSection.describe(
+    "Takes the idea further: a real-world use, a surprising case or a link to another topic",
+  ),
+  discussion: plannedSection.describe("A question for the class to talk about, with no single right answer"),
+  recap: plannedSection,
+};
+
+export type PlannedSection = z.infer<typeof plannedSection>;
+
+const outlineFields = {
   title: short.describe("Engaging lesson title"),
   objectives: z.array(long).length(3).describe("Exactly three learning objectives, each starting with a verb"),
   diagramId: z
@@ -63,17 +113,17 @@ export const outlineSchema = z.object({
     .describe(
       'The "apply it" activity: "sorting" if examples fall naturally into 2-3 groups; otherwise "matching" (one-to-one pairs). Never the same as activityType',
     ),
-  sections: z.object({
-    hook: plannedSection,
-    warmup: plannedSection.describe("The warm-up (warmupType), before anything is taught"),
-    explain1: plannedSection,
-    activity: plannedSection.describe('The "do it" activity: the diagram if one was chosen, otherwise activityType'),
-    explain2: plannedSection,
-    practice: plannedSection.describe('The "apply it" activity (practiceType)'),
-    recap: plannedSection,
-  }),
-});
-export type Outline = z.infer<typeof outlineSchema>;
+};
+
+/** The outline for a lesson of this length: one planned section per slot the length has. */
+export function outlineSchema(duration: Duration) {
+  const sections = Object.fromEntries(slotsFor(duration).map((slot) => [slot, SLOT_PLANS[slot]]));
+  return z.object({ ...outlineFields, sections: z.object(sections) });
+}
+
+export type Outline = Omit<z.infer<ReturnType<typeof outlineSchema>>, "sections"> & {
+  sections: Partial<Record<Slot, PlannedSection>>;
+};
 
 export function chosenDiagram(outline: Outline): DiagramId | undefined {
   return outline.diagramId === NONE ? undefined : (outline.diagramId as DiagramId);
@@ -182,6 +232,15 @@ const matchingContent = z.object({
   facilitatorNote: note,
 });
 
+const discussionContent = z.object({
+  question: short.describe(
+    "A question with no single right answer, which the lesson has given learners the ideas to discuss",
+  ),
+  prompts: z.array(short).min(2).max(4).describe("Follow-up questions the adult can ask to keep the talk going"),
+  listenFor: z.array(long).min(2).max(4).describe("Ideas a good answer might include"),
+  facilitatorNote: note,
+});
+
 const sortingContent = z.object({
   instructions: long,
   categories: z.array(short).min(2).max(3),
@@ -217,7 +276,7 @@ function citations(excerptIds: string[]) {
 /** The evidence a generation works from, and the content origin it implies. */
 export type Evidence = { kind: "reference" | "web"; excerpts: Excerpt[] };
 
-export function contentSchema(plan: LessonPlan, excerptIds: string[] = []) {
+export function contentSchema(plan: LessonPlan, excerptIds: string[] = [], duration: Duration = 15) {
   const explanation = excerptIds.length
     ? explanationContent.extend({ sourceIds: citations(excerptIds) })
     : explanationContent;
@@ -246,19 +305,55 @@ export function contentSchema(plan: LessonPlan, excerptIds: string[] = []) {
             ? matchingContent
             : predictionContent;
 
-  return z.object({
+  const all = {
     hook: z.object({ question: short, body: long, visualId: visual, facilitatorNote: note }),
     warmup: plan.warmup === "myth-or-fact" ? mythOrFactContent : predictionContent,
     explain1: explanation,
     activity,
     explain2: explanation,
     practice: plan.practice === "matching" ? matchingContent : sortingContent,
+    explain3: explanation,
+    discussion: discussionContent,
+    recap: z.object({ keyPoints: z.array(long).length(3), facilitatorNote: note }),
+  };
+  // Only the sections this length has; the type below covers the longest lesson.
+  const slots = slotsFor(duration);
+  return z.object(Object.fromEntries(slots.map((slot) => [slot, all[slot]]))) as unknown as ReturnType<
+    typeof fullContentSchema
+  >;
+}
+
+/** The content of the longest lesson; shorter lessons leave out the slots they don't have. Used for its type. */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function fullContentSchema(plan: LessonPlan, excerptIds: string[]) {
+  const explanation = excerptIds.length
+    ? explanationContent.extend({ sourceIds: citations(excerptIds) })
+    : explanationContent;
+  return z.object({
+    hook: z.object({ question: short, body: long, visualId: visual, facilitatorNote: note }),
+    warmup: plan.warmup === "myth-or-fact" ? mythOrFactContent : predictionContent,
+    explain1: explanation,
+    activity: z.union([
+      experimentContent,
+      sequenceContent,
+      matchingContent,
+      predictionContent,
+      z.object({
+        instructions: long,
+        labels: z.array(z.object({ text: short, targetId: z.string(), explanation: long })),
+        facilitatorNote: note,
+      }),
+    ]),
+    explain2: explanation.optional(),
+    practice: z.union([matchingContent, sortingContent]).optional(),
+    explain3: explanation.optional(),
+    discussion: discussionContent.optional(),
     recap: z.object({ keyPoints: z.array(long).length(3), facilitatorNote: note }),
   });
 }
-export type Content = z.infer<ReturnType<typeof contentSchema>>;
+export type Content = z.infer<ReturnType<typeof fullContentSchema>>;
 
-export function quizSchema(sectionIds: string[], excerptIds: string[] = []) {
+export function quizSchema(sectionIds: string[], excerptIds: string[] = [], count = 5) {
   const question = z.object({
     prompt: long,
     options: z.array(short).length(4),
@@ -268,12 +363,12 @@ export function quizSchema(sectionIds: string[], excerptIds: string[] = []) {
     sectionId: z.enum(sectionIds as [string, ...string[]]).describe("The section that teaches the answer"),
   });
   return z.object({
-    questions: z.array(excerptIds.length ? question.extend({ sourceIds: citations(excerptIds) }) : question).length(5),
+    questions: z
+      .array(excerptIds.length ? question.extend({ sourceIds: citations(excerptIds) }) : question)
+      .length(count),
   });
 }
 export type Quiz = z.infer<ReturnType<typeof quizSchema>>;
-
-export const SECTION_IDS = SLOTS.map((slot) => SLOT_SECTION_IDS[slot]);
 
 const OPTION_IDS = ["a", "b", "c", "d"];
 const objectiveId = (ref: string) => `obj-${ref}`;
@@ -284,13 +379,13 @@ function cited(output: object): string[] {
   return "sourceIds" in output && Array.isArray(output.sourceIds) ? (output.sourceIds as string[]) : [];
 }
 
-function sectionsFrom(outline: Outline, content: Content): LessonInput["sections"] {
+function sectionsFrom(outline: Outline, content: Content, duration: Duration): LessonInput["sections"] {
   const diagramId = chosenDiagram(outline);
   const meta = (slot: Slot) => ({
     id: SLOT_SECTION_IDS[slot],
-    title: outline.sections[slot].title,
-    objectiveIds: outline.sections[slot].objectives.map(objectiveId),
-    facilitatorNote: content[slot].facilitatorNote,
+    title: outline.sections[slot]?.title ?? "",
+    objectiveIds: (outline.sections[slot]?.objectives ?? []).map(objectiveId),
+    facilitatorNote: content[slot]?.facilitatorNote,
   });
 
   const prediction = (slot: Slot, c: z.infer<typeof predictionContent>) => {
@@ -371,30 +466,42 @@ function sectionsFrom(outline: Outline, content: Content): LessonInput["sections
             ? matching("activity", content.activity)
             : prediction("activity", content.activity as z.infer<typeof predictionContent>);
 
-  const practice = "pairs" in content.practice ? matching("practice", content.practice) : sorting(content.practice);
-
-  return [
-    {
+  const build: Record<Slot, () => LessonInput["sections"][number] | undefined> = {
+    hook: () => ({
       ...meta("hook"),
       type: "hook",
       question: content.hook.question,
       body: content.hook.body,
       visualId: visualOrUndefined(content.hook.visualId),
-    },
-    "statements" in content.warmup
-      ? {
-          ...meta("warmup"),
-          type: "myth-or-fact" as const,
-          instructions: content.warmup.instructions,
-          statements: content.warmup.statements.map((statement, i) => ({ id: `statement-${i + 1}`, ...statement })),
-        }
-      : prediction("warmup", content.warmup),
-    explanation("explain1", content.explain1),
-    activity,
-    explanation("explain2", content.explain2),
-    practice,
-    { ...meta("recap"), type: "recap", keyPoints: content.recap.keyPoints },
-  ];
+    }),
+    warmup: () =>
+      "statements" in content.warmup
+        ? {
+            ...meta("warmup"),
+            type: "myth-or-fact" as const,
+            instructions: content.warmup.instructions,
+            statements: content.warmup.statements.map((statement, i) => ({ id: `statement-${i + 1}`, ...statement })),
+          }
+        : prediction("warmup", content.warmup),
+    explain1: () => explanation("explain1", content.explain1),
+    activity: () => activity,
+    explain2: () => content.explain2 && explanation("explain2", content.explain2),
+    practice: () =>
+      content.practice &&
+      ("pairs" in content.practice ? matching("practice", content.practice) : sorting(content.practice)),
+    explain3: () => content.explain3 && explanation("explain3", content.explain3),
+    discussion: () =>
+      content.discussion && {
+        ...meta("discussion"),
+        type: "discussion" as const,
+        question: content.discussion.question,
+        prompts: content.discussion.prompts,
+        listenFor: content.discussion.listenFor,
+      },
+    recap: () => ({ ...meta("recap"), type: "recap", keyPoints: content.recap.keyPoints }),
+  };
+  // A missing section (the model left one out) is skipped here and reported by the lesson check.
+  return slotsFor(duration).flatMap((slot) => build[slot]() ?? []);
 }
 
 /**
@@ -418,7 +525,7 @@ export function assembleLesson({
   quiz: Quiz;
   evidence?: Evidence;
 }): LessonInput {
-  const sections = sectionsFrom(outline, content);
+  const sections = sectionsFrom(outline, content, input.durationMinutes);
   const questions = quiz.questions.map((q, i) => ({
     id: `q${i + 1}`,
     prompt: q.prompt,
