@@ -114,7 +114,8 @@ export const DIAGRAMS = {
   "food-chain": {
     id: "food-chain",
     title: "A food chain",
-    description: "The Sun, grass and clover, a rabbit and a fox in a meadow, with arrows showing which way energy passes.",
+    description:
+      "The Sun, grass and clover, a rabbit and a fox in a meadow, with arrows showing which way energy passes.",
     topics: ["food chain", "food web", "producers", "consumers", "predators", "habitats", "energy"],
     aspectRatio: 8 / 5,
     targets: [
@@ -135,6 +136,128 @@ export const DIAGRAMS = {
       { id: "cell", name: "Cylinder at the bottom with a + end and a − end", x: 50, y: 80 },
       { id: "switch", name: "Lever on the left that closes the gap", x: 25, y: 53 },
       { id: "wire", name: "Line on the right joining the parts", x: 77.5, y: 55 },
+    ],
+  },
+  "digestive-system": {
+    id: "digestive-system",
+    title: "The human digestive system",
+    description:
+      "A body seen from the front with the mouth, the tube down the neck, the liver, the stomach and the small and large intestines.",
+    topics: ["digestion", "digestive system", "stomach", "intestines", "food", "human body", "teeth"],
+    aspectRatio: 8 / 5,
+    targets: [
+      { id: "mouth", name: "Opening in the face at the top", x: 50, y: 17 },
+      { id: "oesophagus", name: "Tube running down the neck", x: 50, y: 31 },
+      { id: "liver", name: "Large dark-red organ on the left of the upper belly", x: 41, y: 47 },
+      { id: "stomach", name: "Pink pouch on the right of the upper belly", x: 58, y: 51 },
+      { id: "small-intestine", name: "Long, tightly coiled tube in the middle", x: 50, y: 76 },
+      { id: "large-intestine", name: "Wider brown tube around the coils, on the right", x: 61.5, y: 76 },
+    ],
+  },
+  "heart-circulation": {
+    id: "heart-circulation",
+    title: "The heart and blood circulation",
+    description:
+      "A loop diagram: the lungs at the top, the heart in the middle and the rest of the body at the bottom, joined by red and blue blood vessels with arrows.",
+    topics: ["heart", "circulation", "circulatory system", "blood", "blood vessels", "arteries", "veins", "pulse"],
+    aspectRatio: 8 / 5,
+    targets: [
+      { id: "lungs", name: "Two pink lobes at the top", x: 50, y: 18 },
+      { id: "heart", name: "Organ in the middle, half red and half blue", x: 50, y: 52 },
+      { id: "artery", name: "Red tube on the right carrying blood down, away from the middle", x: 77.5, y: 70 },
+      { id: "vein", name: "Blue tube on the left carrying blood up, back to the middle", x: 22.5, y: 70 },
+      { id: "body", name: "Rounded block of cells at the bottom", x: 50, y: 88 },
+    ],
+  },
+  skeleton: {
+    id: "skeleton",
+    title: "The human skeleton",
+    description: "A human skeleton standing, seen from the front.",
+    topics: ["skeleton", "bones", "human body", "muscles", "movement", "joints", "skull"],
+    aspectRatio: 8 / 5,
+    targets: [
+      { id: "skull", name: "Rounded bone case at the top", x: 50, y: 10 },
+      { id: "ribcage", name: "Curved bones forming a cage across the chest", x: 50, y: 33 },
+      { id: "spine", name: "Column of small bones in the lower back", x: 50, y: 48 },
+      { id: "pelvis", name: "Wide, bowl-shaped bones at the hips", x: 43.75, y: 56 },
+      { id: "femur", name: "Longest bone, in the upper leg on the right", x: 55, y: 69 },
+    ],
+  },
+  cells: {
+    id: "cells",
+    title: "Plant and animal cells",
+    description:
+      "An animal cell on the left and a plant cell on the right, as seen under a microscope, each with its main parts.",
+    topics: ["cells", "plant cells", "animal cells", "microscope", "living things", "organisms", "chloroplasts"],
+    aspectRatio: 8 / 5,
+    targets: [
+      { id: "nucleus", name: "Purple round part in the middle of the left-hand cell", x: 25, y: 50 },
+      { id: "cell-membrane", name: "Thin outer edge of the left-hand cell", x: 5.75, y: 53 },
+      { id: "cytoplasm", name: "Jelly-like filling of the left-hand cell", x: 34.5, y: 69 },
+      { id: "cell-wall", name: "Thick, stiff outer layer of the right-hand cell", x: 96.5, y: 40 },
+      { id: "vacuole", name: "Large pale-blue sac in the right-hand cell", x: 77.5, y: 50 },
+      { id: "chloroplast", name: "Small green ovals near the bottom of the right-hand cell", x: 63, y: 76 },
+    ],
+  },
+  lungs: {
+    id: "lungs",
+    title: "The lungs and breathing",
+    description:
+      "A chest seen from the front with the windpipe, its two branches, both lungs, the muscle below them and a magnified circle showing tiny air sacs.",
+    topics: ["lungs", "breathing", "respiratory system", "gas exchange", "oxygen", "human body", "exercise"],
+    aspectRatio: 8 / 5,
+    targets: [
+      { id: "trachea", name: "Ringed tube coming down from the throat", x: 50, y: 20 },
+      { id: "bronchus", name: "Branch where the tube splits, on the right", x: 56.5, y: 41 },
+      { id: "lung", name: "Large spongy pink organ on the left", x: 37.5, y: 60 },
+      { id: "diaphragm", name: "Dome-shaped red sheet below the chest", x: 50, y: 84 },
+      { id: "alveoli", name: "Bunch of tiny bubbles, magnified in the circle", x: 85, y: 27 },
+    ],
+  },
+  "light-shadows": {
+    id: "light-shadows",
+    title: "Light, reflection and shadows",
+    description:
+      "A torch shining on a block that casts a shadow on a wall, and a ray from the torch bouncing off a mirror into an eye.",
+    topics: ["light", "shadows", "reflection", "mirrors", "how we see", "opaque", "light sources"],
+    aspectRatio: 8 / 5,
+    targets: [
+      { id: "light-source", name: "Torch on the left", x: 11.5, y: 60 },
+      { id: "ray", name: "Straight line with an arrow going up from the torch", x: 33.5, y: 36 },
+      { id: "mirror", name: "Tilted shiny strip at the top", x: 50, y: 16 },
+      { id: "opaque-object", name: "Orange block in the beam", x: 51.25, y: 60 },
+      { id: "shadow", name: "Dark patch on the wall on the right", x: 95, y: 60 },
+      { id: "eye", name: "Where the bounced ray ends, on the right", x: 79, y: 27 },
+    ],
+  },
+  "rock-cycle": {
+    id: "rock-cycle",
+    title: "The rock cycle",
+    description:
+      "A cut-away landscape: a volcano fed by molten rock deep below, a mountain worn away by rain, a river carrying bits to the sea, layers on the sea floor and folded bands deep underground.",
+    topics: ["rocks", "rock cycle", "volcanoes", "erosion", "fossils", "soils", "earth science"],
+    aspectRatio: 8 / 5,
+    targets: [
+      { id: "magma", name: "Glowing orange pool deep under the volcano", x: 23.75, y: 84 },
+      { id: "igneous", name: "Dark rock on the volcano's slope", x: 30, y: 40 },
+      { id: "weathering", name: "Rain and cracks wearing away the mountain", x: 55, y: 32 },
+      { id: "sedimentary", name: "Flat striped layers on the sea floor", x: 86, y: 62 },
+      { id: "metamorphic", name: "Squeezed, wavy bands deep underground on the right", x: 72, y: 88 },
+    ],
+  },
+  "flower-parts": {
+    id: "flower-parts",
+    title: "Parts of a flower",
+    description: "A flower cut in half to show the parts inside, with a bee flying nearby.",
+    topics: ["flowers", "pollination", "plant reproduction", "seeds", "life cycle of plants", "bees"],
+    aspectRatio: 8 / 5,
+    targets: [
+      { id: "petal", name: "Large pink part on the left", x: 27.5, y: 40 },
+      { id: "stigma", name: "Sticky tip at the top of the middle stalk", x: 47.5, y: 33 },
+      { id: "stamen", name: "Thin stalk with a dusty yellow tip, on the right", x: 58, y: 38 },
+      { id: "ovary", name: "Rounded chamber at the base, with tiny beads inside", x: 47.5, y: 64 },
+      { id: "sepal", name: "Small green leaf-like part at the base, on the right", x: 55, y: 71 },
+      { id: "pollen", name: "Yellow dust on the bee's legs", x: 83, y: 29 },
     ],
   },
 } as const satisfies Record<string, DiagramMeta>;

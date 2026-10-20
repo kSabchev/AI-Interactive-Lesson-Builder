@@ -298,7 +298,8 @@ export const en = {
     save: "Save",
     saveAsCopy: "Save as my copy",
     startLesson: "Start lesson",
-    sampleNotice: "This is a curated sample, so it stays as it is. Saving your edits creates your own copy in the library.",
+    sampleNotice:
+      "This is a curated sample, so it stays as it is. Saving your edits creates your own copy in the library.",
     seePlans: "See plans",
     aiDraftNote: "AI draft written without sources. Check the facts before presenting.",
     generatedWithoutSources:
@@ -354,7 +355,8 @@ export const en = {
       templateName: "Explore a concept",
       origin: "Content origin",
       language: "Lesson language",
-      fixedNote: "Age group, duration and language shape how the lesson was written, so they are fixed once the lesson exists.",
+      fixedNote:
+        "Age group, duration and language shape how the lesson was written, so they are fixed once the lesson exists.",
     },
     objectives: {
       title: "Learning objectives",
@@ -391,7 +393,8 @@ export const en = {
       basics: "Basics",
       sectionTitle: "Section title",
       sources: "Sources",
-      sourcesDescription: "The evidence this section was written from. If you change what it says, check it still matches.",
+      sourcesDescription:
+        "The evidence this section was written from. If you change what it says, check it still matches.",
       forTheAdult: "For the adult",
       forTheAdultDescription: "Shown in the player only when facilitator notes are switched on.",
       facilitatorNote: "Facilitator note",
@@ -462,7 +465,8 @@ export const en = {
       pairExplanation: "Why they belong together (shown if matched wrongly)",
       addPair: "Add pair",
       experiment: "Try it yourself",
-      experimentDescription: "An experiment the adult leads with safe household materials: learners predict, watch, then hear why.",
+      experimentDescription:
+        "An experiment the adult leads with safe household materials: learners predict, watch, then hear why.",
       experimentQuestion: "Question to predict",
       materials: "Materials (one per line)",
       experimentSteps: "Steps (one per line)",
@@ -477,7 +481,8 @@ export const en = {
       statementExplanation: "Why (shown as soon as learners answer)",
       addStatement: "Add statement",
       discussion: "Talk about it",
-      discussionDescription: "A question for the class to talk about, with follow-up prompts and the ideas a good answer might include.",
+      discussionDescription:
+        "A question for the class to talk about, with follow-up prompts and the ideas a good answer might include.",
       discussionQuestion: "Question to discuss",
       discussionPrompts: "Follow-up prompts (one per line)",
       listenFor: "Ideas to listen for (one per line)",
@@ -589,7 +594,8 @@ export const en = {
     researchLocked: "Finds reliable pages and cites them in the lesson. Part of",
     researchUsesReference: "Your reference text is used instead.",
     experiment: "Include a hands-on experiment",
-    experimentHint: "The lesson's activity becomes a short experiment an adult leads with safe household materials, such as water, paper or vinegar and baking soda.",
+    experimentHint:
+      "The lesson's activity becomes a short experiment an adult leads with safe household materials, such as water, paper or vinegar and baking soda.",
     researchHint: "Finds reliable pages and cites them, so you can check every fact. Takes a little longer.",
     quality: "Quality",
     qualityHint: (n: number) => `High quality uses a larger model and counts as ${n} AI lessons.`,
@@ -736,7 +742,8 @@ export const en = {
       sign_in_required: "Sign in to create AI lessons. It's free, and sample lessons work without an account.",
       rate_limited_visitor: (n: number) =>
         `You've reached the limit of ${n} AI lessons per hour. Try again later, or open a sample lesson.`,
-      rate_limited_daily: "Today's AI lesson allowance for this demo has been used up. Sample lessons are still available.",
+      rate_limited_daily:
+        "Today's AI lesson allowance for this demo has been used up. Sample lessons are still available.",
       reference_pro: "Lessons from reference material are part of Pro. Remove the reference text or upgrade.",
       research_off: "Web research isn't available on this site right now.",
       research_pro: "Web-researched lessons are part of Pro.",
@@ -763,7 +770,8 @@ export const en = {
   },
   signIn: {
     title: "Sign in",
-    intro: "Save your lessons to your account and use them on any device. Accounts are for adults; learners never need one.",
+    intro:
+      "Save your lessons to your account and use them on any device. Accounts are for adults; learners never need one.",
     invalidEmail: "Enter a valid email address.",
     sendFailed: "Couldn't send the link. Please try again.",
     checkEmail: "Check your email",
@@ -825,7 +833,8 @@ export const en = {
     resetsOn: (date: string) => `Resets on ${date}`,
     savedLessons: "Saved lessons",
     savedOf: (n: number, max: number | null) => (max === null ? `${n}` : `${n} of ${max}`),
-    pastDue: (plan: string) => `Your last payment didn't go through. Update your card in Manage billing to keep ${plan}.`,
+    pastDue: (plan: string) =>
+      `Your last payment didn't go through. Update your card in Manage billing to keep ${plan}.`,
     cancels: (date: string) => `Cancels on ${date}. You keep Pro until then.`,
     renews: (date: string) => `Renews on ${date}.`,
     upgrade: "Upgrade to Pro",
@@ -1096,6 +1105,90 @@ export const en = {
         cell: "Cylinder at the bottom with a + end and a − end",
         switch: "Lever on the left that closes the gap",
         wire: "Line on the right joining the parts",
+      } as Record<string, string>,
+    },
+    "digestive-system": {
+      title: "The human digestive system",
+      targets: {
+        mouth: "Opening in the face at the top",
+        oesophagus: "Tube running down the neck",
+        liver: "Large dark-red organ on the left of the upper belly",
+        stomach: "Pink pouch on the right of the upper belly",
+        "small-intestine": "Long, tightly coiled tube in the middle",
+        "large-intestine": "Wider brown tube around the coils, on the right",
+      } as Record<string, string>,
+    },
+    "heart-circulation": {
+      title: "The heart and blood circulation",
+      targets: {
+        lungs: "Two pink lobes at the top",
+        heart: "Organ in the middle, half red and half blue",
+        artery: "Red tube on the right carrying blood down, away from the middle",
+        vein: "Blue tube on the left carrying blood up, back to the middle",
+        body: "Rounded block of cells at the bottom",
+      } as Record<string, string>,
+    },
+    skeleton: {
+      title: "The human skeleton",
+      targets: {
+        skull: "Rounded bone case at the top",
+        ribcage: "Curved bones forming a cage across the chest",
+        spine: "Column of small bones in the lower back",
+        pelvis: "Wide, bowl-shaped bones at the hips",
+        femur: "Longest bone, in the upper leg on the right",
+      } as Record<string, string>,
+    },
+    cells: {
+      title: "Plant and animal cells",
+      targets: {
+        nucleus: "Purple round part in the middle of the left-hand cell",
+        "cell-membrane": "Thin outer edge of the left-hand cell",
+        cytoplasm: "Jelly-like filling of the left-hand cell",
+        "cell-wall": "Thick, stiff outer layer of the right-hand cell",
+        vacuole: "Large pale-blue sac in the right-hand cell",
+        chloroplast: "Small green ovals near the bottom of the right-hand cell",
+      } as Record<string, string>,
+    },
+    lungs: {
+      title: "The lungs and breathing",
+      targets: {
+        trachea: "Ringed tube coming down from the throat",
+        bronchus: "Branch where the tube splits, on the right",
+        lung: "Large spongy pink organ on the left",
+        diaphragm: "Dome-shaped red sheet below the chest",
+        alveoli: "Bunch of tiny bubbles, magnified in the circle",
+      } as Record<string, string>,
+    },
+    "light-shadows": {
+      title: "Light, reflection and shadows",
+      targets: {
+        "light-source": "Torch on the left",
+        ray: "Straight line with an arrow going up from the torch",
+        mirror: "Tilted shiny strip at the top",
+        "opaque-object": "Orange block in the beam",
+        shadow: "Dark patch on the wall on the right",
+        eye: "Where the bounced ray ends, on the right",
+      } as Record<string, string>,
+    },
+    "rock-cycle": {
+      title: "The rock cycle",
+      targets: {
+        magma: "Glowing orange pool deep under the volcano",
+        igneous: "Dark rock on the volcano's slope",
+        weathering: "Rain and cracks wearing away the mountain",
+        sedimentary: "Flat striped layers on the sea floor",
+        metamorphic: "Squeezed, wavy bands deep underground on the right",
+      } as Record<string, string>,
+    },
+    "flower-parts": {
+      title: "Parts of a flower",
+      targets: {
+        petal: "Large pink part on the left",
+        stigma: "Sticky tip at the top of the middle stalk",
+        stamen: "Thin stalk with a dusty yellow tip, on the right",
+        ovary: "Rounded chamber at the base, with tiny beads inside",
+        sepal: "Small green leaf-like part at the base, on the right",
+        pollen: "Yellow dust on the bee's legs",
       } as Record<string, string>,
     },
   },
