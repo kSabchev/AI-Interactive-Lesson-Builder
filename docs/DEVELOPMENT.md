@@ -56,7 +56,7 @@ Order agreed after reviewing the project: prove the core before adding more arou
    4. Lengths that differ in shape: 10 / 15 / 25 minutes, with "Talk about it" (discussion) in the longer ones.
    5. The 12–14 age group, with school grades shown next to ages, and "Read the data" (charts and tables).
    6. Later: "Fill in the blanks", more quiz question types (true/false, choose all that apply), "Odd one out".
-6. **Tune with data.** Per-stage model and effort (e.g. Haiku 5.5 for outline and quiz), regenerating a single section, prompt caching only if the log shows frequent repairs.
+6. **Tune with data.** Measured in October 2026: a lesson is about 6,000 input and 4,400 output tokens over three calls; output is about 70% of the cost and about a quarter of it is thinking; the outline and quiz formats are cached across lessons made within five minutes; no repairs in 21 lessons. Effort `low` for the outline and quiz saved only ~4% with small quality slips, so `medium` stays. Still open: Haiku 5.5 for the outline and quiz (about 40% cheaper, only with a quality comparison), and regenerating a single section.
 7. **Launch readiness (milestone 9).** Rate limits in shared storage, security headers, `@axe-core/playwright` checks, a verified Stripe test checkout, legal pages.
 8. **Later, if there is demand.** Share links with "save a copy", AI-drawn pictures for topics the library doesn't cover, a full-period (40–45 minute) length, then the Classroom tier and a moderated shared library.
 
