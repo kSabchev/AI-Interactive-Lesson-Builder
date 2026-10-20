@@ -56,13 +56,32 @@ export function SolarSystemArt() {
       <circle cx={SUN.cx} cy={SUN.cy} r="150" fill="url(#ss-sun)" />
 
       {POINTERS.map(([x1, y1, x2, y2]) => (
-        <line key={`${x1}-${y1}`} x1={x1} y1={y1} x2={x2} y2={y2} stroke="#ffffff" strokeOpacity="0.5" strokeWidth="2" strokeDasharray="4 5" />
+        <line
+          key={`${x1}-${y1}`}
+          x1={x1}
+          y1={y1}
+          x2={x2}
+          y2={y2}
+          stroke="#ffffff"
+          strokeOpacity="0.5"
+          strokeWidth="2"
+          strokeDasharray="4 5"
+        />
       ))}
 
       {PLANETS.map((p) => (
         <g key={p.name}>
           {p.name === "saturn" && (
-            <ellipse cx={p.x} cy="250" rx="56" ry="13" fill="none" stroke="#c9b27a" strokeWidth="6" transform={`rotate(-15 ${p.x} 250)`} />
+            <ellipse
+              cx={p.x}
+              cy="250"
+              rx="56"
+              ry="13"
+              fill="none"
+              stroke="#c9b27a"
+              strokeWidth="6"
+              transform={`rotate(-15 ${p.x} 250)`}
+            />
           )}
           <circle cx={p.x} cy="250" r={p.r} fill={p.fill} />
           {p.name === "earth" && (

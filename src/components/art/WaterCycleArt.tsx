@@ -78,7 +78,14 @@ export function WaterCycleArt() {
           opacity={0.95 - i * 0.1}
         />
       ))}
-      <path d="M260 210 C 300 150, 340 110, 360 100" stroke="#1a529c" strokeWidth="4" strokeDasharray="10 8" fill="none" markerEnd="url(#wc-arrow)" />
+      <path
+        d="M260 210 C 300 150, 340 110, 360 100"
+        stroke="#1a529c"
+        strokeWidth="4"
+        strokeDasharray="10 8"
+        fill="none"
+        markerEnd="url(#wc-arrow)"
+      />
 
       {/* Cloud forming */}
       <g fill="#ffffff">
@@ -87,7 +94,14 @@ export function WaterCycleArt() {
         <circle cx="482" cy="88" r="32" />
         <rect x="380" y="85" width="120" height="34" rx="17" />
       </g>
-      <path d="M520 95 C 560 95, 580 105, 595 125" stroke="#1a529c" strokeWidth="4" strokeDasharray="10 8" fill="none" markerEnd="url(#wc-arrow)" />
+      <path
+        d="M520 95 C 560 95, 580 105, 595 125"
+        stroke="#1a529c"
+        strokeWidth="4"
+        strokeDasharray="10 8"
+        fill="none"
+        markerEnd="url(#wc-arrow)"
+      />
 
       {/* Rain cloud over mountains */}
       <g fill="#9fb3c8">

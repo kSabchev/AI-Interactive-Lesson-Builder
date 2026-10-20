@@ -57,7 +57,17 @@ export function PhotosynthesisArt() {
         [560, 470, 470, 412],
         [600, 440, 500, 400],
       ].map(([x1, y1, x2, y2]) => (
-        <line key={x1} x1={x1} y1={y1} x2={x2} y2={y2} stroke="#1f66c4" strokeWidth="5" strokeDasharray="8 7" markerEnd="url(#ps-arrow-water)" />
+        <line
+          key={x1}
+          x1={x1}
+          y1={y1}
+          x2={x2}
+          y2={y2}
+          stroke="#1f66c4"
+          strokeWidth="5"
+          strokeDasharray="8 7"
+          markerEnd="url(#ps-arrow-water)"
+        />
       ))}
       {[
         [580, 480],
@@ -68,7 +78,13 @@ export function PhotosynthesisArt() {
       ))}
 
       {/* Stem and leaves */}
-      <path d="M400 388 C 396 320, 404 230, 400 130" stroke="#3f8f3c" strokeWidth="14" strokeLinecap="round" fill="none" />
+      <path
+        d="M400 388 C 396 320, 404 230, 400 130"
+        stroke="#3f8f3c"
+        strokeWidth="14"
+        strokeLinecap="round"
+        fill="none"
+      />
       <ellipse cx="300" cy="235" rx="95" ry="38" fill="#4caf50" transform="rotate(-18 300 235)" />
       <path d="M215 262 L 392 215" stroke="#2e7d32" strokeWidth="3" />
       <ellipse cx="505" cy="200" rx="100" ry="40" fill="#5cbf60" transform="rotate(16 505 200)" />
@@ -77,7 +93,14 @@ export function PhotosynthesisArt() {
       <ellipse cx="425" cy="118" rx="34" ry="16" fill="#66bb6a" transform="rotate(35 425 118)" />
 
       {/* Carbon dioxide going into the leaf */}
-      <path d="M770 120 C 720 140, 670 170, 610 195" stroke="#5b6676" strokeWidth="5" strokeDasharray="10 8" fill="none" markerEnd="url(#ps-arrow-gas)" />
+      <path
+        d="M770 120 C 720 140, 670 170, 610 195"
+        stroke="#5b6676"
+        strokeWidth="5"
+        strokeDasharray="10 8"
+        fill="none"
+        markerEnd="url(#ps-arrow-gas)"
+      />
       {[
         [745, 100],
         [775, 150],
@@ -87,7 +110,14 @@ export function PhotosynthesisArt() {
       ))}
 
       {/* Oxygen leaving the leaf */}
-      <path d="M215 262 C 170 280, 110 300, 45 320" stroke="#2f7de1" strokeWidth="5" strokeDasharray="10 8" fill="none" markerEnd="url(#ps-arrow-o2)" />
+      <path
+        d="M215 262 C 170 280, 110 300, 45 320"
+        stroke="#2f7de1"
+        strokeWidth="5"
+        strokeDasharray="10 8"
+        fill="none"
+        markerEnd="url(#ps-arrow-o2)"
+      />
       {[
         [40, 290],
         [70, 345],
@@ -96,7 +126,14 @@ export function PhotosynthesisArt() {
       ))}
 
       {/* Food (glucose) carried from the leaf down the stem */}
-      <path d="M500 225 C 470 260, 440 300, 414 360" stroke="#d9822b" strokeWidth="5" strokeDasharray="10 8" fill="none" markerEnd="url(#ps-arrow-food)" />
+      <path
+        d="M500 225 C 470 260, 440 300, 414 360"
+        stroke="#d9822b"
+        strokeWidth="5"
+        strokeDasharray="10 8"
+        fill="none"
+        markerEnd="url(#ps-arrow-food)"
+      />
     </svg>
   );
 }

@@ -52,7 +52,7 @@ Order agreed after reviewing the project: prove the core before adding more arou
 5. **Richer lessons (milestone 10).** In this order:
    1. ✅ "Put in order", "Match pairs" and "Try it yourself" (experiment, opt-in), with each lesson's two activities chosen by the shape of the topic (see section 10). Checked live on 7 topics.
    2. ✅ "Myth or fact?" as the warm-up for topics with common misconceptions. Live check: chosen for 5 of 5 topics, including the butterfly life cycle (with real misconceptions); watch whether lessons need more prediction warm-ups for variety.
-   3. A first batch of diagrams for the most requested topics (generation log), then more pictures.
+   3. ✅ First batch of diagrams: parts of a plant, butterfly life cycle, states of matter, phases of the Moon, a food chain, a simple circuit (nine in total). Live check: chosen for all five matching topics, no repairs. Next batch from the most requested topics in the generation log, then more small pictures.
    4. Lengths that differ in shape: 10 / 15 / 25 minutes, with "Talk about it" (discussion) in the longer ones.
    5. The 12–14 age group, with school grades shown next to ages, and "Read the data" (charts and tables).
    6. Later: "Fill in the blanks", more quiz question types (true/false, choose all that apply), "Odd one out".
