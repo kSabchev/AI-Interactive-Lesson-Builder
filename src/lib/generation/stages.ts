@@ -17,17 +17,18 @@ const objectiveRef = z.enum(["1", "2", "3"]);
 const NONE = "none";
 
 /**
- * The "Explore a concept" template. Two slots hold activities, chosen to suit the topic (see `chosenPlan`):
+ * The "Explore a concept" template. The warm-up is a prediction, or "myth or fact?" when children commonly
+ * hold misconceptions about the topic. Two more slots hold activities, chosen to suit the topic (see `chosenPlan`):
  * - `activity` ("do it", after the first explanation): a hands-on experiment when the adult asks for one;
  *   otherwise label a diagram, put steps in order, match pairs, or a second prediction;
  * - `practice` ("apply it", after the second): sort examples into groups, or match pairs.
  */
-export const SLOTS = ["hook", "prediction", "explain1", "activity", "explain2", "practice", "recap"] as const;
+export const SLOTS = ["hook", "warmup", "explain1", "activity", "explain2", "practice", "recap"] as const;
 export type Slot = (typeof SLOTS)[number];
 
 const SLOT_SECTION_IDS: Record<Slot, string> = {
   hook: "sec-hook",
-  prediction: "sec-prediction",
+  warmup: "sec-warmup",
   explain1: "sec-explain-1",
   activity: "sec-activity",
   explain2: "sec-explain-2",
@@ -47,6 +48,11 @@ export const outlineSchema = z.object({
   diagramId: z
     .enum([NONE, ...DIAGRAM_IDS])
     .describe(`An approved diagram that directly matches the topic, or "${NONE}"`),
+  warmupType: z
+    .enum(["prediction", "myth-or-fact"])
+    .describe(
+      'The warm-up: "myth-or-fact" if children commonly believe things about this topic that are wrong (such as "plants eat soil" or "heavy things always sink"); otherwise "prediction"',
+    ),
   activityType: z
     .enum(["sequence", "matching", "prediction"])
     .describe(
@@ -59,7 +65,7 @@ export const outlineSchema = z.object({
     ),
   sections: z.object({
     hook: plannedSection,
-    prediction: plannedSection,
+    warmup: plannedSection.describe("The warm-up (warmupType), before anything is taught"),
     explain1: plannedSection,
     activity: plannedSection.describe('The "do it" activity: the diagram if one was chosen, otherwise activityType'),
     explain2: plannedSection,
@@ -81,8 +87,12 @@ export type ActivityPlan =
   | { kind: "matching" }
   | { kind: "prediction" };
 
-/** The two activities a lesson has: "do it" after the first explanation, and "apply it" after the second. */
-export type LessonPlan = { activity: ActivityPlan; practice: "sorting" | "matching" };
+/** The lesson's activities: the warm-up, "do it" after the first explanation, and "apply it" after the second. */
+export type LessonPlan = {
+  warmup: "prediction" | "myth-or-fact";
+  activity: ActivityPlan;
+  practice: "sorting" | "matching";
+};
 
 /**
  * Decides the lesson's activities. An experiment the adult asked for takes the "do it" slot; otherwise a
@@ -99,7 +109,7 @@ export function chosenPlan(outline: Outline, input: Pick<GenerationInput, "exper
       : { kind: outline.activityType };
   const practice =
     outline.practiceType === "matching" && activity.kind === "matching" ? "sorting" : outline.practiceType;
-  return { activity, practice };
+  return { warmup: outline.warmupType, activity, practice };
 }
 
 const visual = z
@@ -137,6 +147,22 @@ const experimentContent = z.object({
   observe: long.describe("What to look for while it happens"),
   explanation: long.describe("Why it happens, in words the age group understands"),
   safety: long.describe("A short safety note for the adult"),
+  facilitatorNote: note,
+});
+
+const mythOrFactContent = z.object({
+  instructions: long,
+  statements: z
+    .array(
+      z.object({
+        text: short.describe("A statement children might believe; worded so it doesn't give the answer away"),
+        isFact: z.boolean().describe("true if the statement is true, false if it is a myth"),
+        explanation: long.describe("Why, in a sentence or two; don't start by saying whether it's a myth or a fact"),
+      }),
+    )
+    .min(3)
+    .max(6)
+    .describe("Mostly common misconceptions (myths), with at least one true statement (fact)"),
   facilitatorNote: note,
 });
 
@@ -222,7 +248,7 @@ export function contentSchema(plan: LessonPlan, excerptIds: string[] = []) {
 
   return z.object({
     hook: z.object({ question: short, body: long, visualId: visual, facilitatorNote: note }),
-    prediction: predictionContent,
+    warmup: plan.warmup === "myth-or-fact" ? mythOrFactContent : predictionContent,
     explain1: explanation,
     activity,
     explain2: explanation,
@@ -355,7 +381,14 @@ function sectionsFrom(outline: Outline, content: Content): LessonInput["sections
       body: content.hook.body,
       visualId: visualOrUndefined(content.hook.visualId),
     },
-    prediction("prediction", content.prediction),
+    "statements" in content.warmup
+      ? {
+          ...meta("warmup"),
+          type: "myth-or-fact" as const,
+          instructions: content.warmup.instructions,
+          statements: content.warmup.statements.map((statement, i) => ({ id: `statement-${i + 1}`, ...statement })),
+        }
+      : prediction("warmup", content.warmup),
     explanation("explain1", content.explain1),
     activity,
     explanation("explain2", content.explain2),

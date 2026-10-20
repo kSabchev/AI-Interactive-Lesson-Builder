@@ -128,3 +128,17 @@ export function assignMatch(matches: MatchPlacements, leftId: string, rightId: s
   next[leftId] = rightId;
   return next;
 }
+
+/** For myth or fact: the learner's answer per statement id (true = "fact"). */
+export type MythOrFactAnswers = Record<string, boolean>;
+
+/** Returns ids of statements answered rightly or wrongly. Unanswered ones are ignored. */
+export function checkMythOrFact(section: SectionOfType<"myth-or-fact">, answers: MythOrFactAnswers): PlacementCheck {
+  const correctIds: string[] = [];
+  const incorrectIds: string[] = [];
+  for (const statement of section.statements) {
+    if (!(statement.id in answers)) continue;
+    (answers[statement.id] === statement.isFact ? correctIds : incorrectIds).push(statement.id);
+  }
+  return { correctIds, incorrectIds, allCorrect: correctIds.length === section.statements.length };
+}

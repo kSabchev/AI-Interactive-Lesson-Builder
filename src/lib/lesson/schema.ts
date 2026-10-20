@@ -159,6 +159,28 @@ export const experimentSectionSchema = z.object({
   safety: text,
 });
 
+/**
+ * A warm-up for topics with common misconceptions: learners decide whether each statement is a fact or a
+ * myth, and see why straight away.
+ */
+export const mythOrFactSectionSchema = z.object({
+  ...sectionBase,
+  type: z.literal("myth-or-fact"),
+  instructions: text,
+  statements: z
+    .array(
+      z.object({
+        id,
+        text: shortText,
+        isFact: z.boolean(),
+        /** Why it's a fact or a myth, shown as soon as the learner answers. */
+        explanation: text,
+      }),
+    )
+    .min(3)
+    .max(6),
+});
+
 export const recapSectionSchema = z.object({
   ...sectionBase,
   type: z.literal("recap"),
@@ -174,6 +196,7 @@ export const lessonSectionSchema = z.discriminatedUnion("type", [
   sequenceSectionSchema,
   matchingSectionSchema,
   experimentSectionSchema,
+  mythOrFactSectionSchema,
   recapSectionSchema,
 ]);
 
@@ -271,6 +294,16 @@ export const lessonSchema = z
         }
         if (findDuplicates(section.pairs.map((pair) => normal(pair.right))).length > 0) {
           issue(["sections", i, "pairs"], "Two pairs have the same right side");
+        }
+      }
+
+      if (section.type === "myth-or-fact") {
+        findDuplicates(section.statements.map((st) => st.id)).forEach((dup) =>
+          issue(["sections", i, "statements"], `Duplicate statement id "${dup}"`),
+        );
+        // All facts or all myths would let learners answer without thinking.
+        if (section.statements.every((st) => st.isFact) || section.statements.every((st) => !st.isFact)) {
+          issue(["sections", i, "statements"], "Include at least one myth and one fact");
         }
       }
 

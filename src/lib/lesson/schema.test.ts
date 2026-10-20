@@ -126,6 +126,24 @@ describe("lessonSchema", () => {
     );
   });
 
+  it("accepts a myth-or-fact warm-up only with at least one myth and one fact", () => {
+    const withStatements = (facts: boolean[]) => {
+      const lesson = clone();
+      const index = lesson.sections.findIndex((s) => s.type === "prediction");
+      lesson.sections[index] = {
+        id: lesson.sections[index].id,
+        type: "myth-or-fact",
+        title: "Myth or fact?",
+        instructions: "Decide for each one.",
+        statements: facts.map((isFact, i) => ({ id: `s${i}`, text: `Statement ${i}`, isFact, explanation: "Because." })),
+      };
+      return lesson;
+    };
+    expect(issuesFor(withStatements([false, true, false]))).toEqual([]);
+    expect(issuesFor(withStatements([false, false, false]))).toContain("Include at least one myth and one fact");
+    expect(issuesFor(withStatements([true, true, true]))).toContain("Include at least one myth and one fact");
+  });
+
   it("rejects source URLs that are not valid URLs", () => {
     const lesson = clone();
     lesson.sources![0].url = "not a url";

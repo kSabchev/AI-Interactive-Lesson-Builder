@@ -51,10 +51,11 @@ Order agreed after reviewing the project: prove the core before adding more arou
 4. **Real users.** 3–5 parents or teachers with their own access codes, and a native speaker for the Bulgarian text. Runs alongside step 5; what they say can reorder it.
 5. **Richer lessons (milestone 10).** In this order:
    1. ✅ "Put in order", "Match pairs" and "Try it yourself" (experiment, opt-in), with each lesson's two activities chosen by the shape of the topic (see section 10). Checked live on 7 topics.
-   2. A first batch of diagrams for the most requested topics (generation log), then more pictures.
-   3. Lengths that differ in shape: 10 / 15 / 25 minutes.
-   4. The 12–14 age group, with school grades shown next to ages.
-   5. "Talk about it" (discussion) sections.
+   2. ✅ "Myth or fact?" as the warm-up for topics with common misconceptions. Live check: chosen for 5 of 5 topics, including the butterfly life cycle (with real misconceptions); watch whether lessons need more prediction warm-ups for variety.
+   3. A first batch of diagrams for the most requested topics (generation log), then more pictures.
+   4. Lengths that differ in shape: 10 / 15 / 25 minutes, with "Talk about it" (discussion) in the longer ones.
+   5. The 12–14 age group, with school grades shown next to ages, and "Read the data" (charts and tables).
+   6. Later: "Fill in the blanks", more quiz question types (true/false, choose all that apply), "Odd one out".
 6. **Tune with data.** Per-stage model and effort (e.g. Haiku 5.5 for outline and quiz), regenerating a single section, prompt caching only if the log shows frequent repairs.
 7. **Launch readiness (milestone 9).** Rate limits in shared storage, security headers, `@axe-core/playwright` checks, a verified Stripe test checkout, legal pages.
 8. **Later, if there is demand.** Share links with "save a copy", AI-drawn pictures for topics the library doesn't cover, a full-period (40–45 minute) length, then the Classroom tier and a moderated shared library.
@@ -146,6 +147,19 @@ A lesson never has match pairs twice: if both slots ask for it, "apply it" sorts
 | Match pairs | Connect terms to meanings, or causes to effects | Interactive, quick to answer on a shared screen |
 | Try it yourself | Adult-led experiment: materials, steps, what to notice, safety note | Valued by teachers; the prompt needs firm safety rules (household materials, adult supervision) |
 | Talk about it | A class discussion question with prompts for the adult | Cheap; good for 11–12 and longer lessons |
+
+**More activities (October 2026 review).** Coverage so far: curiosity (hook), guessing (prediction), naming parts (diagram), classifying (sorting), processes (put in order), one-to-one facts (match pairs), hands-on (experiment), and a multiple-choice quiz. Gaps, in priority order:
+
+| Activity | What learners do | Why | Where it fits | Effort |
+| --- | --- | --- | --- | --- |
+| **Myth or fact?** | Tap Fact or Myth on 3–6 statements; each is explained straight away | Science teaching is largely correcting misconceptions ("plants eat soil", "heavy things sink"); nothing else targets them | The warm-up (section 2) instead of the prediction, **when the topic has common misconceptions**: chosen per topic by the outline, never at random, so the same topic gives the same kind of lesson | Low |
+| **Talk about it** | A discussion question with prompts for the adult | Explaining reasoning aloud; for 11–14 and longer lessons | The 25-minute length | Low |
+| **Read the data** | Questions about a simple bar chart or table | "Working scientifically" (reading results, spotting patterns) is in every curriculum and missing | With the 12–14 age group | Medium–high (charts) |
+| **Fill in the blanks** | Complete 3–5 sentences from a word bank | Key vocabulary in context; Bulgarian word endings handled by putting exact forms in the bank | Before the recap in 15/25-minute lessons | Medium |
+| **More quiz types** | True/false and "choose all that apply" | Variety in the final check | The quiz | Medium |
+| **Odd one out** | Pick the one that doesn't belong and say why | Quick reasoning; overlaps with sorting | Optional | Low |
+
+Not planned: drawing prompts (done on paper), estimation sliders (few topics), picture "find it" activities (need the picture library first).
 
 **2. Lengths that differ in shape.** The schema's exact counts become ranges, so every saved lesson stays valid.
 
