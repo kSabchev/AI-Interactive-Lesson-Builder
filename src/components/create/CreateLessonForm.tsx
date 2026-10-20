@@ -193,8 +193,9 @@ export function CreateLessonForm({ mode, webResearch = false }: { mode: Generati
               label={t.create.learnerAge}
               value={values.ageGroup}
               options={[
-                { value: "8-10", label: t.common.ages("8–10") },
-                { value: "11-12", label: t.common.ages("11–12") },
+                { value: "8-10", label: t.common.ageGroups["8-10"] },
+                { value: "11-12", label: t.common.ageGroups["11-12"] },
+                { value: "13-14", label: t.common.ageGroups["13-14"] },
               ]}
               onChange={(ageGroup) => set("ageGroup", ageGroup)}
             />

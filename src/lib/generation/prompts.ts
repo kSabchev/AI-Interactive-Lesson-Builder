@@ -15,10 +15,10 @@ import {
 } from "./stages";
 
 /** Stable across every stage and request, so it can be cached. */
-export const SYSTEM_PROMPT = `You write short, interactive science lessons that a parent or teacher presents on one shared screen to children aged 8-12.
+export const SYSTEM_PROMPT = `You write short, interactive science lessons that a parent or teacher presents on one shared screen to children aged 8-14.
 
 Content rules:
-- Use language that suits the stated age group. For ages 8-10 use short sentences and everyday words; for ages 11-12 you may introduce a few precise scientific terms.
+- Use language that suits the stated age group. For ages 8-10 use short sentences and everyday words; for ages 11-12 you may introduce a few precise scientific terms; for ages 13-14 use the correct scientific terms (defined), explain the "why" with models such as particles or energy transfers, and use numbers and units where they help.
 - Keep each section focused on one main idea.
 - Define every unfamiliar term the first time it appears.
 - Include concrete, everyday examples a child could recognise.
@@ -40,6 +40,13 @@ function durationGuidance(input: GenerationInput): string {
     case 25:
       return "This is a 25-minute lesson: explanations may use 2-4 paragraphs, a third explanation takes the idea further, and the class talks about a question before the recap. Facilitator notes can suggest questions, a quick demonstration or a link to everyday life.";
   }
+}
+
+/** The "apply it" choice; reading charts is offered from age 11. */
+function practiceGuide(input: GenerationInput): string {
+  return input.ageGroup === "8-10"
+    ? SLOT_GUIDE.practice
+    : '("apply it") choose practiceType: "sorting" if examples fall naturally into 2-3 groups (several examples per group, such as magnetic or not); "data" if the topic involves measurements or results a simple chart could show (temperatures, growth, speeds, how much dissolves); otherwise "matching". Never choose "matching" for both activityType and practiceType';
 }
 
 /** What each section of the template is for, as the outline prompt describes it. */
@@ -102,7 +109,7 @@ export function outlinePrompt(input: GenerationInput, evidence?: Evidence): stri
 
 Plan a lesson using the fixed "Explore a concept" sequence for this length:
 ${slotsFor(input.durationMinutes)
-  .map((slot, i) => `${i + 1}. ${slot} - ${SLOT_GUIDE[slot]}`)
+  .map((slot, i) => `${i + 1}. ${slot} - ${slot === "practice" ? practiceGuide(input) : SLOT_GUIDE[slot]}`)
   .join("\n")}
 
 Write exactly three learning objectives that the lesson will teach and a quiz can check.${
@@ -151,7 +158,9 @@ export function contentPrompt(input: GenerationInput, outline: Outline, evidence
   const practice =
     lessonPlan.practice === "matching"
       ? `The practice section asks learners to match 3-5 pairs that apply what explain2 taught. ${MATCHING_RULES}`
-      : "The practice section asks learners to sort 4-8 examples into 2-3 groups, each example clearly belonging to exactly one group.";
+      : lessonPlan.practice === "data"
+        ? 'The practice section asks learners to read a simple chart of example data that applies what explain2 taught: 3-8 rows with distinct labels and realistic values that fit the science (it is shown as made-up example data, not real measurements), a caption, axis labels with the unit, and 2-3 questions answered from the numbers alone, each explanation quoting the numbers. Use a line chart for change over time, otherwise a bar chart. Set check to "highest" or "lowest" when a question asks which row has the highest or lowest value.'
+        : "The practice section asks learners to sort 4-8 examples into 2-3 groups, each example clearly belonging to exactly one group.";
 
   return `${brief(input, evidence)}
 
@@ -197,7 +206,11 @@ Rules:
 - Every question tests something the lesson below actually teaches, and names the section that teaches it.
 - Together the questions cover all three objectives; each question names the objective it checks.
 - Exactly one option is correct; the other three are plausible but clearly wrong to someone who followed the lesson.
-- Vary which position (0-3) holds the correct answer.
+- Vary which position (0-3) holds the correct answer.${
+    input.ageGroup === "13-14"
+      ? "\n- For this age group, at least two questions ask learners to apply an idea to a new situation or to reason from it, not just recall it, and the wrong options reflect common misconceptions."
+      : ""
+  }
 - The explanation says why the correct answer is right in one or two child-friendly sentences.${
     evidence ? `\n- Each question cites the excerpts that support its correct answer. ${CITING_RULES}` : ""
   }

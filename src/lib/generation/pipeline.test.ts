@@ -25,7 +25,11 @@ function outline(
 ): Outline {
   return {
     title: "The Invisible Pull: Magnets",
-    objectives: ["Describe what magnets attract.", "Explain north and south poles.", "Identify everyday uses of magnets."],
+    objectives: [
+      "Describe what magnets attract.",
+      "Explain north and south poles.",
+      "Identify everyday uses of magnets.",
+    ],
     diagramId,
     warmupType,
     activityType,
@@ -85,13 +89,21 @@ function content(
   warmup: Content["warmup"] = prediction,
 ): Content {
   return {
-    hook: { question: "Why do some things stick to the fridge?", body: "Some notes stay up all by themselves.", visualId: "none", facilitatorNote: "Let them guess." },
+    hook: {
+      question: "Why do some things stick to the fridge?",
+      body: "Some notes stay up all by themselves.",
+      visualId: "none",
+      facilitatorNote: "Let them guess.",
+    },
     warmup: structuredClone(warmup),
     explain1: explanation,
     activity: structuredClone(activity),
     explain2: explanation,
     practice: structuredClone(practice),
-    recap: { keyPoints: ["Magnets attract iron and steel.", "Like poles push apart.", "Magnets are useful."], facilitatorNote: "Ask for a favourite fact." },
+    recap: {
+      keyPoints: ["Magnets attract iron and steel.", "Like poles push apart.", "Magnets are useful."],
+      facilitatorNote: "Ask for a favourite fact.",
+    },
   } as Content;
 }
 
@@ -152,7 +164,12 @@ describe("generateLesson", () => {
     const { lesson, events } = await run(happy());
 
     expect(lessonSchema.safeParse(lesson).success).toBe(true);
-    expect(lesson).toMatchObject({ id: "lesson-test", contentOrigin: "ai-draft", sources: [], topic: "How magnets work" });
+    expect(lesson).toMatchObject({
+      id: "lesson-test",
+      contentOrigin: "ai-draft",
+      sources: [],
+      topic: "How magnets work",
+    });
     expect(lesson.sections.map((s) => s.type)).toEqual([
       "hook",
       "prediction",
@@ -162,12 +179,9 @@ describe("generateLesson", () => {
       "sorting",
       "recap",
     ]);
-    expect(events.filter((e) => e.type === "stage" && e.status === "done").map((e) => e.type === "stage" && e.stage)).toEqual([
-      "outline",
-      "content",
-      "quiz",
-      "check",
-    ]);
+    expect(
+      events.filter((e) => e.type === "stage" && e.status === "done").map((e) => e.type === "stage" && e.stage),
+    ).toEqual(["outline", "content", "quiz", "check"]);
   });
 
   it("writes the lesson in the topic's language", async () => {
@@ -228,9 +242,17 @@ describe("generateLesson", () => {
       quiz: [{ json: quiz() }],
     });
     expect(activityMatching.lesson.sections.map((s) => s.type)).toEqual([
-      "hook", "prediction", "explanation", "matching", "explanation", "sorting", "recap",
+      "hook",
+      "prediction",
+      "explanation",
+      "matching",
+      "explanation",
+      "sorting",
+      "recap",
     ]);
-    expect(activityMatching.lesson.sections[3]).toMatchObject({ pairs: [{ id: "activity-pair-1", left: "North pole" }, {}, {}] });
+    expect(activityMatching.lesson.sections[3]).toMatchObject({
+      pairs: [{ id: "activity-pair-1", left: "North pole" }, {}, {}],
+    });
 
     const practiceMatching = await run({
       outline: [{ json: outline("none", "sequence", "matching") }],
@@ -253,7 +275,13 @@ describe("generateLesson", () => {
       quiz: [{ json: quiz() }],
     });
     expect(practiceMatching.lesson.sections.map((s) => s.type)).toEqual([
-      "hook", "prediction", "explanation", "sequence", "explanation", "matching", "recap",
+      "hook",
+      "prediction",
+      "explanation",
+      "sequence",
+      "explanation",
+      "matching",
+      "recap",
     ]);
     expect(JSON.stringify(practiceMatching.calls.find((c) => c.stage === "content"))).toContain(
       "The practice section asks learners to match 3-5 pairs",
@@ -267,7 +295,9 @@ describe("generateLesson", () => {
     });
     expect(both.lesson.sections[3].type).toBe("matching");
     expect(both.lesson.sections[5].type).toBe("sorting");
-    expect(JSON.stringify(both.calls.find((c) => c.stage === "content"))).toContain("sort 4-8 examples into 2-3 groups");
+    expect(JSON.stringify(both.calls.find((c) => c.stage === "content"))).toContain(
+      "sort 4-8 examples into 2-3 groups",
+    );
   });
 
   it("makes the activity a safe experiment when the adult asks for one, even if a diagram fits", async () => {
@@ -311,7 +341,14 @@ describe("generateLesson", () => {
       safety: "Be careful.",
       facilitatorNote: "Adults only.",
     };
-    const safe = { ...unsafe, question: "What happens to the ice?", materials: ["An ice cube", "A plate"], steps: ["Put the ice on the plate.", "Wait ten minutes."], observe: "It melts.", explanation: "The room is warmer than ice." };
+    const safe = {
+      ...unsafe,
+      question: "What happens to the ice?",
+      materials: ["An ice cube", "A plate"],
+      steps: ["Put the ice on the plate.", "Wait ten minutes."],
+      observe: "It melts.",
+      explanation: "The room is warmer than ice.",
+    };
     const { lesson, events } = await run(
       {
         outline: [{ json: outline() }],
@@ -321,7 +358,11 @@ describe("generateLesson", () => {
       { experiment: true },
     );
     expect(events).toContainEqual(
-      expect.objectContaining({ type: "retry", stage: "content", reason: expect.stringContaining("unsafe for children (candle, matches)") }),
+      expect.objectContaining({
+        type: "retry",
+        stage: "content",
+        reason: expect.stringContaining("unsafe for children (candle, matches)"),
+      }),
     );
     expect(lesson.sections[3]).toMatchObject({ type: "experiment", materials: ["An ice cube", "A plate"] });
   });
@@ -332,13 +373,21 @@ describe("generateLesson", () => {
       statements: [
         { text: "All metals stick to magnets.", isFact: false, explanation: "Only some, like iron and steel." },
         { text: "A magnet has two poles.", isFact: true, explanation: "Every magnet has a north and a south pole." },
-        { text: "Bigger magnets are always stronger.", isFact: false, explanation: "Strength depends on the material too." },
+        {
+          text: "Bigger magnets are always stronger.",
+          isFact: false,
+          explanation: "Strength depends on the material too.",
+        },
       ],
       facilitatorNote: "Let the class vote first.",
     };
     const { lesson, calls } = await run({
       outline: [{ json: outline("none", "prediction", "sorting", "myth-or-fact") }],
-      content: [{ json: content(prediction as Content["activity"], sorting as Content["practice"], myths as Content["warmup"]) }],
+      content: [
+        {
+          json: content(prediction as Content["activity"], sorting as Content["practice"], myths as Content["warmup"]),
+        },
+      ],
       quiz: [{ json: quiz() }],
     });
     expect(lesson.sections[1]).toMatchObject({
@@ -347,25 +396,43 @@ describe("generateLesson", () => {
       statements: [{ id: "statement-1", isFact: false }, { id: "statement-2", isFact: true }, { id: "statement-3" }],
     });
     expect(JSON.stringify(calls.find((c) => c.stage === "content"))).toContain('\\"myth or fact?\\"');
-    expect(JSON.stringify(calls.find((c) => c.stage === "content"))).toContain("don't start the explanation by saying which it is");
+    expect(JSON.stringify(calls.find((c) => c.stage === "content"))).toContain(
+      "don't start the explanation by saying which it is",
+    );
 
     // Only myths: sent back to be fixed, since learners could answer "myth" every time.
     const onlyMyths = { ...myths, statements: myths.statements.map((st) => ({ ...st, isFact: false })) };
     const { events } = await run({
       outline: [{ json: outline("none", "prediction", "sorting", "myth-or-fact") }],
       content: [
-        { json: content(prediction as Content["activity"], sorting as Content["practice"], onlyMyths as Content["warmup"]) },
-        { json: content(prediction as Content["activity"], sorting as Content["practice"], myths as Content["warmup"]) },
+        {
+          json: content(
+            prediction as Content["activity"],
+            sorting as Content["practice"],
+            onlyMyths as Content["warmup"],
+          ),
+        },
+        {
+          json: content(prediction as Content["activity"], sorting as Content["practice"], myths as Content["warmup"]),
+        },
       ],
       quiz: [{ json: quiz() }],
     });
     expect(events).toContainEqual(
-      expect.objectContaining({ type: "retry", stage: "content", reason: expect.stringContaining("at least one myth and one fact") }),
+      expect.objectContaining({
+        type: "retry",
+        stage: "content",
+        reason: expect.stringContaining("at least one myth and one fact"),
+      }),
     );
   });
 
   it("gives a 10-minute lesson five sections and three questions", async () => {
-    const short = { questions: quiz().questions.slice(0, 3).map((q) => ({ ...q, sectionId: "sec-explain-1" })) };
+    const short = {
+      questions: quiz()
+        .questions.slice(0, 3)
+        .map((q) => ({ ...q, sectionId: "sec-explain-1" })),
+    };
     const { lesson, calls } = await run(
       { outline: [{ json: outline() }], content: [{ json: content() }], quiz: [{ json: short }] },
       { durationMinutes: 10 },
@@ -375,10 +442,14 @@ describe("generateLesson", () => {
     expect(JSON.stringify(calls.find((c) => c.stage === "quiz"))).toContain("exactly 3 single-answer");
   });
 
-  it("gives a 25-minute lesson a third explanation, \"talk about it\" and six questions", async () => {
+  it('gives a 25-minute lesson a third explanation, "talk about it" and six questions', async () => {
     const longOutline = {
       ...outline(),
-      sections: { ...outline().sections, explain3: planned("Magnets at work", ["3"]), discussion: planned("Let's talk", ["3"]) },
+      sections: {
+        ...outline().sections,
+        explain3: planned("Magnets at work", ["3"]),
+        discussion: planned("Let's talk", ["3"]),
+      },
     };
     const talk = {
       question: "Where would life be harder without magnets?",
@@ -393,12 +464,84 @@ describe("generateLesson", () => {
       { durationMinutes: 25 },
     );
     expect(lesson.sections.map((s) => s.type)).toEqual([
-      "hook", "prediction", "explanation", "prediction", "explanation", "sorting", "explanation", "discussion", "recap",
+      "hook",
+      "prediction",
+      "explanation",
+      "prediction",
+      "explanation",
+      "sorting",
+      "explanation",
+      "discussion",
+      "recap",
     ]);
-    expect(lesson.sections[7]).toMatchObject({ id: "sec-discussion", question: "Where would life be harder without magnets?" });
+    expect(lesson.sections[7]).toMatchObject({
+      id: "sec-discussion",
+      question: "Where would life be harder without magnets?",
+    });
     expect(lesson.quiz).toHaveLength(6);
     expect(JSON.stringify(calls.find((c) => c.stage === "outline"))).toContain("discussion -");
-    expect(JSON.stringify(calls.find((c) => c.stage === "content"))).toContain("The discussion section asks a question");
+    expect(JSON.stringify(calls.find((c) => c.stage === "content"))).toContain(
+      "The discussion section asks a question",
+    );
+  });
+
+  it("reads a chart in the practice slot for older learners, checks highest and lowest answers, and sorts for 8-10", async () => {
+    const chart = (answerIndex: number) => ({
+      instructions: "Look at how far each magnet pulled a paperclip.",
+      chart: "bar",
+      caption: "Pulling distance of three magnets",
+      xLabel: "Magnet",
+      yLabel: "Distance (cm)",
+      rows: [
+        { label: "Fridge magnet", value: 1 },
+        { label: "Bar magnet", value: 4 },
+        { label: "Horseshoe magnet", value: 6 },
+      ],
+      questions: [
+        {
+          prompt: "Which magnet pulled from furthest away?",
+          options: ["Fridge magnet", "Bar magnet", "Horseshoe magnet"],
+          correctIndex: answerIndex,
+          explanation: "The horseshoe magnet pulled from 6 cm.",
+          check: "highest",
+        },
+        {
+          prompt: "How much further did the bar magnet pull than the fridge magnet?",
+          options: ["1 cm", "3 cm", "5 cm"],
+          correctIndex: 1,
+          explanation: "4 cm minus 1 cm is 3 cm.",
+          check: "none",
+        },
+      ],
+      facilitatorNote: "Ask how they read the bars.",
+    });
+    const { lesson, events, calls } = await run(
+      {
+        outline: [{ json: outline("none", "prediction", "data") }],
+        // First reply marks the wrong magnet as furthest, so it's sent back.
+        content: [
+          { json: content(prediction as Content["activity"], chart(1) as Content["practice"]) },
+          { json: content(prediction as Content["activity"], chart(2) as Content["practice"]) },
+        ],
+        quiz: [{ json: quiz() }],
+      },
+      { ageGroup: "11-12" },
+    );
+    expect(events).toContainEqual(
+      expect.objectContaining({ type: "retry", stage: "content", reason: expect.stringContaining('must be "Horseshoe magnet"') }),
+    );
+    expect(lesson.sections[5]).toMatchObject({
+      type: "data",
+      chart: "bar",
+      rows: [{ label: "Fridge magnet", value: 1 }, {}, {}],
+      questions: [{ id: "dq-1", correctOptionId: "c" }, { id: "dq-2", correctOptionId: "b" }],
+    });
+    expect(JSON.stringify(calls.find((c) => c.stage === "outline"))).toContain('\\"data\\" if the topic involves measurements');
+
+    // Ages 8-10 don't read charts: the same outline sorts instead, and the prompt doesn't offer charts.
+    const young = await run({ outline: [{ json: outline("none", "prediction", "data") }], content: [{ json: content() }], quiz: [{ json: quiz() }] });
+    expect(young.lesson.sections[5].type).toBe("sorting");
+    expect(JSON.stringify(young.calls.find((c) => c.stage === "outline"))).not.toContain('\\"data\\" if the topic');
   });
 
   it("prefers labelling a diagram over a sequence when a diagram fits", async () => {
@@ -419,9 +562,10 @@ describe("generateLesson", () => {
   });
 
   it("cites reference excerpts and lists only the excerpts the lesson uses", async () => {
-    const reference = ["Magnets attract iron, nickel and cobalt.", "Every magnet has a north and a south pole. ".repeat(20)].join(
-      "\n\n",
-    );
+    const reference = [
+      "Magnets attract iron, nickel and cobalt.",
+      "Every magnet has a north and a south pole. ".repeat(20),
+    ].join("\n\n");
     const cites = (ids: string[]) => ({ sourceIds: ids });
     const cited = content();
     cited.explain1 = { ...cited.explain1, ...cites(["ref-1"]) };
@@ -435,7 +579,11 @@ describe("generateLesson", () => {
 
     expect(lesson.contentOrigin).toBe("reference");
     expect(lesson.sources).toEqual([
-      expect.objectContaining({ id: "ref-1", title: "Your reference material, part 1", excerpt: expect.stringContaining("nickel") }),
+      expect.objectContaining({
+        id: "ref-1",
+        title: "Your reference material, part 1",
+        excerpt: expect.stringContaining("nickel"),
+      }),
     ]);
     expect(lesson.sources[0].url).toBeUndefined();
     expect(lesson.sections[2].sourceIds).toEqual(["ref-1"]);
@@ -456,20 +604,30 @@ describe("generateLesson", () => {
       { outline: [{ json: outline() }], content: [{ json: uncited }, { json: cited }], quiz: [{ json: citedQuiz }] },
       { referenceText: "Magnets attract iron." },
     );
-    expect(events).toContainEqual(expect.objectContaining({ type: "retry", stage: "content", reason: expect.stringContaining("sourceIds") }));
+    expect(events).toContainEqual(
+      expect.objectContaining({ type: "retry", stage: "content", reason: expect.stringContaining("sourceIds") }),
+    );
   });
 
   it("builds web-researched lessons from the search tool's citations only", async () => {
     const citations = [
       { url: "https://example.org/magnets", title: "Magnets for kids", citedText: "Magnets attract iron and steel." },
-      { url: "https://example.edu/poles", title: "Magnetic poles", citedText: "Opposite poles attract; like poles repel." },
+      {
+        url: "https://example.edu/poles",
+        title: "Magnetic poles",
+        citedText: "Opposite poles attract; like poles repel.",
+      },
     ];
     const cited = content();
     cited.explain1 = { ...cited.explain1, sourceIds: ["web-1"] } as Content["explain1"];
     cited.explain2 = { ...cited.explain2, sourceIds: ["web-2"] } as Content["explain2"];
     const citedQuiz = { questions: quiz().questions.map((q, i) => ({ ...q, sourceIds: [i % 2 ? "web-2" : "web-1"] })) };
 
-    const { client } = fakeClient({ outline: [{ json: outline() }], content: [{ json: cited }], quiz: [{ json: citedQuiz }] });
+    const { client } = fakeClient({
+      outline: [{ json: outline() }],
+      content: [{ json: cited }],
+      quiz: [{ json: citedQuiz }],
+    });
     const events: GenerationEvent[] = [];
     const lesson = await generateLesson({
       input: { ...input, research: true },
@@ -491,7 +649,10 @@ describe("generateLesson", () => {
     const events: GenerationEvent[] = [];
     const lesson = await generateLesson({
       input: { ...input, research: true },
-      client: { ...client, research: async () => ({ citations: [{ url: "https://example.org", title: null, citedText: "One fact." }] }) },
+      client: {
+        ...client,
+        research: async () => ({ citations: [{ url: "https://example.org", title: null, citedText: "One fact." }] }),
+      },
       emit: (e) => events.push(e),
       id: "lesson-none",
     });
@@ -524,7 +685,9 @@ describe("generateLesson", () => {
 
   it("asks for a shorter reply when the output was cut off", async () => {
     const { events } = await run({ ...happy(), quiz: [{ stopReason: "max_tokens", text: "{" }, { json: quiz() }] });
-    expect(events).toContainEqual(expect.objectContaining({ type: "retry", stage: "quiz", reason: expect.stringContaining("cut off") }));
+    expect(events).toContainEqual(
+      expect.objectContaining({ type: "retry", stage: "quiz", reason: expect.stringContaining("cut off") }),
+    );
   });
 
   it("gives up after a failed repair", async () => {

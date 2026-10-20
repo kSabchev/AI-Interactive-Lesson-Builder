@@ -42,7 +42,7 @@ export function LessonCard({
       <dl className="mt-4 flex flex-wrap gap-x-4 gap-y-1 text-sm font-semibold text-muted">
         <div>
           <dt className="sr-only">{t.card.ageGroup}</dt>
-          <dd>{t.common.ages(lesson.ageGroup.replace("-", "–"))}</dd>
+          <dd>{t.common.ageGroups[lesson.ageGroup]}</dd>
         </div>
         <div>
           <dt className="sr-only">{t.card.duration}</dt>

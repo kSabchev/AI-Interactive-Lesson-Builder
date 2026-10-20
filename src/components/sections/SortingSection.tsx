@@ -96,12 +96,7 @@ export function SortingSection({
         </ul>
       )}
 
-      <div
-        className={cn(
-          "grid gap-4",
-          section.categories.length === 3 ? "md:grid-cols-3" : "md:grid-cols-2",
-        )}
-      >
+      <div className={cn("grid gap-4", section.categories.length === 3 ? "md:grid-cols-3" : "md:grid-cols-2")}>
         {section.categories.map((category) => {
           const items = section.items.filter((i) => placements[i.id] === category.id);
           return (

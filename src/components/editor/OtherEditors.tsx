@@ -34,7 +34,7 @@ export function DetailsEditor({
       />
       <dl className="grid grid-cols-2 gap-3 rounded-2xl bg-paper/60 p-4 text-sm sm:grid-cols-3">
         {[
-          [d.ageGroup, t.common.ages(lesson.ageGroup.replace("-", "–"))],
+          [d.ageGroup, t.common.ageGroups[lesson.ageGroup]],
           [d.duration, t.common.minutesLong(lesson.durationMinutes)],
           [d.language, t.language.names[lesson.language]],
           [d.template, d.templateName],

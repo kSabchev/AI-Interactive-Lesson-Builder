@@ -173,6 +173,39 @@ describe("lessonSchema", () => {
     expect(issuesFor(withStatements([true, true, true]))).toContain("Include at least one myth and one fact");
   });
 
+  it("accepts a read-the-data section, and rejects repeated row labels or an answer that isn't an option", () => {
+    const withData = (rows: { label: string; value: number }[], correctOptionId = "a") => {
+      const lesson = clone();
+      const index = lesson.sections.findIndex((s) => s.type === "sorting");
+      lesson.sections[index] = {
+        id: lesson.sections[index].id,
+        type: "data",
+        title: "Read the data",
+        instructions: "Look at the chart.",
+        chart: "bar",
+        caption: "Rain in one week",
+        xLabel: "Day",
+        yLabel: "Rain (mm)",
+        rows,
+        questions: [
+          {
+            id: "dq-1",
+            prompt: "Which day was wettest?",
+            options: [{ id: "a", text: "Monday" }, { id: "b", text: "Tuesday" }],
+            correctOptionId,
+            explanation: "Monday had 12 mm.",
+          },
+        ],
+      };
+      return issuesFor(lesson);
+    };
+    expect(withData([{ label: "Monday", value: 12 }, { label: "Tuesday", value: 3 }])).toEqual([]);
+    expect(withData([{ label: "Monday", value: 12 }, { label: "monday ", value: 3 }])).toContain("Two rows have the same label");
+    expect(withData([{ label: "Monday", value: 12 }, { label: "Tuesday", value: 3 }], "z")).toContain(
+      "Correct answer must be one of the options",
+    );
+  });
+
   it("rejects source URLs that are not valid URLs", () => {
     const lesson = clone();
     lesson.sources![0].url = "not a url";

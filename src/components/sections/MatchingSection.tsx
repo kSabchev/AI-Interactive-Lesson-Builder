@@ -93,7 +93,12 @@ export function MatchingSection({
                   {isWrong && <span className="sr-only">{t.notQuitePrefix}</span>}
                   {pair.left}
                   {chosen && (
-                    <span className={cn("block text-base font-normal", selectedId === pair.id ? "text-white" : "text-muted")}>
+                    <span
+                      className={cn(
+                        "block text-base font-normal",
+                        selectedId === pair.id ? "text-white" : "text-muted",
+                      )}
+                    >
                       {t.matchedWith(pairsById.get(chosen)!.right)}
                     </span>
                   )}

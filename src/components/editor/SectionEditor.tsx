@@ -103,6 +103,8 @@ function TypeEditor({ section, onChange }: { section: LessonSection; onChange: (
       return <MythOrFactEditor section={section} onChange={onChange} />;
     case "discussion":
       return <DiscussionEditor section={section} onChange={onChange} />;
+    case "data":
+      return <DataEditor section={section} onChange={onChange} />;
     case "recap":
       return <RecapEditor section={section} onChange={onChange} />;
   }
@@ -616,7 +618,9 @@ function MythOrFactEditor({ section, onChange }: EditorProps<"myth-or-fact">) {
               label={s.statementText}
               value={statement.text}
               maxLength={SHORT_TEXT_MAX}
-              onChange={(text) => onChange({ ...section, statements: replaceAt(statements, i, { ...statement, text }) })}
+              onChange={(text) =>
+                onChange({ ...section, statements: replaceAt(statements, i, { ...statement, text }) })
+              }
             />
             <SelectField
               label={s.isIt}
@@ -679,6 +683,132 @@ function DiscussionEditor({ section, onChange }: EditorProps<"discussion">) {
         onChange={(v) => onChange({ ...section, listenFor: fromLines(v) })}
       />
     </EditorGroup>
+  );
+}
+
+function DataEditor({ section, onChange }: EditorProps<"data">) {
+  const s = useT().editor.section;
+  const rows = section.rows;
+  const questions = section.questions;
+  return (
+    <>
+      <EditorGroup title={s.data} description={s.dataDescription}>
+        <TextArea
+          label={s.instructions}
+          rows={2}
+          value={section.instructions}
+          maxLength={TEXT_MAX}
+          onChange={(instructions) => onChange({ ...section, instructions })}
+        />
+        <TextField
+          label={s.caption}
+          value={section.caption}
+          maxLength={SHORT_TEXT_MAX}
+          onChange={(caption) => onChange({ ...section, caption })}
+        />
+        <SelectField
+          label={s.chartKind}
+          value={section.chart}
+          options={[
+            { value: "bar", label: s.barChart },
+            { value: "line", label: s.lineChart },
+          ]}
+          onChange={(chart) => onChange({ ...section, chart })}
+        />
+        <div className="grid gap-3 sm:grid-cols-2">
+          <TextField
+            label={s.xLabel}
+            value={section.xLabel}
+            maxLength={SHORT_TEXT_MAX}
+            onChange={(xLabel) => onChange({ ...section, xLabel })}
+          />
+          <TextField
+            label={s.yLabel}
+            value={section.yLabel}
+            maxLength={SHORT_TEXT_MAX}
+            onChange={(yLabel) => onChange({ ...section, yLabel })}
+          />
+        </div>
+      </EditorGroup>
+
+      <EditorGroup title={s.rows}>
+        {rows.map((row, i) => (
+          <ListItemCard
+            key={i}
+            title={s.row(i + 1)}
+            onRemove={rows.length > 2 ? () => onChange({ ...section, rows: removeAt(rows, i) }) : undefined}
+          >
+            <div className="grid gap-3 sm:grid-cols-2">
+              <TextField
+                label={s.rowLabel}
+                value={row.label}
+                maxLength={SHORT_TEXT_MAX}
+                onChange={(label) => onChange({ ...section, rows: replaceAt(rows, i, { ...row, label }) })}
+              />
+              <TextField
+                label={s.rowValue}
+                value={String(row.value)}
+                onChange={(v) =>
+                  onChange({ ...section, rows: replaceAt(rows, i, { ...row, value: Number(v.replace(",", ".")) }) })
+                }
+              />
+            </div>
+          </ListItemCard>
+        ))}
+        <AddButton
+          disabled={rows.length >= 8}
+          onClick={() => onChange({ ...section, rows: [...rows, { label: "", value: 0 }] })}
+        >
+          {s.addRow}
+        </AddButton>
+      </EditorGroup>
+
+      {questions.map((question, i) => (
+        <EditorGroup key={question.id} title={s.dataQuestion(i + 1)}>
+          <TextArea
+            label={s.dataQuestionPrompt}
+            rows={2}
+            value={question.prompt}
+            maxLength={TEXT_MAX}
+            onChange={(prompt) => onChange({ ...section, questions: replaceAt(questions, i, { ...question, prompt }) })}
+          />
+          {question.options.map((option, j) => (
+            <TextField
+              key={option.id}
+              label={s.dataOption(j + 1)}
+              value={option.text}
+              maxLength={SHORT_TEXT_MAX}
+              onChange={(text) =>
+                onChange({
+                  ...section,
+                  questions: replaceAt(questions, i, {
+                    ...question,
+                    options: replaceAt(question.options, j, { ...option, text }),
+                  }),
+                })
+              }
+            />
+          ))}
+          <SelectField
+            label={s.correctOption}
+            value={question.correctOptionId}
+            options={question.options.map((o, j) => ({ value: o.id, label: o.text || s.dataOption(j + 1) }))}
+            onChange={(correctOptionId) =>
+              onChange({ ...section, questions: replaceAt(questions, i, { ...question, correctOptionId }) })
+            }
+          />
+          <TextArea
+            label={s.dataExplanation}
+            rows={2}
+            value={question.explanation}
+            maxLength={TEXT_MAX}
+            onChange={(explanation) =>
+              onChange({ ...section, questions: replaceAt(questions, i, { ...question, explanation }) })
+            }
+          />
+        </EditorGroup>
+      ))}
+    </>
   );
 }
 

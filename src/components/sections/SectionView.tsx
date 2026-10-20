@@ -2,6 +2,7 @@
 
 import type { LessonSection } from "@/lib/lesson/schema";
 import { DiagramLabelingSection, initialLabelingState, type LabelingState } from "./DiagramLabelingSection";
+import { DataSection, type DataState, initialDataState } from "./DataSection";
 import { DiscussionSection, type DiscussionState, initialDiscussionState } from "./DiscussionSection";
 import { ExperimentSection, type ExperimentState, initialExperimentState } from "./ExperimentSection";
 import { ExplanationSection } from "./ExplanationSection";
@@ -24,6 +25,7 @@ export type ActivityStates = Record<
   | ExperimentState
   | MythOrFactState
   | DiscussionState
+  | DataState
 >;
 
 export function SectionView({
@@ -89,6 +91,14 @@ export function SectionView({
         <MythOrFactSection
           section={section}
           state={(activityStates[section.id] as MythOrFactState) ?? initialMythOrFactState}
+          onChange={update}
+        />
+      );
+    case "data":
+      return (
+        <DataSection
+          section={section}
+          state={(activityStates[section.id] as DataState) ?? initialDataState}
           onChange={update}
         />
       );

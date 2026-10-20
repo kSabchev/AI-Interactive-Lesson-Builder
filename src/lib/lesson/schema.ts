@@ -10,7 +10,7 @@ const id = z.string().min(1).max(64);
 const shortText = z.string().trim().min(1).max(SHORT_TEXT_MAX);
 const text = z.string().trim().min(1).max(TEXT_MAX);
 
-export const AGE_GROUPS = ["8-10", "11-12"] as const;
+export const AGE_GROUPS = ["8-10", "11-12", "13-14"] as const;
 export const DURATIONS = [10, 15, 25] as const;
 export type Duration = (typeof DURATIONS)[number];
 const duration = z.union([z.literal(10), z.literal(15), z.literal(25)]);
@@ -194,6 +194,38 @@ export const discussionSectionSchema = z.object({
   listenFor: z.array(text).min(2).max(4),
 });
 
+/**
+ * "Read the data": a simple bar or line chart of example data (with its numbers as a table), and a few
+ * questions about it. The data is illustrative and always shown as an example, never as real measurements.
+ */
+export const dataSectionSchema = z.object({
+  ...sectionBase,
+  type: z.literal("data"),
+  instructions: text,
+  chart: z.enum(["bar", "line"]),
+  /** What the chart shows, e.g. "Height of a bean plant over 10 days". */
+  caption: shortText,
+  xLabel: shortText,
+  /** Includes the unit, e.g. "Height (cm)". */
+  yLabel: shortText,
+  rows: z
+    .array(z.object({ label: shortText, value: z.number().finite().min(-1_000_000).max(1_000_000) }))
+    .min(2)
+    .max(8),
+  questions: z
+    .array(
+      z.object({
+        id,
+        prompt: text,
+        options: z.array(optionSchema).min(2).max(4),
+        correctOptionId: id,
+        explanation: text,
+      }),
+    )
+    .min(1)
+    .max(3),
+});
+
 export const recapSectionSchema = z.object({
   ...sectionBase,
   type: z.literal("recap"),
@@ -211,6 +243,7 @@ export const lessonSectionSchema = z.discriminatedUnion("type", [
   experimentSectionSchema,
   mythOrFactSectionSchema,
   discussionSectionSchema,
+  dataSectionSchema,
   recapSectionSchema,
 ]);
 
@@ -320,6 +353,17 @@ export const lessonSchema = z
         if (section.statements.every((st) => st.isFact) || section.statements.every((st) => !st.isFact)) {
           issue(["sections", i, "statements"], "Include at least one myth and one fact");
         }
+      }
+
+      if (section.type === "data") {
+        findDuplicates(section.rows.map((row) => row.label.trim().toLowerCase())).forEach(() =>
+          issue(["sections", i, "rows"], "Two rows have the same label"),
+        );
+        section.questions.forEach((question, j) => {
+          if (!question.options.some((o) => o.id === question.correctOptionId)) {
+            issue(["sections", i, "questions", j, "correctOptionId"], "Correct answer must be one of the options");
+          }
+        });
       }
 
       if (section.type === "sorting") {
